@@ -777,8 +777,17 @@ const Salaries = () => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
       const newOrders = { ...r.platformOrders, [platform]: value };
-      const newSalaries = { ...r.platformSalaries, [platform]: value * 5 };
-      return { ...r, platformOrders: newOrders, platformSalaries: newSalaries };
+      // Recalculate salary using proper scheme
+      const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
+      let salary = 0;
+      if (scheme && scheme.salary_scheme_tiers) {
+        salary = calcSalaryFromTiers(value, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
+      } else {
+        salary = value * 5;
+      }
+      const newSalaries = { ...r.platformSalaries, [platform]: salary };
+      const isDirty = r.status !== 'pending' ? true : r.isDirty;
+      return { ...r, platformOrders: newOrders, platformSalaries: newSalaries, isDirty };
     }));
   };
 
