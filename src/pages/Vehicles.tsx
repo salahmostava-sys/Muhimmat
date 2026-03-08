@@ -480,27 +480,32 @@ const Vehicles = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Bike size={24} /> المركبات
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{vehicles.length} مركبة مسجلة</p>
-        </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download size={15} /> تحميل تقرير ▾</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportVehicles}>📊 تصدير Excel (مع حالة الانتهاء)</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportAssignments}>📋 سجل التسليم Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button className="gap-2" onClick={() => { setEditVehicle(null); setVehicleFormOpen(true); }}>
-            <Plus size={16} /> إضافة مركبة
-          </Button>
+      {/* Page header breadcrumb */}
+      <div className="page-header">
+        <nav className="page-breadcrumb">
+          <span>الرئيسية</span>
+          <span className="page-breadcrumb-sep">/</span>
+          <span>المركبات</span>
+        </nav>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2"><Bike size={20} /> المركبات</h1>
+            <p className="page-subtitle">{vehicles.length} مركبة مسجلة</p>
+          </div>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2"><Download size={15} /> تحميل تقرير ▾</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportVehicles}>📊 تصدير Excel (مع حالة الانتهاء)</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportAssignments}>📋 سجل التسليم Excel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button className="gap-2" onClick={() => { setEditVehicle(null); setVehicleFormOpen(true); }}>
+              <Plus size={16} /> إضافة مركبة
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -536,28 +541,28 @@ const Vehicles = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+          <div className="ta-table-wrap shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">رقم اللوحة</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">النوع</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">الماركة / الموديل</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التأمين</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التسجيل</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التفويض</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">حالة التفويض</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">الحالة</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">إجراءات</th>
+                <thead className="ta-thead">
+                  <tr>
+                    <th className="ta-th">رقم اللوحة</th>
+                    <th className="ta-th">النوع</th>
+                    <th className="ta-th">الماركة / الموديل</th>
+                    <th className="ta-th-center">التأمين</th>
+                    <th className="ta-th-center">التسجيل</th>
+                    <th className="ta-th-center">التفويض</th>
+                    <th className="ta-th-center">حالة التفويض</th>
+                    <th className="ta-th-center">الحالة</th>
+                    <th className="ta-th-center">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/30">
+                      <tr key={i} className="ta-tr">
                         {Array.from({ length: 9 }).map((_, j) => (
-                          <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                          <td key={j} className="ta-td"><div className="h-4 bg-muted rounded animate-pulse" /></td>
                         ))}
                       </tr>
                     ))
@@ -570,18 +575,18 @@ const Vehicles = () => {
                       const insDays = getDaysLeft(v.insurance_expiry);
                       const regDays = getDaysLeft(v.registration_expiry);
                       return (
-                        <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20">
-                          <td className="p-4 text-sm font-mono font-semibold text-foreground">{v.plate_number}</td>
-                          <td className="p-4 text-sm text-muted-foreground">{typeLabels[v.type]}</td>
-                          <td className="p-4 text-sm text-muted-foreground">{[v.brand, v.model, v.year].filter(Boolean).join(' ')}</td>
-                          <td className={`p-4 text-center text-sm ${daysStyle(insDays)}`}>{daysLabel(insDays)}</td>
-                          <td className={`p-4 text-center text-sm ${daysStyle(regDays)}`}>{daysLabel(regDays)}</td>
-                          <td className="p-4 text-center text-sm text-muted-foreground">
+                        <tr key={v.id} className="ta-tr">
+                          <td className="ta-td font-mono font-semibold">{v.plate_number}</td>
+                          <td className="ta-td text-muted-foreground">{typeLabels[v.type]}</td>
+                          <td className="ta-td text-muted-foreground">{[v.brand, v.model, v.year].filter(Boolean).join(' ')}</td>
+                          <td className={`ta-td-center ${daysStyle(insDays)}`}>{daysLabel(insDays)}</td>
+                          <td className={`ta-td-center ${daysStyle(regDays)}`}>{daysLabel(regDays)}</td>
+                          <td className="ta-td-center text-muted-foreground">
                             {v.authorization_expiry ? format(parseISO(v.authorization_expiry), 'yyyy-MM-dd') : '—'}
                           </td>
-                          <td className="p-4 text-center">{authBadge(v.authorization_expiry) ?? <span className="text-muted-foreground text-xs">—</span>}</td>
-                          <td className="p-4 text-center"><span className={statusStyles[v.status]}>{statusLabels[v.status]}</span></td>
-                          <td className="p-4 text-center">
+                          <td className="ta-td-center">{authBadge(v.authorization_expiry) ?? <span className="text-muted-foreground text-xs">—</span>}</td>
+                          <td className="ta-td-center"><span className={statusStyles[v.status]}>{statusLabels[v.status]}</span></td>
+                          <td className="ta-td-center">
                             <div className="flex gap-1 justify-center">
                               <Button size="sm" variant="ghost" className="text-xs gap-1"
                                 onClick={() => { setEditVehicle(v); setVehicleFormOpen(true); }}>
@@ -605,7 +610,7 @@ const Vehicles = () => {
         {/* ── Tab 2: Tracking Log ── */}
         <TabsContent value="tracking">
           {/* Info banner */}
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4 text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+          <div className="bg-accent/30 border border-info/20 rounded-xl p-3 mb-4 text-sm text-info flex items-start gap-2">
             <span>💡</span>
             <span>يمكنك معرفة من كان يقود المركبة وقت أي مخالفة من خلال هذا السجل</span>
           </div>
@@ -631,27 +636,27 @@ const Vehicles = () => {
             </Button>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+          <div className="ta-table-wrap shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">رقم اللوحة</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">المندوب</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">تاريخ ووقت الاستلام</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">تاريخ ووقت الإعادة</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">المدة</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">الحالة</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">ملاحظة</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">إجراء</th>
+                <thead className="ta-thead">
+                  <tr>
+                    <th className="ta-th">رقم اللوحة</th>
+                    <th className="ta-th">المندوب</th>
+                    <th className="ta-th-center">تاريخ ووقت الاستلام</th>
+                    <th className="ta-th-center">تاريخ ووقت الإعادة</th>
+                    <th className="ta-th-center">المدة</th>
+                    <th className="ta-th-center">الحالة</th>
+                    <th className="ta-th">ملاحظة</th>
+                    <th className="ta-th-center">إجراء</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/30">
+                      <tr key={i} className="ta-tr">
                         {Array.from({ length: 8 }).map((_, j) => (
-                          <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                          <td key={j} className="ta-td"><div className="h-4 bg-muted rounded animate-pulse" /></td>
                         ))}
                       </tr>
                     ))
@@ -669,19 +674,19 @@ const Vehicles = () => {
                         ? format(new Date(a.returned_at), 'yyyy-MM-dd HH:mm')
                         : '—';
                       return (
-                        <tr key={a.id} className="border-b border-border/30 hover:bg-muted/20">
-                          <td className="p-4 text-sm font-mono font-semibold text-foreground">{a.vehicles?.plate_number || '—'}</td>
-                          <td className="p-4 text-sm text-foreground">{a.employees?.name || '—'}</td>
-                          <td className="p-4 text-center text-sm text-muted-foreground">{startDisplay}</td>
-                          <td className="p-4 text-center text-sm text-muted-foreground">{returnDisplay}</td>
-                          <td className="p-4 text-center text-sm text-muted-foreground">{calcDuration(a.start_at, a.returned_at)}</td>
-                          <td className="p-4 text-center">
+                        <tr key={a.id} className="ta-tr">
+                          <td className="ta-td font-mono font-semibold">{a.vehicles?.plate_number || '—'}</td>
+                          <td className="ta-td">{a.employees?.name || '—'}</td>
+                          <td className="ta-td-center text-muted-foreground">{startDisplay}</td>
+                          <td className="ta-td-center text-muted-foreground">{returnDisplay}</td>
+                          <td className="ta-td-center text-muted-foreground">{calcDuration(a.start_at, a.returned_at)}</td>
+                          <td className="ta-td-center">
                             {isActive
                               ? <span className="badge-warning">خارجة الآن</span>
                               : <span className="badge-success">مُسلَّمة</span>}
                           </td>
-                          <td className="p-4 text-sm text-muted-foreground max-w-[150px] truncate">{a.notes || '—'}</td>
-                          <td className="p-4 text-center">
+                          <td className="ta-td text-muted-foreground max-w-[150px] truncate">{a.notes || '—'}</td>
+                          <td className="ta-td-center">
                             {isActive && (
                               <Button size="sm" variant="outline" className="text-xs"
                                 onClick={() => setReturnModal({ open: true, assignment: a })}>
