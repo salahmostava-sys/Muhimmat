@@ -21,8 +21,7 @@ const monthLabel = (y: number, m: number) =>
 const dateStr = (y: number, m: number, d: number) =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-// Module-level fallback — each component uses useAppColors() for DB-driven colors
-const appColor = (_name: string) => ({ bg: 'hsl(var(--primary))', text: '#fff', cellBg: 'rgba(0,0,0,0.03)', val: 'hsl(var(--primary))' });
+// appColor resolved dynamically from DB via useAppColors hook passed as prop
 
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {

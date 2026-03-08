@@ -36,7 +36,6 @@ interface Props {
 }
 
 const STEPS = ['البيانات الأساسية', 'الإقامة والوثائق', 'نوع الراتب', 'رفع المستندات'];
-const APPS = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا', 'تويو', 'أمازون'];
 
 const SectionTitle = ({ title }: { title: string }) => (
   <div className="flex items-center gap-3 mb-5">
