@@ -74,19 +74,19 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
           muted: "hsl(var(--sidebar-muted))",
         },
-        // TailAdmin brand palette
+        // TailAdmin v2.2 brand palette — True Blue #465FFF
         brand: {
-          25:  '#F5F8FF',
-          50:  '#EEF4FF',
-          100: '#E0EAFF',
-          200: '#C7D7FD',
-          300: '#A4BCFD',
-          400: '#8098F9',
-          500: '#6172F3',
-          600: '#444CE7',
-          700: '#3538CD',
-          800: '#2D31A6',
-          900: '#2D3282',
+          25:  '#F5F7FF',
+          50:  '#ECF0FF',
+          100: '#D8E0FF',
+          200: '#B0C0FF',
+          300: '#849DFF',
+          400: '#617BFF',
+          500: '#465FFF',   /* primary */
+          600: '#3347D9',
+          700: '#2433B3',
+          800: '#172290',
+          900: '#0E1575',
         },
       },
       borderRadius: {
