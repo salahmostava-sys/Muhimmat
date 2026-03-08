@@ -423,7 +423,6 @@ const Employees = () => {
                 <Th field="national_id" label={t('nationalId')} />
                 <Th field="phone" label={t('phone')} />
                 <Th field="job_title" label={t('jobTitle')} />
-                <Th field="email" label={t('email')} />
                 <Th field="city" label={t('city')} />
                 <Th field="join_date" label={t('joinDate')} />
                 <Th field="residency_expiry" label={t('residencyExpiry')} />
@@ -435,6 +434,7 @@ const Employees = () => {
                 <Th label={t('documents')} sortable={false} />
                 <Th field="status" label={t('status')} />
                 <Th label={t('actions')} sortable={false} />
+                <Th field="email" label={t('email')} />
               </tr>
             </thead>
             <tbody>
