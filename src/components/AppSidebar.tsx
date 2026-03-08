@@ -39,6 +39,7 @@ const AppSidebar = () => {
         { label: t('attendance'), icon: Clock, path: '/attendance' },
         { label: t('apps'), icon: Smartphone, path: '/apps' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
+        { label: 'التحليلات', icon: TrendingUp, path: '/analytics' },
       ],
     },
     {
