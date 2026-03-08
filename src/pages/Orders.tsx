@@ -24,6 +24,7 @@ const dateStr = (y: number, m: number, d: number) =>
 
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {
+  const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
