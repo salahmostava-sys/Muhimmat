@@ -185,6 +185,7 @@ const SkeletonRow = () => (
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Employees = () => {
   const { t } = useTranslation();
+  const { lang } = useLanguage();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
   const [data, setData] = useState<Employee[]>([]);
