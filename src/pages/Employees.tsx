@@ -603,6 +603,29 @@ const Employees = () => {
           }}
         />
       )}
+
+      <AlertDialog open={!!deleteEmployee} onOpenChange={open => !open && setDeleteEmployee(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete') || 'تأكيد الحذف'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteEmployeeConfirm') || 'هل أنت متأكد من حذف الموظف'} <span className="font-semibold text-foreground">{deleteEmployee?.name}</span>؟
+              {' '}{t('actionIrreversible') || 'لا يمكن التراجع عن هذا الإجراء.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('cancel') || 'إلغاء'}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              {t('delete') || 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
