@@ -217,7 +217,7 @@ const Alerts = () => {
   const infoCount = filtered.filter(a => a.severity === 'info').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Page header breadcrumb */}
       <div className="page-header">
         <nav className="page-breadcrumb">
