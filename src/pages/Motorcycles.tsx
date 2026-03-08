@@ -330,9 +330,22 @@ const Motorcycles = () => {
           <h1 className="page-title">بيانات الموتوسيكلات</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download size={15} /> تصدير Excel
-          </Button>
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {permissions.can_edit && (
+                <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                  <Upload size={14} className="ml-2" /> استيراد Excel
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {permissions.can_edit && (
             <Button className="gap-2" onClick={() => { setEditVehicle(null); setShowForm(true); }}>
               <Plus size={16} /> إضافة مركبة
