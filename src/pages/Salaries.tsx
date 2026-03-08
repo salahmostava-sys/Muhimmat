@@ -438,15 +438,26 @@ const Salaries = () => {
           .lte('date', endDate),
       ]);
 
+      // ── Fetch saved salary records for this month (to restore status) ──
+      const { data: savedRecords } = await supabase
+        .from('salary_records')
+        .select('employee_id, is_approved, advance_deduction, net_salary, manual_deduction, attendance_deduction, external_deduction')
+        .eq('month_year', selectedMonth);
+
+      const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
+      savedRecords?.forEach(r => {
+        savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
+      });
+
       // ── Fetch advance installments with their IDs ──
       const { data: advInstData } = await supabase
         .from('advance_installments')
-        .select('id, advance_id, amount')
-        .eq('month_year', selectedMonth)
-        .in('status', ['pending', 'deferred']);
+        .select('id, advance_id, amount, status')
+        .eq('month_year', selectedMonth);
 
       const advMap: Record<string, number> = {};
       const advInstIds: Record<string, string[]> = {};
+      const deductedInstIds: Record<string, string[]> = {};
       if (advInstData && advInstData.length > 0) {
         const advanceIds = [...new Set(advInstData.map(i => i.advance_id))];
         const { data: advancesData } = await supabase
@@ -460,9 +471,14 @@ const Salaries = () => {
         advInstData.forEach(inst => {
           const empId = advIdToEmpMap[inst.advance_id];
           if (empId) {
-            advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
-            if (!advInstIds[empId]) advInstIds[empId] = [];
-            advInstIds[empId].push(inst.id);
+            if (inst.status === 'pending' || inst.status === 'deferred') {
+              advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
+              if (!advInstIds[empId]) advInstIds[empId] = [];
+              advInstIds[empId].push(inst.id);
+            } else if (inst.status === 'deducted') {
+              if (!deductedInstIds[empId]) deductedInstIds[empId] = [];
+              deductedInstIds[empId].push(inst.id);
+            }
           }
         });
       }
@@ -510,6 +526,23 @@ const Salaries = () => {
           }
         });
 
+        const saved = savedMap[emp.id];
+        // If already paid (all deducted installments exist), mark as paid
+        let status: 'pending' | 'approved' | 'paid' = 'pending';
+        if (saved) {
+          if (deductedInstIds[emp.id]?.length > 0 || advInstIds[emp.id]?.length === 0) {
+            // check if it was saved as paid
+            const hasPendingInst = (advInstIds[emp.id] || []).length > 0;
+            if (!hasPendingInst && saved.is_approved) {
+              status = 'paid';
+            } else if (saved.is_approved) {
+              status = 'approved';
+            }
+          } else if (saved.is_approved) {
+            status = 'approved';
+          }
+        }
+
         const advDeduction = advMap[emp.id] || 0;
         const extDeduction = extMap[emp.id] || 0;
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
@@ -537,7 +570,7 @@ const Salaries = () => {
           advanceDeduction: advDeduction,
           advanceInstallmentIds: advInstIds[emp.id] || [],
           externalDeduction: extDeduction,
-          status: 'pending' as const,
+          status,
         };
       });
 
