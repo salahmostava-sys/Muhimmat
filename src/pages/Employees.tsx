@@ -374,19 +374,17 @@ const Employees = () => {
               <Plus size={16} /> {t('addEmployee')}
             </Button>
           )}
-          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
+          {permissions.can_edit && (
+            <Button variant="outline" onClick={() => setShowImportModal(true)} className="gap-2">
+              📥 {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2"><Download size={15} /> {t('downloadReport')} ▾</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>📊 {t('exportExcel')}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {permissions.can_edit && (
-                <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                  <Upload size={14} className="ml-2" /> {t('importExcel')}
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem onClick={handleTemplate}>📋 {t('downloadTemplate')}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => window.print()}>
