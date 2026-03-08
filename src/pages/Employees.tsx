@@ -453,6 +453,7 @@ const Employees = () => {
                 <Th field="phone" label={t('phone')} />
                 <Th field="job_title" label={t('jobTitle')} />
                 <Th field="city" label={t('city')} />
+                <Th label="الجنسية" sortable={false} />
                 <Th field="join_date" label={t('joinDate')} />
                 <Th field="residency_expiry" label={t('residencyExpiry')} />
                 <Th field="days_residency" label={t('residencyDays')} />
