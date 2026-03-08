@@ -311,7 +311,7 @@ const Apps = () => {
                 className={`relative rounded-xl text-center transition-all cursor-pointer group overflow-hidden
                   ${!app.is_active ? 'opacity-60 cursor-not-allowed' : ''}
                   ${isSelected ? 'ring-4 shadow-xl scale-[1.02]' : 'hover:shadow-lg hover:scale-[1.01]'}`}
-                style={isSelected ? { ringColor: app.brand_color, outlineColor: app.brand_color, outline: `3px solid ${app.brand_color}` } : {}}
+                style={isSelected ? { outline: `3px solid ${app.brand_color}`, outlineOffset: '2px' } : {}}
               >
                 <div className="p-5 h-full" style={{ backgroundColor: app.brand_color }}>
                   {/* Action buttons */}
