@@ -956,6 +956,65 @@ const Salaries = () => {
     toast({ title: `✅ تم اعتماد ${pendingRows.length} راتب وحفظها` });
   };
 
+  // ── Batch ZIP export: capture each slip sequentially ─────────
+  useEffect(() => {
+    if (batchQueue.length === 0 || !batchZip) return;
+    if (batchIndex >= batchQueue.length) {
+      // All done — generate & download ZIP
+      const [y, m] = selectedMonth.split('-');
+      batchZip.generateAsync({ type: 'blob' }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `كشوف_رواتب_${m}_${y}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: `✅ تم تحميل ${batchQueue.length} كشف راتب في ملف ZIP` });
+        setBatchQueue([]);
+        setBatchIndex(0);
+        setBatchZip(null);
+      });
+      return;
+    }
+
+    // Wait a tick so React paints the hidden slip
+    const timer = setTimeout(async () => {
+      if (!batchSlipRef.current) return;
+      try {
+        const canvas = await html2canvas(batchSlipRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, Math.min(imgHeight, pdf.internal.pageSize.getHeight()));
+        const pdfBlob = pdf.output('blob');
+        const row = batchQueue[batchIndex];
+        const safeName = row.employeeName.replace(/\s+/g, '_');
+        const [y, m] = selectedMonth.split('-');
+        batchZip.file(`كشف_راتب_${safeName}_${m}_${y}.pdf`, pdfBlob);
+        setBatchIndex(i => i + 1);
+      } catch (e) {
+        setBatchIndex(i => i + 1); // skip on error
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [batchIndex, batchQueue, batchZip, selectedMonth]);
+
+  const startBatchZipExport = () => {
+    if (filtered.length === 0) { toast({ title: 'لا توجد بيانات للتصدير' }); return; }
+    const zip = new JSZip();
+    const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+    setBatchMonth(monthLabel);
+    setBatchZip(zip);
+    setBatchIndex(0);
+    setBatchQueue([...filtered]);
+    toast({ title: `⏳ جارٍ تجهيز ${filtered.length} كشف راتب...`, description: 'يرجى الانتظار حتى يكتمل التحميل' });
+  };
+
   const totalNet = filtered.reduce((s, r) => s + computeRow(r).netSalary, 0);
   const pendingCount = filtered.filter(r => r.status === 'pending').length;
   const approvedCount = filtered.filter(r => r.status === 'approved').length;
