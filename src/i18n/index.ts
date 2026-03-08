@@ -164,6 +164,20 @@ const resources = {
       finance_role: 'مالية',
       operations_role: 'عمليات',
       viewer: 'عارض',
+
+      // ─── Settings ────────────────────────────────────────────
+      generalSettings: 'إعدادات عامة',
+      projectName: 'اسم المشروع',
+      projectNameAr: 'اسم المشروع (عربي)',
+      projectNameEn: 'اسم المشروع (إنجليزي)',
+      projectSubtitle: 'العنوان الفرعي',
+      defaultLanguage: 'اللغة الافتراضية',
+      systemTheme: 'مظهر النظام',
+      uploadLogo: 'رفع شعار',
+      saveSettings: 'حفظ الإعدادات',
+      settingsSaved: 'تم حفظ الإعدادات',
+      lightTheme: '☀️ فاتح',
+      darkTheme: '🌙 داكن',
     },
   },
   en: {

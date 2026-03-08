@@ -69,6 +69,7 @@ const AppSidebar = () => {
         { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
         { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('permissions'), icon: Settings, path: '/settings/permissions' },
+        { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
       ],
     },
   ];
@@ -87,15 +88,20 @@ const AppSidebar = () => {
       {/* Logo */}
       <div className="p-5 border-b border-sidebar-border flex-shrink-0">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
-            🚀
-          </div>
+          {settings?.logo_url ? (
+            <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-xl object-cover" />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
+              🚀
+            </div>
+          )}
           <div>
-            <h1 className="text-sm font-bold text-sidebar-accent-foreground leading-tight">{t('appName')}</h1>
-            <p className="text-xs text-sidebar-muted">{t('appSubtitle')}</p>
+            <h1 className="text-sm font-bold text-sidebar-accent-foreground leading-tight">{projectName}</h1>
+            <p className="text-xs text-sidebar-muted">{projectSubtitle}</p>
           </div>
         </Link>
       </div>
+
 
       {/* Dashboard link */}
       <div className="px-3 pt-3">
