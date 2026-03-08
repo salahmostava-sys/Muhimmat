@@ -53,7 +53,8 @@ interface SalaryRow {
   foodDamage: number;
   transfer: number;
   advanceDeduction: number;
-  advanceInstallmentIds: string[]; // IDs of pending installments for this month
+  advanceInstallmentIds: string[];
+  advanceRemaining: number; // Total remaining balance of all active advances
   externalDeduction: number;
   status: 'pending' | 'approved' | 'paid';
 }
