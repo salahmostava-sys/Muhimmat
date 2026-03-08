@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Plus, Pencil, Trash2, Check, X, Pin, Loader2, Lock } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Check, X, Pin, Loader2, Lock, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,6 @@ type Scheme = {
   target_orders?: number;
   target_bonus?: number;
   tiers?: Tier[];
-  assignedCount?: number;
 };
 type Snapshot = { month_year: string };
 type AppItem = { id: string; name: string; scheme_id: string | null };
@@ -41,28 +40,36 @@ const SalarySchemes = () => {
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [tiers, setTiersMap] = useState<Record<string, Tier[]>>({});
   const [snapshots, setSnapshots] = useState<Record<string, Snapshot[]>>({});
+  const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [snapshotLoading, setSnapshotLoading] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
   const [name, setName] = useState('');
-  const [app, setApp] = useState('');
   const [formTiers, setFormTiers] = useState<Tier[]>([{ from: 1, to: 500, pricePerOrder: 5 }]);
   const [hasTarget, setHasTarget] = useState(false);
   const [targetOrders, setTargetOrders] = useState(700);
   const [targetBonus, setTargetBonusVal] = useState(400);
   const [saving, setSaving] = useState(false);
 
+  // Assign scheme to app modal
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignSchemeId, setAssignSchemeId] = useState('');
+  const [assignAppId, setAssignAppId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [{ data: sData }, { data: tData }, { data: snData }] = await Promise.all([
+    const [{ data: sData }, { data: tData }, { data: snData }, { data: aData }] = await Promise.all([
       supabase.from('salary_schemes').select('*').order('created_at', { ascending: false }),
       supabase.from('salary_scheme_tiers').select('*').order('tier_order'),
       supabase.from('scheme_month_snapshots').select('scheme_id, month_year'),
+      supabase.from('apps').select('id, name, scheme_id').eq('is_active', true).order('name'),
     ]);
 
     if (sData) setSchemes(sData as Scheme[]);
+    if (aData) setApps(aData as AppItem[]);
     if (tData) {
       const map: Record<string, Tier[]> = {};
       for (const t of tData as any[]) {
@@ -84,9 +91,12 @@ const SalarySchemes = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Get apps assigned to a scheme
+  const getAssignedApps = (schemeId: string) => apps.filter(a => a.scheme_id === schemeId);
+
   const openAdd = () => {
     setEditing(null);
-    setName(''); setApp('');
+    setName('');
     setFormTiers([{ from: 1, to: 500, pricePerOrder: 5 }]);
     setHasTarget(false); setTargetOrders(700); setTargetBonusVal(400);
     setShowModal(true);
@@ -94,12 +104,18 @@ const SalarySchemes = () => {
 
   const openEdit = (s: Scheme) => {
     setEditing(s);
-    setName(s.name); setApp(s.name_en || '');
+    setName(s.name);
     setFormTiers(tiers[s.id]?.length ? [...tiers[s.id]] : [{ from: 1, to: 500, pricePerOrder: 5 }]);
     setHasTarget(!!(s.target_bonus && s.target_orders));
     setTargetOrders(s.target_orders || 700);
     setTargetBonusVal(s.target_bonus || 400);
     setShowModal(true);
+  };
+
+  const openAssign = (schemeId: string) => {
+    setAssignSchemeId(schemeId);
+    setAssignAppId('');
+    setShowAssignModal(true);
   };
 
   const addTier = () => setFormTiers(prev => [...prev, { from: (prev[prev.length - 1]?.to || 0) + 1, to: (prev[prev.length - 1]?.to || 0) + 500, pricePerOrder: 6 }]);
@@ -113,15 +129,14 @@ const SalarySchemes = () => {
       let schemeId = editing?.id;
       if (editing) {
         await supabase.from('salary_schemes').update({
-          name, name_en: app || null,
+          name,
           target_orders: hasTarget ? targetOrders : null,
           target_bonus: hasTarget ? targetBonus : null,
         }).eq('id', editing.id);
-        // Delete old tiers
         await supabase.from('salary_scheme_tiers').delete().eq('scheme_id', editing.id);
       } else {
         const { data } = await supabase.from('salary_schemes').insert({
-          name, name_en: app || null,
+          name,
           target_orders: hasTarget ? targetOrders : null,
           target_bonus: hasTarget ? targetBonus : null,
         }).select('id').single();
@@ -147,6 +162,30 @@ const SalarySchemes = () => {
     setSaving(false);
   };
 
+  const handleAssign = async () => {
+    if (!assignAppId) { toast({ title: 'خطأ', description: 'اختر منصة أولاً', variant: 'destructive' }); return; }
+    setAssigning(true);
+    try {
+      const { error } = await supabase
+        .from('apps')
+        .update({ scheme_id: assignSchemeId })
+        .eq('id', assignAppId);
+      if (error) throw error;
+      toast({ title: '✅ تم الربط', description: `تم ربط السكيمة بالمنصة بنجاح` });
+      setShowAssignModal(false);
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setAssigning(false);
+  };
+
+  const handleUnassignApp = async (appId: string) => {
+    await supabase.from('apps').update({ scheme_id: null }).eq('id', appId);
+    toast({ title: 'تم إلغاء الربط' });
+    fetchAll();
+  };
+
   const handleArchive = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'archived' : 'active';
     await supabase.from('salary_schemes').update({ status: newStatus }).eq('id', id);
@@ -165,7 +204,6 @@ const SalarySchemes = () => {
       }, { onConflict: 'scheme_id,month_year' });
       if (error) throw error;
       toast({ title: '📌 تم التثبيت', description: `تم تثبيت السكيمة لشهر ${monthLabel(currentMonth)}` });
-      // Update local snapshots
       setSnapshots(prev => ({
         ...prev,
         [schemeId]: [
@@ -181,6 +219,9 @@ const SalarySchemes = () => {
 
   const isSnapped = (schemeId: string) => snapshots[schemeId]?.some(s => s.month_year === currentMonth);
 
+  // Apps available to assign (not yet assigned to any scheme, or assigned to this scheme)
+  const availableApps = (schemeId: string) => apps.filter(a => !a.scheme_id || a.scheme_id === schemeId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -188,7 +229,7 @@ const SalarySchemes = () => {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Settings size={24} /> إدارة السكيمات
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">شرائح الرواتب والمكافآت</p>
+          <p className="text-sm text-muted-foreground mt-1">شرائح الرواتب والمكافآت — السكيمة مرتبطة بالمنصة</p>
         </div>
         <Button className="gap-2" onClick={openAdd}><Plus size={16} /> إضافة سكيمة</Button>
       </div>
@@ -204,86 +245,104 @@ const SalarySchemes = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {schemes.map(s => (
-            <div key={s.id} className={`bg-card rounded-xl border shadow-sm p-5 ${s.status === 'active' ? 'border-border/50' : 'border-border/30 opacity-70'}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-foreground">{s.name}</h3>
-                  {s.name_en && <p className="text-xs text-muted-foreground">{s.name_en}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={s.status === 'active' ? 'badge-success' : 'badge-warning'}>{s.status === 'active' ? 'نشطة' : 'مؤرشفة'}</span>
-                  <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><Pencil size={14} /></button>
-                  <button onClick={() => handleArchive(s.id, s.status)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title={s.status === 'active' ? 'أرشفة' : 'تفعيل'}>
-                    {s.status === 'active' ? <Trash2 size={14} /> : <Check size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Tiers */}
-              <div className="space-y-1.5 mb-3">
-                <p className="text-xs font-medium text-muted-foreground">الشرائح:</p>
-                {(tiers[s.id] || []).map((t, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
-                    <span className="text-muted-foreground">من {t.from} إلى {t.to >= 9999 ? '∞' : t.to}</span>
-                    <span className="mr-auto font-semibold text-primary">{t.pricePerOrder} ر.س/طلب</span>
+          {schemes.map(s => {
+            const assignedApps = getAssignedApps(s.id);
+            return (
+              <div key={s.id} className={`bg-card rounded-xl border shadow-sm p-5 ${s.status === 'active' ? 'border-border/50' : 'border-border/30 opacity-70'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{s.name}</h3>
                   </div>
-                ))}
-              </div>
-
-              {s.target_bonus && s.target_orders && (
-                <div className="bg-success/10 rounded-lg px-3 py-2 text-sm mb-3">
-                  <span className="text-success font-medium">🎯 Target Bonus:</span> عند {s.target_orders} طلب → +{s.target_bonus} ر.س
+                  <div className="flex items-center gap-2">
+                    <span className={s.status === 'active' ? 'badge-success' : 'badge-warning'}>{s.status === 'active' ? 'نشطة' : 'مؤرشفة'}</span>
+                    <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><Pencil size={14} /></button>
+                    <button onClick={() => handleArchive(s.id, s.status)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title={s.status === 'active' ? 'أرشفة' : 'تفعيل'}>
+                      {s.status === 'active' ? <Trash2 size={14} /> : <Check size={14} />}
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              {/* Snapshot section */}
-              <div className="border-t border-border/30 pt-3 mt-2 flex items-center justify-between flex-wrap gap-2">
-                <div className="flex flex-wrap gap-1">
-                  {(snapshots[s.id] || []).sort((a, b) => a.month_year.localeCompare(b.month_year)).slice(-6).map(sn => (
-                    <span key={sn.month_year} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
-                      <Lock size={9} /> {monthLabel(sn.month_year)} ✓
-                    </span>
-                  ))}
-                  {(snapshots[s.id] || []).length === 0 && (
-                    <span className="text-xs text-muted-foreground">لا توجد لقطات شهرية</span>
+                {/* Assigned Apps */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">المنصات المرتبطة:</p>
+                    <button
+                      onClick={() => openAssign(s.id)}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Link2 size={11} /> ربط منصة
+                    </button>
+                  </div>
+                  {assignedApps.length === 0 ? (
+                    <p className="text-xs text-warning bg-warning/10 rounded-lg px-3 py-1.5">⚠️ لا توجد منصة مرتبطة — الرواتب ستكون صفر</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {assignedApps.map(a => (
+                        <span key={a.id} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2.5 py-1">
+                          {a.name}
+                          <button onClick={() => handleUnassignApp(a.id)} className="hover:text-destructive ml-0.5"><X size={10} /></button>
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant={isSnapped(s.id) ? 'secondary' : 'outline'}
-                  className="gap-1 h-7 text-xs"
-                  onClick={() => handleSnapshot(s.id)}
-                  disabled={snapshotLoading === s.id}
-                >
-                  {snapshotLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : <Pin size={12} />}
-                  {isSnapped(s.id) ? `مثبّت: ${monthLabel(currentMonth)} ✓` : `📌 تثبيت لـ${monthLabel(currentMonth)}`}
-                </Button>
+
+                {/* Tiers */}
+                <div className="space-y-1.5 mb-3">
+                  <p className="text-xs font-medium text-muted-foreground">الشرائح:</p>
+                  {(tiers[s.id] || []).map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
+                      <span className="text-muted-foreground">من {t.from} إلى {t.to >= 9999 ? '∞' : t.to}</span>
+                      <span className="mr-auto font-semibold text-primary">{t.pricePerOrder} ر.س/طلب</span>
+                    </div>
+                  ))}
+                </div>
+
+                {s.target_bonus && s.target_orders && (
+                  <div className="bg-success/10 rounded-lg px-3 py-2 text-sm mb-3">
+                    <span className="text-success font-medium">🎯 Target Bonus:</span> عند {s.target_orders} طلب → +{s.target_bonus} ر.س
+                  </div>
+                )}
+
+                {/* Snapshot section */}
+                <div className="border-t border-border/30 pt-3 mt-2 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {(snapshots[s.id] || []).sort((a, b) => a.month_year.localeCompare(b.month_year)).slice(-6).map(sn => (
+                      <span key={sn.month_year} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                        <Lock size={9} /> {monthLabel(sn.month_year)} ✓
+                      </span>
+                    ))}
+                    {(snapshots[s.id] || []).length === 0 && (
+                      <span className="text-xs text-muted-foreground">لا توجد لقطات شهرية</span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={isSnapped(s.id) ? 'secondary' : 'outline'}
+                    className="gap-1 h-7 text-xs"
+                    onClick={() => handleSnapshot(s.id)}
+                    disabled={snapshotLoading === s.id}
+                  >
+                    {snapshotLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : <Pin size={12} />}
+                    {isSnapped(s.id) ? `مثبّت: ${monthLabel(currentMonth)} ✓` : `📌 تثبيت لـ${monthLabel(currentMonth)}`}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Scheme Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'تعديل السكيمة' : 'إضافة سكيمة جديدة'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>اسم السكيمة *</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="سكيمة هنقر Q2 2025" />
-              </div>
-              <div className="space-y-2">
-                <Label>التطبيق / الاستخدام</Label>
-                <Select value={app} onValueChange={setApp}>
-                  <SelectTrigger><SelectValue placeholder="اختر التطبيق" /></SelectTrigger>
-                  <SelectContent>{appsList.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>اسم السكيمة *</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="سكيمة هنقر Q2 2025" />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -319,6 +378,38 @@ const SalarySchemes = () => {
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 size={14} className="animate-spin ml-1" />}
               {editing ? 'حفظ التعديلات' : 'إضافة السكيمة'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign App Modal */}
+      <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>ربط السكيمة بمنصة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">اختر المنصة التي ستستخدم هذه السكيمة لحساب رواتب جميع مناديبها</p>
+            <div className="space-y-2">
+              <Label>المنصة *</Label>
+              <Select value={assignAppId} onValueChange={setAssignAppId}>
+                <SelectTrigger><SelectValue placeholder="اختر المنصة" /></SelectTrigger>
+                <SelectContent>
+                  {availableApps(assignSchemeId).map(a => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} {a.scheme_id === assignSchemeId ? '(مرتبطة حالياً)' : a.scheme_id ? '(مرتبطة بسكيمة أخرى)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowAssignModal(false)}>إلغاء</Button>
+            <Button onClick={handleAssign} disabled={assigning || !assignAppId}>
+              {assigning && <Loader2 size={14} className="animate-spin ml-1" />}
+              ربط المنصة
             </Button>
           </DialogFooter>
         </DialogContent>
