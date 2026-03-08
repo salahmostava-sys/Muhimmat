@@ -211,16 +211,20 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           </span>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={markAllPresent} className="gap-2">
-            <UserCheck size={16} />
-            {lang === 'ar' ? 'تسجيل الكل حاضرين' : 'Mark All Present'}
-          </Button>
-          <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2">
-            <Save size={16} />
-            {saving
-              ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
-              : `${lang === 'ar' ? 'حفظ الحضور' : 'Save Attendance'} (${savedCount})`}
-          </Button>
+          {permissions.can_edit && (
+            <Button variant="outline" onClick={markAllPresent} className="gap-2">
+              <UserCheck size={16} />
+              {lang === 'ar' ? 'تسجيل الكل حاضرين' : 'Mark All Present'}
+            </Button>
+          )}
+          {permissions.can_edit && (
+            <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2">
+              <Save size={16} />
+              {saving
+                ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                : `${lang === 'ar' ? 'حفظ الحضور' : 'Save Attendance'} (${savedCount})`}
+            </Button>
+          )}
         </div>
       </div>
 

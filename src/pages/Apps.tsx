@@ -296,9 +296,11 @@ const Apps = () => {
             <h1 className="page-title flex items-center gap-2"><Smartphone size={20} /> التطبيقات</h1>
             <p className="page-subtitle">إدارة التطبيقات ومناديب كل تطبيق</p>
           </div>
+          {permissions.can_edit && (
           <Button onClick={() => setModalApp(null)} className="gap-2">
             <Plus size={16} /> إضافة تطبيق
           </Button>
+          )}
         </div>
       </div>
 
