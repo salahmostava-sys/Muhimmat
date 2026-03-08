@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe } from 'lucide-react';
+import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import JSZip from 'jszip';
 
 
 // Kept for legacy references — populated dynamically from DB at runtime
@@ -503,6 +504,13 @@ const Salaries = () => {
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
 
+  // ── Batch ZIP export state ────────────────────────────────────
+  const [batchQueue, setBatchQueue] = useState<SalaryRow[]>([]);
+  const [batchIndex, setBatchIndex] = useState(0);
+  const [batchZip, setBatchZip] = useState<JSZip | null>(null);
+  const [batchMonth, setBatchMonth] = useState('');
+  const batchSlipRef = useRef<HTMLDivElement>(null);
+
   // Sync platforms & colors from DB apps
   useEffect(() => {
     if (appColorsList.length === 0) return;
@@ -946,6 +954,65 @@ const Salaries = () => {
     const pendingIds = pendingRows.map(r => r.id);
     setRows(prev => prev.map(r => pendingIds.includes(r.id) ? { ...r, status: 'approved' as const } : r));
     toast({ title: `✅ تم اعتماد ${pendingRows.length} راتب وحفظها` });
+  };
+
+  // ── Batch ZIP export: capture each slip sequentially ─────────
+  useEffect(() => {
+    if (batchQueue.length === 0 || !batchZip) return;
+    if (batchIndex >= batchQueue.length) {
+      // All done — generate & download ZIP
+      const [y, m] = selectedMonth.split('-');
+      batchZip.generateAsync({ type: 'blob' }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `كشوف_رواتب_${m}_${y}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: `✅ تم تحميل ${batchQueue.length} كشف راتب في ملف ZIP` });
+        setBatchQueue([]);
+        setBatchIndex(0);
+        setBatchZip(null);
+      });
+      return;
+    }
+
+    // Wait a tick so React paints the hidden slip
+    const timer = setTimeout(async () => {
+      if (!batchSlipRef.current) return;
+      try {
+        const canvas = await html2canvas(batchSlipRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, Math.min(imgHeight, pdf.internal.pageSize.getHeight()));
+        const pdfBlob = pdf.output('blob');
+        const row = batchQueue[batchIndex];
+        const safeName = row.employeeName.replace(/\s+/g, '_');
+        const [y, m] = selectedMonth.split('-');
+        batchZip.file(`كشف_راتب_${safeName}_${m}_${y}.pdf`, pdfBlob);
+        setBatchIndex(i => i + 1);
+      } catch (e) {
+        setBatchIndex(i => i + 1); // skip on error
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [batchIndex, batchQueue, batchZip, selectedMonth]);
+
+  const startBatchZipExport = () => {
+    if (filtered.length === 0) { toast({ title: 'لا توجد بيانات للتصدير' }); return; }
+    const zip = new JSZip();
+    const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+    setBatchMonth(monthLabel);
+    setBatchZip(zip);
+    setBatchIndex(0);
+    setBatchQueue([...filtered]);
+    toast({ title: `⏳ جارٍ تجهيز ${filtered.length} كشف راتب...`, description: 'يرجى الانتظار حتى يكتمل التحميل' });
   };
 
   const totalNet = filtered.reduce((s, r) => s + computeRow(r).netSalary, 0);
@@ -1449,8 +1516,17 @@ const Salaries = () => {
           <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={exportExcel}>
             <Download size={13} /> تصدير Excel
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs text-primary border-primary/40 hover:bg-primary/10" onClick={downloadAllPDFs}>
-            <Download size={13} /> ⬇️ تحميل PDF كل مندوب
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 text-xs text-primary border-primary/40 hover:bg-primary/10"
+            onClick={startBatchZipExport}
+            disabled={batchQueue.length > 0}
+          >
+            <Archive size={13} />
+            {batchQueue.length > 0
+              ? `جارٍ التصدير ${batchIndex}/${batchQueue.length}...`
+              : 'تحميل ZIP كل الكشوف'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs text-primary border-primary/40 hover:bg-primary/10" onClick={exportMergedPDF}>
             <FileText size={13} /> PDF مدمج للكل
@@ -1460,6 +1536,25 @@ const Salaries = () => {
           </Button>
         </div>
       </div>
+
+      {/* Progress bar for batch ZIP export */}
+      {batchQueue.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-3">
+          <Archive size={14} className="text-primary flex-shrink-0 animate-pulse" />
+          <div className="flex-1">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-primary font-medium">جارٍ تجهيز كشوف الرواتب ({batchMonth})</span>
+              <span className="text-muted-foreground">{batchIndex} / {batchQueue.length}</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${(batchIndex / batchQueue.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cards view */}
       {viewMode === 'cards' && (
@@ -1825,6 +1920,79 @@ const Salaries = () => {
         />
       )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+
+      {/* Hidden off-screen renderer for batch ZIP export */}
+      {batchQueue.length > 0 && batchIndex < batchQueue.length && (() => {
+        const row = batchQueue[batchIndex];
+        const t = getSlipTranslations(row.preferredLanguage);
+        const meta = LANGUAGE_META[row.preferredLanguage];
+        const platformRows = row.registeredApps.map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
+        const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
+        const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
+        const allDeductions = [
+          { key: 'advance', label: t.advanceInstallment, val: row.advanceDeduction },
+          { key: 'external', label: t.externalDeductions, val: row.externalDeduction },
+          { key: 'violation', label: t.violations, val: row.violations },
+          { key: 'hunger', label: t.walletHunger, val: row.walletHunger },
+          { key: 'tuyo', label: t.walletTuyo, val: row.walletTuyo },
+          { key: 'jahiz', label: t.walletJahiz, val: row.walletJahiz },
+          { key: 'food', label: t.foodDamage, val: row.foodDamage },
+        ];
+        const deductionItems = allDeductions.filter(d => d.val > 0);
+        const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
+        const netSalary = Math.max(0, totalEarnings - totalDeductions);
+        const remaining = netSalary - row.transfer;
+        const monthLabel = batchMonth;
+        const fmt = (n: number) => `${n.toLocaleString()} ${t.currency}`;
+        return (
+          <div
+            ref={batchSlipRef}
+            dir={meta.dir}
+            style={{ position: 'fixed', left: '-9999px', top: 0, width: '600px', background: '#ffffff', padding: '16px', fontFamily: meta.fontFamily, zIndex: -1 }}
+          >
+            <div style={{ marginBottom: 12, borderBottom: '2px solid #465FFF', paddingBottom: 8 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#465FFF' }}>{t.title} — {row.employeeName}</div>
+              <div style={{ fontSize: 11, color: '#666' }}>{monthLabel} · {meta.flag} {meta.label}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, background: '#f8f8ff', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.month}: </span><strong>{monthLabel}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.city}: </span><strong>{row.city || '—'}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.nationalId}: </span><strong>{row.nationalId || '—'}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.paymentMethod}: </span><strong>{row.paymentMethod === 'bank' ? t.payBank : t.payCash}</strong></div>
+            </div>
+            <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ background: '#f0fdf4', padding: '6px 10px', fontWeight: 700, fontSize: 11, color: '#16a34a' }}>{t.sectionEarnings}</div>
+              {platformRows.map(({ app, orders, salary }) => (
+                <div key={app} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}>
+                  <div><div style={{ fontWeight: 600 }}>{app}</div><div style={{ fontSize: 10, color: '#888' }}>{orders} {t.orders}</div></div>
+                  <strong style={{ color: PLATFORM_COLORS[app]?.valueColor || '#465FFF' }}>{fmt(salary)}</strong>
+                </div>
+              ))}
+              {row.incentives > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{t.incentives}</span><strong style={{ color: '#16a34a' }}>+{fmt(row.incentives)}</strong></div>}
+              {row.sickAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{t.sickAllowance}</span><strong style={{ color: '#16a34a' }}>+{fmt(row.sickAllowance)}</strong></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#dcfce7', fontWeight: 700, fontSize: 13 }}><span style={{ color: '#16a34a' }}>{t.platformTotal}</span><span style={{ color: '#16a34a' }}>{fmt(totalEarnings)}</span></div>
+            </div>
+            {deductionItems.length > 0 && (
+              <div style={{ border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ background: '#fff1f2', padding: '6px 10px', fontWeight: 700, fontSize: 11, color: '#dc2626' }}>{t.sectionDeductions}</div>
+                {deductionItems.map(d => (
+                  <div key={d.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{d.label}</span><strong style={{ color: '#dc2626' }}>-{fmt(d.val)}</strong></div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#fee2e2', fontWeight: 700, fontSize: 13 }}><span style={{ color: '#dc2626' }}>{t.totalDeductions}</span><span style={{ color: '#dc2626' }}>-{fmt(totalDeductions)}</span></div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#465FFF', color: '#fff', borderRadius: 10, padding: '12px 16px', marginBottom: 10 }}>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>{t.netSalary}</span>
+              <span style={{ fontWeight: 900, fontSize: 22 }}>{fmt(netSalary)}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, fontSize: 11 }}>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.transfer}</div><strong>{fmt(row.transfer)}</strong></div>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.remaining}</div><strong>{fmt(remaining)}</strong></div>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.advanceBalance}</div><strong style={{ color: row.advanceRemaining > 0 ? '#dc2626' : undefined }}>{fmt(row.advanceRemaining)}</strong></div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
