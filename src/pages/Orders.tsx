@@ -288,7 +288,7 @@ const SpreadsheetGrid = () => {
                       // Multi-app columns: monthly total per app
                       <>
                         {visibleApps.map(app => {
-                          const c = appColor(app.name);
+                          const c = getAppColor(appColorsList, app.name);
                           const appMonthTotal = dayArr.reduce((s, d) => s + getVal(emp.id, app.id, d), 0);
                           return (
                             <td key={app.id} className="text-center px-2 py-2 font-semibold border-l border-border/30" style={{ backgroundColor: c.cellBg, color: c.val }}>
