@@ -403,11 +403,11 @@ const Employees = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="ta-table-wrap">
         <div className="overflow-x-scroll">
           <table className="w-full min-w-[1400px]">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
+            <thead className="ta-thead">
+              <tr>
                 <Th label={t('photo')} sortable={false} />
                 <Th field="name" label={t('name')} />
                 <Th field="national_id" label={t('nationalId')} />
