@@ -134,14 +134,10 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
 
     const dbStatusMap: Record<AttendanceStatus, 'present' | 'absent' | 'leave' | 'sick' | 'late'> = {
       present: 'present', absent: 'absent', leave: 'leave',
-      sick: 'sick', late: 'late', unpaid_leave: 'leave',
+      sick: 'sick', late: 'late',
     };
     for (const r of toSave) {
-      const noteText = [
-        r.note,
-        r.status === 'unpaid_leave' ? (lang === 'ar' ? 'إجازة بدون راتب' : 'Unpaid Leave') : '',
-        r.customStatus,
-      ].filter(Boolean).join(' | ') || null;
+      const noteText = [r.note, r.customStatus].filter(Boolean).join(' | ') || null;
       const payload = {
         employee_id: r.employeeId,
         date: dateStr,
