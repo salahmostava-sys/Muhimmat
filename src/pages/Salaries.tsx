@@ -1947,28 +1947,28 @@ const Salaries = () => {
                       const totalOrders = totals.platform[p] || 0;
                       const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
                       return (
-                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20`} style={{ color: pc?.valueColor }}>
-                          <div className="flex flex-col items-center leading-tight">
-                            <span>{totalOrders.toLocaleString()}</span>
-                            <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
-                          </div>
-                        </td>
-                      );
-                    })}
-                   <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
-                   <td className={`${tfClass} text-success`}>{totals.incentives.toLocaleString()}</td>
-                   <td className={`${tfClass} text-success`}>{totals.sickAllowance.toLocaleString()}</td>
-                   <td className={`${tfClass} text-success`}>{totals.totalAdditions.toLocaleString()}</td>
-                   <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive`}>{totals.advance.toLocaleString()}</td>
-                   <td className={`${tfClass} text-warning`}>—</td>
-                   <td className={`${tfClass} text-destructive`}>{totals.externalDed.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive`}>{totals.violations.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive`}>{totals.walletH.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive`}>{totals.walletT.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive border-l border-border/30`}>{totals.food.toLocaleString()}</td>
-                   <td className={`${tfClass} text-destructive border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
-                   <td className={`${tfClass} text-success text-base`}>{totals.net.toLocaleString()}</td>
+                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20 text-foreground`}>
+                           <div className="flex flex-col items-center leading-tight">
+                             <span>{totalOrders.toLocaleString()}</span>
+                             <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
+                           </div>
+                         </td>
+                       );
+                     })}
+                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
+                    <td className={tfClass}>—</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.walletH.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground`}>{totals.walletT.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.food.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
+                    <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
                    <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                    <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
                    <td className={tfClass} colSpan={6}></td>
