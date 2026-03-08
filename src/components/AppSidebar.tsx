@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, Map, ChevronDown, ChevronRight, Fuel, Settings2, X, TrendingUp, FileWarning,
+  Settings, ChevronDown, Fuel, Settings2, X, TrendingUp, FileWarning,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -55,9 +55,7 @@ const AppSidebar = () => {
       sectionLabel: t('operations'),
       items: [
         { label: t('orders'), icon: Package, path: '/orders' },
-        { label: t('vehicles'), icon: Bike, path: '/vehicles' },
-        { label: t('vehicleTracking'), icon: Map, path: '/vehicle-tracking' },
-        { label: 'بيانات الموتوسيكلات', icon: Bike, path: '/motorcycles' },
+        { label: 'بيانات المركبات', icon: Bike, path: '/motorcycles' },
         { label: 'تسليم العهد', icon: FileDown, path: '/vehicle-assignment' },
         { label: 'بيانات الاستهلاك', icon: Fuel, path: '/fuel' },
         { label: 'مُحقق المخالفات', icon: FileWarning, path: '/violation-resolver' },
