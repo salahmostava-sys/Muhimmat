@@ -414,6 +414,7 @@ const Salaries = () => {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
