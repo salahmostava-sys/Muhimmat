@@ -65,7 +65,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
       <main className={cn(
         'min-h-screen flex flex-col transition-all duration-300',
-        isRTL ? 'lg:mr-64' : 'lg:ml-64'
+        isRTL ? 'lg:mr-[260px]' : 'lg:ml-[260px]'
       )}>
         {/* ── TailAdmin v2.2 Header ──────────────────────────── */}
         <header className="h-[70px] bg-[hsl(var(--card))] border-b border-border flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
