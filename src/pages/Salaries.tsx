@@ -39,6 +39,8 @@ interface SalaryRow {
   nationalId: string;
   city: string;
   bankAccount: string;
+  hasIban: boolean;
+  paymentMethod: 'bank' | 'cash';
   registeredApps: string[];
   platformOrders: Record<string, number>;
   platformSalaries: Record<string, number>;
@@ -203,9 +205,9 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
               <p className="font-bold">{remaining.toLocaleString()} ر.س</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground">طريقة الصرف</p>
-              <p className="font-bold">{row.bankAccount ? '🏦 بنكي' : '💵 كاش'}</p>
-            </div>
+                <p className="text-xs text-muted-foreground">طريقة الصرف</p>
+                <p className="font-bold">{row.paymentMethod === 'bank' ? '🏦 بنك' : '💵 ماش'}</p>
+              </div>
           </div>
         </div>
         <div className="flex gap-2 justify-between pt-2">
@@ -529,26 +531,28 @@ const Salaries = () => {
         savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
       });
 
-      // ── Fetch advance installments with their IDs ──
-      const { data: advInstData } = await supabase
-        .from('advance_installments')
-        .select('id, advance_id, amount, status')
-        .eq('month_year', selectedMonth);
+      // ── Fetch advance installments via advances → employee_id ──
+      // Step 1: get all active/paused advances
+      const { data: allAdvances } = await supabase
+        .from('advances')
+        .select('id, employee_id, status')
+        .in('status', ['active', 'paused']);
 
       const advMap: Record<string, number> = {};
       const advInstIds: Record<string, string[]> = {};
       const deductedInstIds: Record<string, string[]> = {};
-      if (advInstData && advInstData.length > 0) {
-        const advanceIds = [...new Set(advInstData.map(i => i.advance_id))];
-        const { data: advancesData } = await supabase
-          .from('advances')
-          .select('id, employee_id')
-          .in('id', advanceIds);
 
+      if (allAdvances && allAdvances.length > 0) {
         const advIdToEmpMap: Record<string, string> = {};
-        advancesData?.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
+        allAdvances.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
 
-        advInstData.forEach(inst => {
+        const { data: advInstData } = await supabase
+          .from('advance_installments')
+          .select('id, advance_id, amount, status')
+          .eq('month_year', selectedMonth)
+          .in('advance_id', allAdvances.map(a => a.id));
+
+        advInstData?.forEach(inst => {
           const empId = advIdToEmpMap[inst.advance_id];
           if (empId) {
             if (inst.status === 'pending' || inst.status === 'deferred') {
@@ -643,6 +647,7 @@ const Salaries = () => {
         const extDeduction = extMap[emp.id] || 0;
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
         const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
+        const hasIban = !!emp.iban;
 
         return {
           id: `${emp.id}-${selectedMonth}`,
@@ -652,6 +657,8 @@ const Salaries = () => {
           nationalId: emp.national_id || '—',
           city: cityLabel,
           bankAccount,
+          hasIban,
+          paymentMethod: hasIban ? 'bank' as const : 'cash' as const,
           registeredApps,
           platformOrders,
           platformSalaries,
@@ -1292,9 +1299,14 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
                       <td className={tdClass}>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${r.bankAccount ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {r.bankAccount ? '🏦 بنكي' : '💵 كاش'}
-                        </span>
+                        <select
+                          value={r.paymentMethod}
+                          onChange={e => updateRow(r.id, { paymentMethod: e.target.value as 'bank' | 'cash' })}
+                          className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.paymentMethod === 'bank' ? 'text-primary' : 'text-muted-foreground'}`}
+                        >
+                          <option value="bank">🏦 بنك</option>
+                          <option value="cash">💵 ماش</option>
+                        </select>
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${r.city === 'مكة' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
