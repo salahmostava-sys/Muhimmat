@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 
 const AppSidebar = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const { user } = useAuth();
+  const { isRTL } = useLanguage();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     hr: true, finance: false, operations: false, settings: false,
   });
@@ -74,7 +76,10 @@ const AppSidebar = () => {
   }
 
   return (
-    <aside className="fixed top-0 right-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50 border-l border-sidebar-border">
+    <aside className={cn(
+      "fixed top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50",
+      isRTL ? "right-0 border-l border-sidebar-border" : "left-0 border-r border-sidebar-border"
+    )}>
       {/* Logo */}
       <div className="p-5 border-b border-sidebar-border flex-shrink-0">
         <Link to="/" className="flex items-center gap-3">
