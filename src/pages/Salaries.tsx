@@ -879,7 +879,7 @@ const Salaries = () => {
         'المسمى الوظيفي': r.jobTitle,
         'رقم الهوية': r.nationalId,
       };
-      PLATFORMS.forEach(p => {
+      platforms.forEach(p => {
         row[p] = r.registeredApps.includes(p) ? (r.platformOrders[p] || 0) : '—';
       });
       row['إجمالي الراتب الأساسي'] = c.totalPlatformSalary;
