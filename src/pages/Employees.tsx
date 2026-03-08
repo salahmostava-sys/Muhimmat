@@ -197,6 +197,8 @@ const Employees = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch from Supabase ──
