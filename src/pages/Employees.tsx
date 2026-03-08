@@ -472,7 +472,6 @@ const Employees = () => {
                     <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono" dir="ltr">{emp.national_id || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground" dir="ltr">{emp.phone || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground">{emp.job_title || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground" dir="ltr">{emp.email || '—'}</td>
                     <td className="px-3 py-2.5">
                       <InlineSelect
                         value={emp.city || ''}
