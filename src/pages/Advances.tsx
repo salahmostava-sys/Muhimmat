@@ -679,8 +679,8 @@ const Advances = () => {
         {[
           { label: 'عدد السلف النشطة', value: stats.activeCount, color: 'text-primary' },
           { label: 'إجمالي المبالغ المتبقية', value: `${stats.totalRemaining.toLocaleString()} ر.س`, color: 'text-destructive' },
-          { label: 'خصم هذا الشهر', value: `${stats.thisMonthDeduction.toLocaleString()} ر.س`, color: 'text-green-600 dark:text-green-400' },
-          { label: 'السلف الموقوفة', value: stats.pausedCount, color: 'text-yellow-600 dark:text-yellow-400' },
+          { label: 'خصم هذا الشهر', value: `${stats.thisMonthDeduction.toLocaleString()} ر.س`, color: 'text-success' },
+          { label: 'السلف الموقوفة', value: stats.pausedCount, color: 'text-warning' },
         ].map(s => (
           <div key={s.label} className="bg-card rounded-xl border border-border/50 p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>
