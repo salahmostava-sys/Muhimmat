@@ -1097,7 +1097,7 @@ const Salaries = () => {
                       </div>
                     </div>
                     {r.advanceDeduction > 0 && (
-                      <div className="text-[10px] bg-orange-50 dark:bg-orange-950/20 rounded px-2 py-1 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                      <div className="text-[10px] bg-warning/10 rounded px-2 py-1 text-warning border border-warning/30">
                         💳 قسط سلفة: <span className="font-bold">{r.advanceDeduction.toLocaleString()} ر.س</span>
                       </div>
                     )}
@@ -1142,12 +1142,12 @@ const Salaries = () => {
           </div>
         ) : (
           <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)]">
-            <table className="text-sm border-collapse" style={{ minWidth: 2200 }}>
+            <table className="text-sm border-collapse" style={{ minWidth: 1800 }}>
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
                   <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(0)}>بيانات المندوب</th>
-                  <th colSpan={platforms.length * 2} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
-                    المنصات — الطلبات والراتب (نقر مزدوج للتعديل)
+                  <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
+                    المنصات (نقر مزدوج لتعديل الطلبات)
                   </th>
                   <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الراتب الأساسي</th>
                   <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الإضافات</th>
@@ -1172,25 +1172,18 @@ const Salaries = () => {
                       ? Object.values(empPlatformScheme).find(m => m[p])?.[p]
                       : null;
                     const schemeName = headerScheme?.name || '';
-                    return [
-                      <th key={`${p}-orders`}
-                        className="px-2 py-2 text-xs font-semibold whitespace-nowrap border-b border-border/50 text-center cursor-pointer select-none hover:opacity-90 transition-opacity"
+                    return (
+                      <th key={`${p}-col`}
+                        className="px-2 py-2 text-xs font-semibold whitespace-nowrap border-b border-l border-border/30 text-center cursor-pointer select-none hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: pc?.header, color: pc?.headerText }}
                         onClick={() => handleSort(p)}>
                         <div className="flex flex-col items-center gap-0">
                           <span>{p}</span>
-                          <span className="text-[9px] opacity-80 font-normal">طلبات <SortIcon field={p} sortField={sortField} sortDir={sortDir} /></span>
+                          <span className="text-[9px] opacity-80 font-normal">طلبات / راتب <SortIcon field={p} sortField={sortField} sortDir={sortDir} /></span>
                           {schemeName && <span className="text-[8px] opacity-60 font-normal">{schemeName}</span>}
                         </div>
-                      </th>,
-                      <th key={`${p}-salary`}
-                        className="px-2 py-2 text-xs font-semibold whitespace-nowrap border-b border-l border-border/30 text-center"
-                        style={{ backgroundColor: pc?.header ? `${pc.header}cc` : undefined, color: pc?.headerText }}>
-                        <div className="flex flex-col items-center gap-0">
-                          <span className="text-[9px] opacity-80 font-normal">راتب ر.س</span>
-                        </div>
-                      </th>,
-                    ];
+                      </th>
+                    );
                   })}
                   <th className={thBase}>الراتب الأساسي</th>
                   <th className={thBase}>حوافز</th>
@@ -1234,9 +1227,9 @@ const Salaries = () => {
                         const target = scheme?.target_orders;
                         const hitTarget = target && orders >= target;
                         const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
-                        return [
-                          // Orders column
-                          <td key={`${p}-orders`} className={`${tdClass} text-center`}
+                        return (
+                          // Single cell: orders + salary below in small text
+                          <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
                             style={{ background: rowBg }}
                             onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
                             {editingCell?.rowId === r.id && editingCell?.platform === p ? (
@@ -1250,27 +1243,27 @@ const Salaries = () => {
                                 onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingCell(null); }}
                               />
                             ) : (
-                              <span
-                                style={{ color: orders === 0 ? undefined : pc?.valueColor }}
-                                className={`font-semibold ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
-                              >
-                                {orders === 0 ? '—' : orders}
-                              </span>
+                              <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
+                                <div className="flex flex-col items-center leading-tight">
+                                  <span
+                                    style={{ color: orders === 0 ? undefined : pc?.valueColor }}
+                                    className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
+                                  >
+                                    {orders === 0 ? '—' : orders}
+                                  </span>
+                                  {orders > 0 && (
+                                    <span
+                                      style={{ color: pc?.valueColor }}
+                                      className="text-[10px] opacity-75 font-normal"
+                                    >
+                                      {salary.toLocaleString()} ر.س
+                                    </span>
+                                  )}
+                                </div>
+                              </SalaryBreakdown>
                             )}
-                          </td>,
-                          // Salary column
-                          <td key={`${p}-salary`} className={`${tdClass} text-center border-l border-border/20`}
-                            style={{ background: rowBg }}>
-                            <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
-                              <span
-                                style={{ color: salary === 0 ? undefined : pc?.valueColor }}
-                                className={`text-xs ${salary === 0 ? 'text-muted-foreground/30' : 'font-medium'}`}
-                              >
-                                {salary === 0 ? '—' : salary.toLocaleString()}
-                              </span>
-                            </SalaryBreakdown>
-                          </td>,
-                        ];
+                          </td>
+                        );
                       })}
                       <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
@@ -1281,7 +1274,7 @@ const Salaries = () => {
                         {r.advanceDeduction > 0 ? (
                           <div className="flex flex-col items-center">
                             <span className="text-destructive font-semibold">{r.advanceDeduction.toLocaleString()}</span>
-                            <span className="text-[9px] text-orange-500">قسط سلفة</span>
+                            <span className="text-[9px] text-warning">قسط سلفة</span>
                           </div>
                         ) : <span className="text-muted-foreground/30">—</span>}
                       </td>
@@ -1341,15 +1334,19 @@ const Salaries = () => {
                    <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   {platforms.map(p => {
-                     const pc = platformColors[p];
-                     const totalOrders = totals.platform[p] || 0;
-                     const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
-                     return [
-                       <td key={`${p}-orders`} className={tfClass} style={{ color: pc?.valueColor }}>{totalOrders.toLocaleString()}</td>,
-                       <td key={`${p}-salary`} className={`${tfClass} border-l border-border/20`} style={{ color: pc?.valueColor }}>{totalSal.toLocaleString()}</td>,
-                     ];
-                   })}
+                    {platforms.map(p => {
+                      const pc = platformColors[p];
+                      const totalOrders = totals.platform[p] || 0;
+                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+                      return (
+                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20`} style={{ color: pc?.valueColor }}>
+                          <div className="flex flex-col items-center leading-tight">
+                            <span>{totalOrders.toLocaleString()}</span>
+                            <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
+                          </div>
+                        </td>
+                      );
+                    })}
                    <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                    <td className={`${tfClass} text-success`}>{totals.incentives.toLocaleString()}</td>
                    <td className={`${tfClass} text-success`}>{totals.sickAllowance.toLocaleString()}</td>
