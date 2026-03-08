@@ -1920,6 +1920,79 @@ const Salaries = () => {
         />
       )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+
+      {/* Hidden off-screen renderer for batch ZIP export */}
+      {batchQueue.length > 0 && batchIndex < batchQueue.length && (() => {
+        const row = batchQueue[batchIndex];
+        const t = getSlipTranslations(row.preferredLanguage);
+        const meta = LANGUAGE_META[row.preferredLanguage];
+        const platformRows = row.registeredApps.map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
+        const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
+        const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
+        const allDeductions = [
+          { key: 'advance', label: t.advanceInstallment, val: row.advanceDeduction },
+          { key: 'external', label: t.externalDeductions, val: row.externalDeduction },
+          { key: 'violation', label: t.violations, val: row.violations },
+          { key: 'hunger', label: t.walletHunger, val: row.walletHunger },
+          { key: 'tuyo', label: t.walletTuyo, val: row.walletTuyo },
+          { key: 'jahiz', label: t.walletJahiz, val: row.walletJahiz },
+          { key: 'food', label: t.foodDamage, val: row.foodDamage },
+        ];
+        const deductionItems = allDeductions.filter(d => d.val > 0);
+        const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
+        const netSalary = Math.max(0, totalEarnings - totalDeductions);
+        const remaining = netSalary - row.transfer;
+        const monthLabel = batchMonth;
+        const fmt = (n: number) => `${n.toLocaleString()} ${t.currency}`;
+        return (
+          <div
+            ref={batchSlipRef}
+            dir={meta.dir}
+            style={{ position: 'fixed', left: '-9999px', top: 0, width: '600px', background: '#ffffff', padding: '16px', fontFamily: meta.fontFamily, zIndex: -1 }}
+          >
+            <div style={{ marginBottom: 12, borderBottom: '2px solid #465FFF', paddingBottom: 8 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#465FFF' }}>{t.title} — {row.employeeName}</div>
+              <div style={{ fontSize: 11, color: '#666' }}>{monthLabel} · {meta.flag} {meta.label}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, background: '#f8f8ff', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.month}: </span><strong>{monthLabel}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.city}: </span><strong>{row.city || '—'}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.nationalId}: </span><strong>{row.nationalId || '—'}</strong></div>
+              <div><span style={{ color: '#888', fontSize: 10 }}>{t.paymentMethod}: </span><strong>{row.paymentMethod === 'bank' ? t.payBank : t.payCash}</strong></div>
+            </div>
+            <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ background: '#f0fdf4', padding: '6px 10px', fontWeight: 700, fontSize: 11, color: '#16a34a' }}>{t.sectionEarnings}</div>
+              {platformRows.map(({ app, orders, salary }) => (
+                <div key={app} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}>
+                  <div><div style={{ fontWeight: 600 }}>{app}</div><div style={{ fontSize: 10, color: '#888' }}>{orders} {t.orders}</div></div>
+                  <strong style={{ color: PLATFORM_COLORS[app]?.valueColor || '#465FFF' }}>{fmt(salary)}</strong>
+                </div>
+              ))}
+              {row.incentives > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{t.incentives}</span><strong style={{ color: '#16a34a' }}>+{fmt(row.incentives)}</strong></div>}
+              {row.sickAllowance > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{t.sickAllowance}</span><strong style={{ color: '#16a34a' }}>+{fmt(row.sickAllowance)}</strong></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#dcfce7', fontWeight: 700, fontSize: 13 }}><span style={{ color: '#16a34a' }}>{t.platformTotal}</span><span style={{ color: '#16a34a' }}>{fmt(totalEarnings)}</span></div>
+            </div>
+            {deductionItems.length > 0 && (
+              <div style={{ border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ background: '#fff1f2', padding: '6px 10px', fontWeight: 700, fontSize: 11, color: '#dc2626' }}>{t.sectionDeductions}</div>
+                {deductionItems.map(d => (
+                  <div key={d.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #e5e7eb', fontSize: 12 }}><span>{d.label}</span><strong style={{ color: '#dc2626' }}>-{fmt(d.val)}</strong></div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#fee2e2', fontWeight: 700, fontSize: 13 }}><span style={{ color: '#dc2626' }}>{t.totalDeductions}</span><span style={{ color: '#dc2626' }}>-{fmt(totalDeductions)}</span></div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#465FFF', color: '#fff', borderRadius: 10, padding: '12px 16px', marginBottom: 10 }}>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>{t.netSalary}</span>
+              <span style={{ fontWeight: 900, fontSize: 22 }}>{fmt(netSalary)}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, fontSize: 11 }}>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.transfer}</div><strong>{fmt(row.transfer)}</strong></div>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.remaining}</div><strong>{fmt(remaining)}</strong></div>
+              <div style={{ background: '#f8fafc', borderRadius: 6, padding: 8, textAlign: 'center' }}><div style={{ color: '#888', marginBottom: 2 }}>{t.advanceBalance}</div><strong style={{ color: row.advanceRemaining > 0 ? '#dc2626' : undefined }}>{fmt(row.advanceRemaining)}</strong></div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
