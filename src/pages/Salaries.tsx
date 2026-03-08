@@ -791,7 +791,24 @@ const Salaries = () => {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 mr-auto">
+        <div className="flex gap-2 mr-auto items-center">
+          {/* View mode toggle */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1.5 flex items-center gap-1 text-xs transition-colors ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              title="عرض جدول"
+            >
+              <Table2 size={13} /> جدول
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-2.5 py-1.5 flex items-center gap-1 text-xs border-r border-l border-border transition-colors ${viewMode === 'cards' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              title="عرض بطاقات"
+            >
+              <LayoutGrid size={13} /> بطاقات
+            </button>
+          </div>
           {pendingCount > 0 && (
             <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={approveAll}>
               <CheckCircle size={13} /> اعتماد الكل ({pendingCount})
