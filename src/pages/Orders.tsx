@@ -340,7 +340,7 @@ const SpreadsheetGrid = () => {
                 {isMultiApp ? (
                   <>
                     {visibleApps.map(app => {
-                      const c = appColor(app.name);
+                      const c = getAppColor(appColorsList, app.name);
                       const appTotal = filteredEmployees.reduce((s, e) => s + dayArr.reduce((ss, d) => ss + getVal(e.id, app.id, d), 0), 0);
                       return (
                         <td key={app.id} className="text-center px-2 py-2 border-l border-border/30 font-bold" style={{ color: c.val }}>
