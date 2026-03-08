@@ -101,9 +101,13 @@ const Attendance = () => {
             <ClipboardCheck size={16} />
             {lang === 'ar' ? 'التسجيل اليومي' : 'Daily Record'}
           </TabsTrigger>
-          <TabsTrigger value="monthly" className="gap-2">
+        <TabsTrigger value="monthly" className="gap-2">
             <CalendarDays size={16} />
             {lang === 'ar' ? 'السجل الشهري' : 'Monthly Record'}
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="gap-2">
+            <BarChart2 size={16} />
+            {lang === 'ar' ? 'الإحصائيات' : 'Statistics'}
           </TabsTrigger>
         </TabsList>
 
@@ -113,6 +117,10 @@ const Attendance = () => {
 
         <TabsContent value="monthly">
           <MonthlyRecord selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+        </TabsContent>
+
+        <TabsContent value="stats">
+          <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
         </TabsContent>
       </Tabs>
     </div>
