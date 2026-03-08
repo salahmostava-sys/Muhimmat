@@ -720,7 +720,7 @@ const Salaries = () => {
       case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
       case 'status': va = a.status; vb = b.status; break;
       default:
-        if (PLATFORMS.includes(sortField)) {
+        if (platforms.includes(sortField)) {
           va = a.platformOrders[sortField] || 0;
           vb = b.platformOrders[sortField] || 0;
         } else {
