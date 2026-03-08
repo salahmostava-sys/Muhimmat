@@ -494,7 +494,7 @@ const MonthSummary = () => {
                 <tr className="bg-muted/30 font-semibold border-t-2 border-border">
                   <td className="p-4 sticky right-0 bg-muted/40 text-foreground">الإجمالي</td>
                   {apps.map(app => {
-                    const c = appColor(app.name);
+                    const c = getAppColor(appColorsList, app.name);
                     const appGrandTotal = employees.reduce((s, e) =>
                       s + dayArr.reduce((ss, d) => ss + (data[`${e.id}::${app.id}::${d}`] ?? 0), 0), 0);
                     return (
