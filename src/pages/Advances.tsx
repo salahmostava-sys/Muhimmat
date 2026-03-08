@@ -519,6 +519,7 @@ const AddAdvanceModalInline = ({ open, onClose, onSaved, defaultEmployeeId, allA
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const Advances = () => {
   const { toast } = useToast();
+  const { permissions } = usePermissions('advances');
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
