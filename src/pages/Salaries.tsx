@@ -11,6 +11,7 @@ import { useAppColors, AppColorData } from '@/hooks/useAppColors';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -85,21 +86,23 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
   return <ChevronDown size={10} className="inline ml-0.5" />;
 };
 
-interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; }
+interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; companyName?: string; }
 
-const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) => {
+const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: PayslipProps) => {
   const t = getSlipTranslations(row.preferredLanguage);
   const meta = LANGUAGE_META[row.preferredLanguage];
   const dir = meta.dir;
   const slipRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  // ── All platform earnings rows ──
-  const platformRows = row.registeredApps.map(app => ({
-    app,
-    orders: row.platformOrders[app] || 0,
-    salary: row.platformSalaries[app] || 0,
-  }));
+  // ── Only active platform rows (exclude platforms with no orders that aren't in active list) ──
+  const platformRows = row.registeredApps
+    .filter(app => (row.platformOrders[app] || 0) > 0)
+    .map(app => ({
+      app,
+      orders: row.platformOrders[app] || 0,
+      salary: row.platformSalaries[app] || 0,
+    }));
 
   const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
   const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
@@ -159,6 +162,21 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
           </DialogTitle>
         </DialogHeader>
         <div ref={slipRef} className="space-y-4 text-sm bg-background p-1">
+
+          {/* ── Company Header ── */}
+          {companyName && (
+            <div className="flex items-center justify-between border-b-2 border-primary pb-3 mb-1">
+              <div>
+                <p className="text-lg font-black text-primary">{companyName}</p>
+                <p className="text-xs text-muted-foreground">{t.subtitle}</p>
+              </div>
+              <div className="text-left text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">{t.title}</p>
+                <p>{monthLabel}</p>
+              </div>
+            </div>
+          )}
+
           {/* Employee Info */}
           <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
             <div><span className="text-muted-foreground text-xs">{t.month}: </span><span className="font-semibold text-xs">{monthLabel}</span></div>
@@ -174,8 +192,8 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
               <p className="font-bold text-xs text-success uppercase tracking-wide">{t.sectionEarnings || '✅ الاستحقاقات / Earnings'}</p>
             </div>
             <div className="divide-y divide-border/30">
-              {/* Platform rows */}
-              {platformRows.map(({ app, orders, salary }) => {
+              {/* Platform rows — only those with orders > 0 */}
+              {platformRows.length > 0 ? platformRows.map(({ app, orders, salary }) => {
                 const color = PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--primary))';
                 return (
                   <div key={app} className="flex justify-between items-center px-3 py-2">
@@ -186,7 +204,9 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
                     <span className="font-semibold" style={{ color }}>{fmt(salary)}</span>
                   </div>
                 );
-              })}
+              }) : (
+                <div className="px-3 py-3 text-center text-xs text-muted-foreground">لا توجد طلبات مسجّلة</div>
+              )}
               {/* Incentives */}
               {row.incentives > 0 && (
                 <div className="flex justify-between items-center px-3 py-2">
@@ -210,25 +230,66 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
           </div>
 
           {/* ── DEDUCTIONS Section ───────────────────────────── */}
-          {deductionItems.length > 0 && (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 overflow-hidden">
-              <div className="px-3 py-2 bg-destructive/10 border-b border-destructive/20">
-                <p className="font-bold text-xs text-destructive uppercase tracking-wide">{t.sectionDeductions}</p>
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 overflow-hidden">
+            <div className="px-3 py-2 bg-destructive/10 border-b border-destructive/20">
+              <p className="font-bold text-xs text-destructive uppercase tracking-wide">{t.sectionDeductions}</p>
+            </div>
+            <div className="divide-y divide-border/30">
+              {/* Always show advance installment */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.advanceInstallment}</span>
+                <span className={`font-semibold ${row.advanceDeduction > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.advanceDeduction > 0 ? `-${fmt(row.advanceDeduction)}` : '—'}
+                </span>
               </div>
-              <div className="divide-y divide-border/30">
-                {deductionItems.map(d => (
-                  <div key={d.key} className="flex justify-between items-center px-3 py-2">
-                    <span className="text-foreground">{d.label}</span>
-                    <span className="font-semibold text-destructive">-{fmt(d.val)}</span>
-                  </div>
-                ))}
+              {/* Always show external deductions */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.externalDeductions}</span>
+                <span className={`font-semibold ${row.externalDeduction > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.externalDeduction > 0 ? `-${fmt(row.externalDeduction)}` : '—'}
+                </span>
               </div>
-              <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
-                <span className="text-destructive">{t.totalDeductions}</span>
-                <span className="text-destructive text-base">-{fmt(totalDeductions)}</span>
+              {/* Always show violations */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.violations}</span>
+                <span className={`font-semibold ${row.violations > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.violations > 0 ? `-${fmt(row.violations)}` : '—'}
+                </span>
+              </div>
+              {/* Wallet hunger */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.walletHunger}</span>
+                <span className={`font-semibold ${row.walletHunger > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.walletHunger > 0 ? `-${fmt(row.walletHunger)}` : '—'}
+                </span>
+              </div>
+              {/* Wallet tuyo */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.walletTuyo}</span>
+                <span className={`font-semibold ${row.walletTuyo > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.walletTuyo > 0 ? `-${fmt(row.walletTuyo)}` : '—'}
+                </span>
+              </div>
+              {/* Wallet jahiz */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.walletJahiz}</span>
+                <span className={`font-semibold ${row.walletJahiz > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.walletJahiz > 0 ? `-${fmt(row.walletJahiz)}` : '—'}
+                </span>
+              </div>
+              {/* Food damage */}
+              <div className="flex justify-between items-center px-3 py-2">
+                <span className="text-foreground">{t.foodDamage}</span>
+                <span className={`font-semibold ${row.foodDamage > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {row.foodDamage > 0 ? `-${fmt(row.foodDamage)}` : '—'}
+                </span>
               </div>
             </div>
-          )}
+            <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
+              <span className="text-destructive">{t.totalDeductions}</span>
+              <span className="text-destructive text-base">-{fmt(totalDeductions)}</span>
+            </div>
+          </div>
 
           {/* ── NET SALARY ──────────────────────────────────── */}
           <div className="flex justify-between items-center py-3.5 bg-primary text-primary-foreground rounded-xl px-5">
@@ -249,6 +310,18 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
             <div className="bg-muted/40 rounded-lg p-3 text-center">
               <p className="text-[11px] text-muted-foreground mb-0.5">{t.advanceBalance}</p>
               <p className={`font-bold text-sm ${row.advanceRemaining > 0 ? 'text-destructive' : ''}`}>{fmt(row.advanceRemaining)}</p>
+            </div>
+          </div>
+
+          {/* Signatures */}
+          <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border/50 mt-2">
+            <div className="text-center text-xs text-muted-foreground">
+              <div className="h-8 border-b border-border/50 mb-1" />
+              <span>{t.signatureDriver}</span>
+            </div>
+            <div className="text-center text-xs text-muted-foreground">
+              <div className="h-8 border-b border-border/50 mb-1" />
+              <span>{t.signatureAdmin}</span>
             </div>
           </div>
         </div>
@@ -485,6 +558,7 @@ const Salaries = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { projectName } = useSystemSettings();
   const { apps: appColorsList } = useAppColors();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -1108,7 +1182,7 @@ const Salaries = () => {
         <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${row.employeeName}</span></div>
         <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${row.nationalId}</span></div>
         <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${row.city}</span></div>
-        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 ماش'}</span></div>
+        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
       </div>
 
       <h3>الطلبات والراتب حسب المنصة</h3>
@@ -1276,7 +1350,7 @@ const Salaries = () => {
           <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${row.employeeName}</span></div>
           <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${row.nationalId}</span></div>
           <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${row.city}</span></div>
-          <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 ماش'}</span></div>
+          <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
         </div>
         <h3>الطلبات والراتب حسب المنصة</h3>
         <table>
@@ -1832,7 +1906,7 @@ const Salaries = () => {
                           className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.paymentMethod === 'bank' ? 'text-primary' : 'text-muted-foreground'}`}
                         >
                           <option value="bank">🏦 بنك</option>
-                          <option value="cash">💵 ماش</option>
+                          <option value="cash">💵 كاش</option>
                         </select>
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>
@@ -1915,6 +1989,7 @@ const Salaries = () => {
         <PayslipModal
           row={payslipRow}
           selectedMonth={selectedMonth}
+          companyName={projectName}
           onClose={() => setPayslipRow(null)}
           onApprove={() => { approveRow(payslipRow.id); setPayslipRow(null); }}
         />
@@ -1926,7 +2001,9 @@ const Salaries = () => {
         const row = batchQueue[batchIndex];
         const t = getSlipTranslations(row.preferredLanguage);
         const meta = LANGUAGE_META[row.preferredLanguage];
-        const platformRows = row.registeredApps.map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
+        const platformRows = row.registeredApps
+          .filter(app => (row.platformOrders[app] || 0) > 0)
+          .map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
         const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
         const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
         const allDeductions = [
@@ -1951,8 +2028,14 @@ const Salaries = () => {
             style={{ position: 'fixed', left: '-9999px', top: 0, width: '600px', background: '#ffffff', padding: '16px', fontFamily: meta.fontFamily, zIndex: -1 }}
           >
             <div style={{ marginBottom: 12, borderBottom: '2px solid #465FFF', paddingBottom: 8 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#465FFF' }}>{t.title} — {row.employeeName}</div>
-              <div style={{ fontSize: 11, color: '#666' }}>{monthLabel} · {meta.flag} {meta.label}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  {projectName && <div style={{ fontSize: 18, fontWeight: 900, color: '#465FFF' }}>{projectName}</div>}
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a' }}>{t.title} — {row.employeeName}</div>
+                  <div style={{ fontSize: 11, color: '#666' }}>{monthLabel} · {meta.flag} {meta.label}</div>
+                </div>
+                <div style={{ fontSize: 12, color: '#888', textAlign: 'left' }}>{new Date().toLocaleDateString('ar-SA')}</div>
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, background: '#f8f8ff', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
               <div><span style={{ color: '#888', fontSize: 10 }}>{t.month}: </span><strong>{monthLabel}</strong></div>
