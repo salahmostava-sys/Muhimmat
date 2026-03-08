@@ -202,7 +202,7 @@ const Login = () => {
         </p>
       </div>
       <button onClick={() => switchTab('login')} className={gradientBtn}
-        style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', boxShadow: '0 4px 20px rgba(59,130,246,0.3)' }}>
+        style={{ background: brandGrad, boxShadow: brandShadow }}>
         {isAr ? 'العودة لتسجيل الدخول' : 'Back to Sign In'}
       </button>
     </div>
