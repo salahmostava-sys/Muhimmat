@@ -24,6 +24,7 @@ type MileageRow = {
   notes: string | null;
   employee?: { name: string; personal_photo_url?: string | null };
   orders_count?: number;
+  vehicle?: { plate_number: string; type: string; brand?: string | null; model?: string | null } | null;
 };
 
 type Employee = { id: string; name: string; personal_photo_url?: string | null };
@@ -419,11 +420,16 @@ const FuelPage = () => {
     const start = `${monthYear}-01`;
     const end = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
 
-    const [mileageRes, ordersRes] = await Promise.all([
+    const [mileageRes, ordersRes, assignmentsRes] = await Promise.all([
       supabase.from('vehicle_mileage').select('*, employee:employees(name, personal_photo_url)')
         .eq('month_year', monthYear).order('employee(name)'),
       supabase.from('daily_orders').select('employee_id, orders_count')
         .gte('date', start).lte('date', end),
+      // Fetch active vehicle assignments to show the assigned vehicle per employee
+      supabase.from('vehicle_assignments')
+        .select('employee_id, vehicles(plate_number, type, brand, model)')
+        .is('end_date', null)
+        .order('start_date', { ascending: false }),
     ]);
 
     if (mileageRes.data) {
@@ -431,7 +437,18 @@ const FuelPage = () => {
       (ordersRes.data || []).forEach(o => {
         orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
       });
-      setRows(mileageRes.data.map((r: any) => ({ ...r, orders_count: orderMap[r.employee_id] || 0 })));
+      // Build vehicle map: first active assignment per employee
+      const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
+      (assignmentsRes.data || []).forEach((a: any) => {
+        if (!vehicleMap[a.employee_id] && a.vehicles) {
+          vehicleMap[a.employee_id] = a.vehicles;
+        }
+      });
+      setRows(mileageRes.data.map((r: any) => ({
+        ...r,
+        orders_count: orderMap[r.employee_id] || 0,
+        vehicle: vehicleMap[r.employee_id] || null,
+      })));
     }
     setLoading(false);
   }, [monthYear]);
@@ -553,6 +570,7 @@ const FuelPage = () => {
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الكيلومترات</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة البنزين</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة/كم</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الدباب 🏍️</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">عدد الطلبات 📦</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">بنزين/طلب</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">كم/طلب</th>
@@ -603,6 +621,23 @@ const FuelPage = () => {
                         <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
                           {costPerKm !== null ? `${costPerKm.toFixed(3)} ر.س/كم` : '—'}
                         </td>
+                        {/* Vehicle column */}
+                        <td className="px-4 py-3 text-center">
+                          {row.vehicle ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-xs font-semibold text-foreground">
+                                {row.vehicle.type === 'motorcycle' ? '🏍️' : '🚗'} {row.vehicle.plate_number}
+                              </span>
+                              {(row.vehicle.brand || row.vehicle.model) && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {[row.vehicle.brand, row.vehicle.model].filter(Boolean).join(' ')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/40 text-xs">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {orders > 0
                             ? <span className="font-semibold text-foreground">{orders.toLocaleString()}</span>
@@ -639,6 +674,7 @@ const FuelPage = () => {
                     <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
                       {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
                     </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
                     <td className="px-4 py-3 text-center text-muted-foreground">
                       {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}

@@ -491,7 +491,7 @@ const Salaries = () => {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const [empRes, schemesRes, extRes, ordersRes, empSchemeRes] = await Promise.all([
+      const [empRes, schemesRes, extRes, ordersRes, empSchemeRes, empAppsRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, job_title, national_id, salary_type, base_salary, iban, city')
@@ -515,10 +515,15 @@ const Salaries = () => {
           .gte('date', startDate)
           .lte('date', endDate),
 
-        // Fetch employee->scheme assignments with app info via employee_apps
+        // Fetch employee->scheme assignments: employee_scheme links employee to salary_scheme
+        supabase
+          .from('employee_scheme')
+          .select('employee_id, scheme_id, salary_schemes(id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order))'),
+
+        // Fetch employee_apps to know which apps each employee is registered in
         supabase
           .from('employee_apps')
-          .select('employee_id, app_id, apps(name), employee_scheme(scheme_id, salary_schemes(id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order)))')
+          .select('employee_id, app_id, apps(name, id)')
           .eq('status', 'active'),
       ]);
 
@@ -601,23 +606,43 @@ const Salaries = () => {
         ordMap[r.employee_id][appName] = (ordMap[r.employee_id][appName] || 0) + r.orders_count;
       });
 
-      // ── Build emp→platform→scheme map from employee_apps + employee_scheme ──
-      const builtEmpPlatformScheme: Record<string, Record<string, SchemeData>> = {};
-      empSchemeRes.data?.forEach((ea: any) => {
-        const appName = ea.apps?.name;
-        if (!appName) return;
-        const empId = ea.employee_id;
-        // employee_scheme is an array (one emp can have multiple schemes)
-        const schemeLinks = Array.isArray(ea.employee_scheme) ? ea.employee_scheme : [];
-        for (const link of schemeLinks) {
-          const s = link.salary_schemes;
-          if (!s) continue;
-          if (!builtEmpPlatformScheme[empId]) builtEmpPlatformScheme[empId] = {};
-          builtEmpPlatformScheme[empId][appName] = s as SchemeData;
-          break; // first assignment wins per platform
-        }
+      // ── Build emp→scheme map from employee_scheme table ──
+      // employee_scheme: employee_id → salary_scheme (one scheme per employee)
+      const empSchemeMap: Record<string, SchemeData> = {};
+      empSchemeRes.data?.forEach((es: any) => {
+        const s = es.salary_schemes;
+        if (!s) return;
+        empSchemeMap[es.employee_id] = s as SchemeData;
       });
-      setEmpPlatformScheme(builtEmpPlatformScheme);
+
+      // ── Build emp→registeredApps map from employee_apps ──
+      const empRegisteredApps: Record<string, Set<string>> = {};
+      empAppsRes.data?.forEach((ea: any) => {
+        const appName = (ea.apps as any)?.name;
+        if (!appName) return;
+        if (!empRegisteredApps[ea.employee_id]) empRegisteredApps[ea.employee_id] = new Set();
+        empRegisteredApps[ea.employee_id].add(appName);
+      });
+
+      // ── Build empPlatformScheme: per-employee per-platform scheme ──
+      // Each employee uses their assigned scheme for ALL their active platforms
+      // If they have orders on a platform but no scheme → salary = 0 (indicator: no scheme)
+      const builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>> = {};
+      employees.forEach(emp => {
+        builtEmpPlatformScheme[emp.id] = {};
+        const scheme = empSchemeMap[emp.id] || null;
+        const registeredPlatforms = empRegisteredApps[emp.id] || new Set();
+        platforms.forEach(p => {
+          if (registeredPlatforms.has(p)) {
+            // Employee is registered on this platform — use their scheme (or null if none)
+            builtEmpPlatformScheme[emp.id][p] = scheme;
+          } else {
+            // Employee has no registration on this platform
+            builtEmpPlatformScheme[emp.id][p] = undefined as any;
+          }
+        });
+      });
+      setEmpPlatformScheme(builtEmpPlatformScheme as any);
 
       const newRows: SalaryRow[] = employees.map(emp => {
         const empOrders = ordMap[emp.id] || {};
@@ -631,17 +656,16 @@ const Salaries = () => {
           platformOrders[p] = orders;
           if (orders === 0) { platformSalaries[p] = 0; return; }
 
-          // Priority: employee-specific scheme → name-match → fallback first scheme
-          const empScheme = builtEmpPlatformScheme[emp.id]?.[p];
-          const nameScheme = schemes.find(s =>
-            s.name.includes(p) || (s.name_en && s.name_en.toLowerCase().includes(p.toLowerCase()))
-          );
-          const scheme = empScheme || nameScheme || (schemes.length > 0 ? schemes[0] : null);
-
+          // Use employee's assigned scheme; if no scheme → salary = 0 (show "لا توجد سكيما")
+          const scheme = builtEmpPlatformScheme[emp.id]?.[p];
           if (scheme && scheme.salary_scheme_tiers) {
             platformSalaries[p] = calcSalaryFromTiers(orders, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
+          } else if (scheme === null) {
+            // Registered on platform but no scheme assigned → 0 salary, show warning
+            platformSalaries[p] = 0;
           } else {
-            platformSalaries[p] = orders * 5;
+            // Not registered / fallback
+            platformSalaries[p] = 0;
           }
         });
 
@@ -783,7 +807,8 @@ const Salaries = () => {
       if (scheme && scheme.salary_scheme_tiers) {
         salary = calcSalaryFromTiers(value, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
       } else {
-        salary = value * 5;
+        // No scheme assigned → 0 salary (user needs to assign scheme)
+        salary = 0;
       }
       const newSalaries = { ...r.platformSalaries, [platform]: salary };
       const isDirty = r.status !== 'pending' ? true : r.isDirty;
@@ -1525,10 +1550,12 @@ const Salaries = () => {
                         const target = scheme?.target_orders;
                         const hitTarget = target && orders >= target;
                         const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
+                        // Check if employee has no scheme assigned (null = registered but no scheme)
+                        const noScheme = orders > 0 && scheme === null;
                         return (
                           // Single cell: orders + salary below in small text
                           <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
-                            style={{ background: rowBg }}
+                            style={{ background: noScheme ? 'rgba(234,179,8,0.1)' : rowBg }}
                             onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
                             {editingCell?.rowId === r.id && editingCell?.platform === p ? (
                               <input
@@ -1544,18 +1571,22 @@ const Salaries = () => {
                               <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
                                 <div className="flex flex-col items-center leading-tight">
                                   <span
-                                    style={{ color: orders === 0 ? undefined : pc?.valueColor }}
+                                    style={{ color: orders === 0 ? undefined : noScheme ? 'hsl(var(--warning))' : pc?.valueColor }}
                                     className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
                                   >
                                     {orders === 0 ? '—' : orders}
                                   </span>
                                   {orders > 0 && (
-                                    <span
-                                      style={{ color: pc?.valueColor }}
-                                      className="text-[10px] opacity-75 font-normal"
-                                    >
-                                      {salary.toLocaleString()} ر.س
-                                    </span>
+                                    noScheme ? (
+                                      <span className="text-[9px] text-warning font-semibold">⚠️ لا سكيما</span>
+                                    ) : (
+                                      <span
+                                        style={{ color: pc?.valueColor }}
+                                        className="text-[10px] opacity-75 font-normal"
+                                      >
+                                        {salary.toLocaleString()} ر.س
+                                      </span>
+                                    )
                                   )}
                                 </div>
                               </SalaryBreakdown>
