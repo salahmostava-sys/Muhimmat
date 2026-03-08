@@ -390,10 +390,12 @@ export type Database = {
           allowances: Json | null
           bank_account_number: string | null
           base_salary: number
+          birth_date: string | null
           city: Database["public"]["Enums"]["city_enum"] | null
           created_at: string
           dob: string | null
           email: string | null
+          employee_code: string | null
           iban: string | null
           id: string
           id_photo_url: string | null
@@ -426,10 +428,12 @@ export type Database = {
           allowances?: Json | null
           bank_account_number?: string | null
           base_salary?: number
+          birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
           created_at?: string
           dob?: string | null
           email?: string | null
+          employee_code?: string | null
           iban?: string | null
           id?: string
           id_photo_url?: string | null
@@ -462,10 +466,12 @@ export type Database = {
           allowances?: Json | null
           bank_account_number?: string | null
           base_salary?: number
+          birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
           created_at?: string
           dob?: string | null
           email?: string | null
+          employee_code?: string | null
           iban?: string | null
           id?: string
           id_photo_url?: string | null
