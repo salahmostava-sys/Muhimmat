@@ -28,6 +28,7 @@ interface EmployeeData {
   salary_type: string;
   base_salary: number;
   preferred_language?: string | null;
+  nationality?: string | null;
 }
 
 interface Props {
@@ -141,6 +142,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     phone: '',
     email: '',
     national_id: '',
+    nationality: '',
     bank_account_number: '',
     city: '' as 'makkah' | 'jeddah' | '',
     join_date: '',
@@ -163,6 +165,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         phone: editEmployee.phone || '',
         email: editEmployee.email || '',
         national_id: editEmployee.national_id || '',
+        nationality: editEmployee.nationality || '',
         bank_account_number: editEmployee.bank_account_number || '',
         city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
         join_date: editEmployee.join_date || '',
@@ -229,6 +232,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         phone: form.phone || null,
         email: form.email || null,
         national_id: form.national_id || null,
+        nationality: form.nationality || null,
         bank_account_number: form.bank_account_number || null,
         city: form.city || null,
         join_date: form.join_date || null,
@@ -350,6 +354,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               </F>
               <F label="رقم الهوية الوطنية" required error={errors.national_id}>
                 <Input value={form.national_id} onChange={e => setField('national_id', e.target.value)} placeholder="2xxxxxxxxx" dir="ltr" />
+              </F>
+              <F label="الجنسية">
+                <Input value={form.nationality} onChange={e => setField('nationality', e.target.value)} placeholder="سعودي / يمني / باكستاني ..." />
               </F>
               <F label="رقم الحساب البنكي">
                 <Input value={form.bank_account_number} onChange={e => setField('bank_account_number', e.target.value)} dir="ltr" />

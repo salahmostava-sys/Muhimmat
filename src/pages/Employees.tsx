@@ -42,6 +42,7 @@ type Employee = {
   status: string;
   salary_type: string;
   base_salary: number;
+  nationality?: string | null;
 };
 
 type SortField =
@@ -174,7 +175,7 @@ const SortIcon = ({ field, sortField, sortDir }: { field: SortField; sortField: 
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 17 }).map((_, i) => (
+    {Array.from({ length: 18 }).map((_, i) => (
       <td key={i} className="px-3 py-3">
         <Skeleton className="h-4 w-full" />
       </td>
@@ -452,6 +453,7 @@ const Employees = () => {
                 <Th field="phone" label={t('phone')} />
                 <Th field="job_title" label={t('jobTitle')} />
                 <Th field="city" label={t('city')} />
+                <Th label="الجنسية" sortable={false} />
                 <Th field="join_date" label={t('joinDate')} />
                 <Th field="residency_expiry" label={t('residencyExpiry')} />
                 <Th field="days_residency" label={t('residencyDays')} />
@@ -470,7 +472,7 @@ const Employees = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="text-center py-16">
+                  <td colSpan={18} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <span className="text-4xl">👥</span>
                       <p className="font-medium">{t('noEmployees')}</p>
@@ -508,6 +510,7 @@ const Employees = () => {
                         renderDisplay={() => <CityBadge city={emp.city} />}
                       />
                     </td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{(emp as any).nationality || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.join_date ? format(parseISO(emp.join_date), 'yyyy/MM/dd') : '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>
                     <td className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap ${daysColor}`}>{res.days === null ? '—' : `${res.days}`}</td>
