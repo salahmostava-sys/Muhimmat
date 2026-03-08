@@ -1550,10 +1550,12 @@ const Salaries = () => {
                         const target = scheme?.target_orders;
                         const hitTarget = target && orders >= target;
                         const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
+                        // Check if employee has no scheme assigned (null = registered but no scheme)
+                        const noScheme = orders > 0 && scheme === null;
                         return (
                           // Single cell: orders + salary below in small text
                           <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
-                            style={{ background: rowBg }}
+                            style={{ background: noScheme ? 'rgba(234,179,8,0.1)' : rowBg }}
                             onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
                             {editingCell?.rowId === r.id && editingCell?.platform === p ? (
                               <input
@@ -1569,18 +1571,22 @@ const Salaries = () => {
                               <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
                                 <div className="flex flex-col items-center leading-tight">
                                   <span
-                                    style={{ color: orders === 0 ? undefined : pc?.valueColor }}
+                                    style={{ color: orders === 0 ? undefined : noScheme ? 'hsl(var(--warning))' : pc?.valueColor }}
                                     className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
                                   >
                                     {orders === 0 ? '—' : orders}
                                   </span>
                                   {orders > 0 && (
-                                    <span
-                                      style={{ color: pc?.valueColor }}
-                                      className="text-[10px] opacity-75 font-normal"
-                                    >
-                                      {salary.toLocaleString()} ر.س
-                                    </span>
+                                    noScheme ? (
+                                      <span className="text-[9px] text-warning font-semibold">⚠️ لا سكيما</span>
+                                    ) : (
+                                      <span
+                                        style={{ color: pc?.valueColor }}
+                                        className="text-[10px] opacity-75 font-normal"
+                                      >
+                                        {salary.toLocaleString()} ر.س
+                                      </span>
+                                    )
                                   )}
                                 </div>
                               </SalaryBreakdown>
