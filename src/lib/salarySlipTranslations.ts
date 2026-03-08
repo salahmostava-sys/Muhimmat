@@ -38,6 +38,8 @@ export interface SlipTranslations {
   incentives: string;
   sickAllowance: string;
   totalWithSalary: string;
+  // Earnings section label
+  sectionEarnings: string;
   // Deductions
   sectionDeductions: string;
   advanceInstallment: string;
@@ -78,6 +80,7 @@ const translations: Record<SlipLanguage, SlipTranslations> = {
     statusPending: 'معلّق',
     statusApproved: 'معتمد',
     statusPaid: 'مصروف',
+    sectionEarnings: 'الاستحقاقات',
     payBank: '🏦 بنك',
     payCash: '💵 ماش',
     sectionPlatforms: 'الطلبات حسب المنصة',
@@ -120,6 +123,7 @@ const translations: Record<SlipLanguage, SlipTranslations> = {
     statusPending: 'Pending',
     statusApproved: 'Approved',
     statusPaid: 'Paid',
+    sectionEarnings: 'Earnings',
     payBank: '🏦 Bank Transfer',
     payCash: '💵 Cash',
     sectionPlatforms: 'Orders by Platform',
@@ -163,6 +167,7 @@ const translations: Record<SlipLanguage, SlipTranslations> = {
     statusApproved: 'منظور شدہ',
     statusPaid: 'ادا شدہ',
     payBank: '🏦 بینک',
+    sectionEarnings: 'آمدنی',
     payCash: '💵 نقد',
     sectionPlatforms: 'پلیٹ فارم کے مطابق آرڈرز',
     orders: 'آرڈر',

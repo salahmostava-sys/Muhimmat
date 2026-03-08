@@ -27,6 +27,8 @@ import UsersAndPermissions from "./pages/UsersAndPermissions";
 import GeneralSettings from "./pages/GeneralSettings";
 import Analytics from "./pages/Analytics";
 import ViolationResolver from "./pages/ViolationResolver";
+import Motorcycles from "./pages/Motorcycles";
+import VehicleAssignment from "./pages/VehicleAssignment";
 import NotFound from "./pages/NotFound";
 import "@/i18n";
 
@@ -60,6 +62,8 @@ const App = () => (
                             <Route path="/advances" element={<Advances />} />
                             <Route path="/vehicles" element={<Vehicles />} />
                             <Route path="/vehicle-tracking" element={<Vehicles />} />
+                            <Route path="/motorcycles" element={<Motorcycles />} />
+                            <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
                             <Route path="/fuel" element={<FuelPage />} />
                             <Route path="/deductions" element={<Advances />} />
                             <Route path="/apps" element={<Apps />} />

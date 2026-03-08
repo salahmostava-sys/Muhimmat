@@ -89,83 +89,128 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
   const meta = LANGUAGE_META[row.preferredLanguage];
   const dir = meta.dir;
 
-  const totalPlatformSalary = Object.values(row.platformSalaries).reduce((s, v) => s + v, 0);
-  const totalAdditions = row.incentives + row.sickAllowance;
-  const totalWithSalary = totalPlatformSalary + totalAdditions;
-  const totalDeductions = row.advanceDeduction + row.violations + row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage + row.externalDeduction;
-  const netSalary = Math.max(0, totalWithSalary - totalDeductions);
+  // ── All platform earnings rows (show all platforms with orders > 0) ──
+  const platformRows = row.registeredApps.map(app => ({
+    app,
+    orders: row.platformOrders[app] || 0,
+    salary: row.platformSalaries[app] || 0,
+  }));
+
+  // ── Earnings section ──
+  const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
+
+  // Build base salary / shift row if applicable
+  const baseSalaryRow = row.incentives; // incentives doubles as base or additional
+  const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
+
+  // ── Deductions: every non-zero deduction field ──
+  const allDeductions = [
+    { key: 'advance',   label: t.advanceInstallment,  val: row.advanceDeduction },
+    { key: 'external',  label: t.externalDeductions,  val: row.externalDeduction },
+    { key: 'violation', label: t.violations,           val: row.violations },
+    { key: 'hunger',    label: t.walletHunger,         val: row.walletHunger },
+    { key: 'tuyo',      label: t.walletTuyo,           val: row.walletTuyo },
+    { key: 'jahiz',     label: t.walletJahiz,          val: row.walletJahiz },
+    { key: 'food',      label: t.foodDamage,           val: row.foodDamage },
+  ];
+
+  // Show non-zero only; show zeros only when at least one deduction exists
+  const hasAnyDeduction = allDeductions.some(d => d.val > 0);
+  const deductionItems = hasAnyDeduction ? allDeductions.filter(d => d.val > 0) : [];
+  const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
+
+  const netSalary = Math.max(0, totalEarnings - totalDeductions);
   const remaining = netSalary - row.transfer;
   const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
 
   const fmt = (n: number) => `${n.toLocaleString()} ${t.currency}`;
 
   const printPayslip = () => {
-    const isRTL = dir === 'rtl';
-    const deductionRows = [
-      { l: t.advanceInstallment, v: row.advanceDeduction },
-      { l: t.externalDeductions, v: row.externalDeduction },
-      { l: t.violations, v: row.violations },
-      { l: t.walletHunger, v: row.walletHunger },
-      { l: t.walletTuyo, v: row.walletTuyo },
-      { l: t.walletJahiz, v: row.walletJahiz },
-      { l: t.foodDamage, v: row.foodDamage },
-    ].filter(x => x.v > 0);
+    const earningRows = [
+      ...platformRows.map(r => ({
+        l: `${r.app} (${r.orders} ${t.orders})`,
+        v: r.salary,
+        cls: 'blue',
+        sign: '',
+      })),
+      ...(row.incentives > 0 ? [{ l: t.incentives, v: row.incentives, cls: 'green', sign: '+' }] : []),
+      ...(row.sickAllowance > 0 ? [{ l: t.sickAllowance, v: row.sickAllowance, cls: 'green', sign: '+' }] : []),
+    ];
 
     const html = `<html dir="${dir}"><head><meta charset="utf-8"><title>${t.title}</title>
       <style>
-        body{font-family:${meta.fontFamily};padding:30px;max-width:650px;margin:0 auto;color:#222;direction:${dir}}
-        .header{text-align:center;border-bottom:2px solid #333;padding-bottom:15px;margin-bottom:20px}
-        .logo{font-size:22px;font-weight:bold}
-        .lang-badge{display:inline-block;padding:2px 8px;background:#eef2ff;color:#4f46e5;border-radius:12px;font-size:11px;margin-top:4px}
-        table{width:100%;border-collapse:collapse;margin-top:10px}
-        td{padding:8px 12px;border:1px solid #ddd;font-size:13px}
-        .label{background:#f5f5f5;font-weight:600;width:50%}
-        .green{color:#16a34a}.red{color:#dc2626}.blue{color:#2563eb}
-        .total-row{background:#dbeafe;font-weight:bold;font-size:15px}
-        .net-row{background:#dcfce7;font-weight:bold;font-size:16px}
-        .footer{margin-top:30px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:20px}
-        h3{margin:20px 0 8px;font-size:14px;color:#555}
+        *{box-sizing:border-box}
+        body{font-family:${meta.fontFamily};padding:24px;max-width:720px;margin:0 auto;color:#111;direction:${dir};font-size:13px}
+        .slip-header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #465FFF;padding-bottom:14px;margin-bottom:18px}
+        .slip-title{font-size:20px;font-weight:800;color:#465FFF}
+        .slip-sub{font-size:12px;color:#666;margin-top:3px}
+        .lang-badge{padding:3px 10px;background:#eef2ff;color:#465FFF;border-radius:20px;font-size:11px;font-weight:600}
+        .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid #eee}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;background:#f8f9ff;border-radius:8px;padding:10px 14px;margin-bottom:10px}
+        .info-item{display:flex;gap:6px;font-size:12px}.info-label{color:#888;min-width:90px}.info-value{font-weight:600}
+        table{width:100%;border-collapse:collapse}
+        tr:not(:last-child) td{border-bottom:1px solid #f0f0f0}
+        td{padding:7px 10px}
+        .row-label{color:#444;width:55%}
+        .row-value{text-align:${dir==='rtl'?'left':'right'};font-weight:600}
+        .blue{color:#2563eb}.green{color:#16a34a}.red{color:#dc2626}
+        .subtotal{background:#f0f4ff;font-weight:700;border-radius:4px}
+        .subtotal td{padding:9px 10px}
+        .grand-total{background:#dcfce7;font-size:15px;font-weight:800;border-radius:6px}
+        .grand-total td{padding:11px 12px}
+        .deduct-label{color:#dc2626}
+        .summary-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+        .summary-item{background:#f8f9ff;border-radius:8px;padding:10px;text-align:center}
+        .summary-item .s-label{font-size:11px;color:#888;margin-bottom:3px}
+        .summary-item .s-val{font-size:14px;font-weight:700}
+        .footer{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid #ddd;padding-top:18px}
+        .footer-box{text-align:center;font-size:12px;color:#555}
+        .sig-line{border-top:1px solid #999;margin-top:30px;padding-top:5px}
+        .badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
       </style>
       </head><body>
-      <div class="header">
-        <div class="logo">🚀 ${t.subtitle}</div>
-        <p style="color:#666;margin:5px 0">${t.title} — ${monthLabel}</p>
+      <div class="slip-header">
+        <div>
+          <div class="slip-title">🚀 ${t.subtitle}</div>
+          <div class="slip-sub">${t.title} &mdash; ${monthLabel}</div>
+        </div>
         <span class="lang-badge">${meta.flag} ${meta.label}</span>
       </div>
-      <h3>${t.sectionEmployee}</h3><table>
-        <tr><td class="label">${t.name}</td><td>${row.employeeName}</td></tr>
-        <tr><td class="label">${t.nationalId}</td><td dir="ltr">${row.nationalId}</td></tr>
-        <tr><td class="label">${t.city}</td><td>${row.city}</td></tr>
-        <tr><td class="label">${t.paymentMethod}</td><td>${row.paymentMethod === 'bank' ? t.payBank : t.payCash}</td></tr>
+
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">${t.name}:</span><span class="info-value">${row.employeeName}</span></div>
+        <div class="info-item"><span class="info-label">${t.nationalId}:</span><span class="info-value" dir="ltr">${row.nationalId || '—'}</span></div>
+        <div class="info-item"><span class="info-label">${t.city}:</span><span class="info-value">${row.city || '—'}</span></div>
+        <div class="info-item"><span class="info-label">${t.paymentMethod}:</span><span class="info-value">${row.paymentMethod === 'bank' ? t.payBank : t.payCash}</span></div>
+      </div>
+
+      <div class="section-title">✅ ${t.sectionEarnings || t.sectionPlatforms}</div>
+      <table>
+        ${earningRows.map(r => `<tr><td class="row-label">${r.l}</td><td class="row-value ${r.cls}">${r.sign}${r.v.toLocaleString()} ${t.currency}</td></tr>`).join('')}
+        <tr class="subtotal"><td class="row-label">${t.platformTotal}</td><td class="row-value blue">${totalEarnings.toLocaleString()} ${t.currency}</td></tr>
       </table>
-      <h3>${t.sectionPlatforms}</h3><table>
-        ${row.registeredApps.map(app => {
-          const orders = row.platformOrders[app] || 0;
-          const salary = row.platformSalaries[app] || 0;
-          return `<tr><td class="label">${app} (${orders} ${t.orders})</td><td class="blue">${salary.toLocaleString()} ${t.currency}</td></tr>`;
-        }).join('')}
-        <tr class="total-row"><td class="label">${t.platformTotal}</td><td class="blue">${totalPlatformSalary.toLocaleString()} ${t.currency}</td></tr>
-      </table>
-      ${row.incentives > 0 || row.sickAllowance > 0 ? `
-      <h3>${t.sectionAdditions}</h3><table>
-        ${row.incentives > 0 ? `<tr><td class="label">${t.incentives}</td><td class="green">+${row.incentives.toLocaleString()} ${t.currency}</td></tr>` : ''}
-        ${row.sickAllowance > 0 ? `<tr><td class="label">${t.sickAllowance}</td><td class="green">+${row.sickAllowance.toLocaleString()} ${t.currency}</td></tr>` : ''}
-        <tr class="total-row"><td class="label">${t.totalWithSalary}</td><td class="blue">${totalWithSalary.toLocaleString()} ${t.currency}</td></tr>
+
+      ${deductionItems.length > 0 ? `
+      <div class="section-title">❌ ${t.sectionDeductions}</div>
+      <table>
+        ${deductionItems.map(d => `<tr><td class="row-label deduct-label">${d.label}</td><td class="row-value red">- ${d.val.toLocaleString()} ${t.currency}</td></tr>`).join('')}
+        <tr class="subtotal"><td class="row-label deduct-label">${t.totalDeductions}</td><td class="row-value red">- ${totalDeductions.toLocaleString()} ${t.currency}</td></tr>
       </table>` : ''}
-      ${deductionRows.length > 0 ? `
-      <h3>${t.sectionDeductions}</h3><table>
-        ${deductionRows.map(d => `<tr><td class="label">${d.l}</td><td class="red">- ${d.v.toLocaleString()} ${t.currency}</td></tr>`).join('')}
-        <tr class="total-row"><td class="label">${t.totalDeductions}</td><td class="red">- ${totalDeductions.toLocaleString()} ${t.currency}</td></tr>
-      </table>` : ''}
-      <h3></h3><table>
-        <tr class="net-row"><td class="label">${t.netSalary}</td><td class="green">${netSalary.toLocaleString()} ${t.currency}</td></tr>
-        ${row.transfer > 0 ? `<tr><td class="label">${t.transfer}</td><td>${row.transfer.toLocaleString()} ${t.currency}</td></tr>` : ''}
-        ${row.transfer > 0 ? `<tr><td class="label">${t.remaining}</td><td>${remaining.toLocaleString()} ${t.currency}</td></tr>` : ''}
-        ${row.advanceRemaining > 0 ? `<tr><td class="label">${t.advanceBalance}</td><td class="red">${row.advanceRemaining.toLocaleString()} ${t.currency}</td></tr>` : ''}
+
+      <br/>
+      <table>
+        <tr class="grand-total"><td class="row-label">${t.netSalary}</td><td class="row-value green">${netSalary.toLocaleString()} ${t.currency}</td></tr>
       </table>
+
+      <div class="summary-bar">
+        <div class="summary-item"><div class="s-label">${t.transfer}</div><div class="s-val">${row.transfer.toLocaleString()} ${t.currency}</div></div>
+        <div class="summary-item"><div class="s-label">${t.remaining}</div><div class="s-val">${remaining.toLocaleString()} ${t.currency}</div></div>
+        ${row.advanceRemaining > 0 ? `<div class="summary-item"><div class="s-label">${t.advanceBalance}</div><div class="s-val" style="color:#dc2626">${row.advanceRemaining.toLocaleString()} ${t.currency}</div></div>` : '<div></div>'}
+      </div>
+
       <div class="footer">
-        <div>${t.signatureDriver}: _______________</div>
-        <div>${t.signatureAdmin}: _______________</div>
+        <div class="footer-box"><div class="sig-line">${t.signatureDriver}</div></div>
+        <div class="footer-box"><div class="sig-line">${t.signatureAdmin}</div></div>
       </div>
       </body></html>`;
     const win = window.open('', '_blank');
@@ -174,22 +219,12 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
     win?.print();
   };
 
-  const deductionItems = [
-    { l: t.advanceInstallment, v: row.advanceDeduction },
-    { l: t.externalDeductions, v: row.externalDeduction },
-    { l: t.violations, v: row.violations },
-    { l: t.walletHunger, v: row.walletHunger },
-    { l: t.walletTuyo, v: row.walletTuyo },
-    { l: t.walletJahiz, v: row.walletJahiz },
-    { l: t.foodDamage, v: row.foodDamage },
-  ].filter(x => x.v > 0);
-
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent dir={dir} className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {t.title} — {row.employeeName}
+          <DialogTitle className="flex items-center gap-2 text-base">
+            {t.title} — <span className="text-foreground">{row.employeeName}</span>
             <span className="text-sm font-normal bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
               <Globe size={12} /> {meta.flag} {meta.label}
             </span>
@@ -197,88 +232,95 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
         </DialogHeader>
         <div className="space-y-4 text-sm">
           {/* Employee Info */}
-          <div className="bg-muted/40 rounded-lg p-3 grid grid-cols-2 gap-2">
-            <div><span className="text-muted-foreground">{t.month}: </span><span className="font-medium">{monthLabel}</span></div>
-            <div><span className="text-muted-foreground">{t.city}: </span><span className="font-medium">{row.city}</span></div>
-            <div><span className="text-muted-foreground">{t.nationalId}: </span><span className="font-medium" dir="ltr">{row.nationalId}</span></div>
-            <div><span className="text-muted-foreground">{t.status}: </span><span className={statusStyles[row.status]}>{getStatusLabel(row.status, row.preferredLanguage)}</span></div>
+          <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
+            <div><span className="text-muted-foreground text-xs">{t.month}: </span><span className="font-semibold text-xs">{monthLabel}</span></div>
+            <div><span className="text-muted-foreground text-xs">{t.city}: </span><span className="font-semibold text-xs">{row.city || '—'}</span></div>
+            <div><span className="text-muted-foreground text-xs">{t.nationalId}: </span><span className="font-semibold text-xs" dir="ltr">{row.nationalId || '—'}</span></div>
+            <div><span className="text-muted-foreground text-xs">{t.status}: </span><span className={`${statusStyles[row.status]} text-xs`}>{getStatusLabel(row.status, row.preferredLanguage)}</span></div>
+            <div><span className="text-muted-foreground text-xs">{t.paymentMethod}: </span><span className="font-semibold text-xs">{row.paymentMethod === 'bank' ? t.payBank : t.payCash}</span></div>
           </div>
 
-          {/* Platforms */}
-          <div>
-            <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">{t.sectionPlatforms}</p>
-            {row.registeredApps.map(app => {
-              const orders = row.platformOrders[app] || 0;
-              const salary = row.platformSalaries[app] || 0;
-              const color = PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--primary))';
-              return (
-                <div key={app} className="flex justify-between py-1.5 border-b border-border/30">
-                  <span className="text-muted-foreground">{app} ({orders} {t.orders})</span>
-                  <span className="font-semibold" style={{ color }}>{fmt(salary)}</span>
-                </div>
-              );
-            })}
-            <div className="flex justify-between py-2 font-bold text-primary bg-primary/5 px-2 rounded mt-1">
-              <span>{t.platformTotal}</span><span>{fmt(totalPlatformSalary)}</span>
+          {/* ── EARNINGS Section ─────────────────────────────── */}
+          <div className="rounded-xl border border-success/20 bg-success/5 overflow-hidden">
+            <div className="px-3 py-2 bg-success/10 border-b border-success/20">
+              <p className="font-bold text-xs text-success uppercase tracking-wide">{t.sectionEarnings || '✅ الاستحقاقات / Earnings'}</p>
             </div>
-          </div>
-
-          {/* Additions */}
-          {(row.incentives > 0 || row.sickAllowance > 0) && (
-            <div>
-              <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">{t.sectionAdditions}</p>
+            <div className="divide-y divide-border/30">
+              {/* Platform rows */}
+              {platformRows.map(({ app, orders, salary }) => {
+                const color = PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--primary))';
+                return (
+                  <div key={app} className="flex justify-between items-center px-3 py-2">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-foreground">{app}</span>
+                      <span className="text-xs text-muted-foreground">{orders} {t.orders}</span>
+                    </div>
+                    <span className="font-semibold" style={{ color }}>{fmt(salary)}</span>
+                  </div>
+                );
+              })}
+              {/* Incentives */}
               {row.incentives > 0 && (
-                <div className="flex justify-between py-1.5 border-b border-border/30">
-                  <span className="text-success">{t.incentives}</span>
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.incentives}</span>
                   <span className="font-semibold text-success">+{fmt(row.incentives)}</span>
                 </div>
               )}
+              {/* Sick allowance */}
               {row.sickAllowance > 0 && (
-                <div className="flex justify-between py-1.5 border-b border-border/30">
-                  <span className="text-success">{t.sickAllowance}</span>
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.sickAllowance}</span>
                   <span className="font-semibold text-success">+{fmt(row.sickAllowance)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-2 font-bold text-primary bg-primary/5 px-2 rounded mt-1">
-                <span>{t.totalWithSalary}</span><span>{fmt(totalWithSalary)}</span>
-              </div>
             </div>
-          )}
-
-          {/* Deductions */}
-          {deductionItems.length > 0 && (
-            <div>
-              <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">{t.sectionDeductions}</p>
-              {deductionItems.map(x => (
-                <div key={x.l} className="flex justify-between py-1.5 border-b border-border/30">
-                  <span className="text-destructive">{x.l}</span>
-                  <span className="font-semibold text-destructive">-{fmt(x.v)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between py-2 font-bold text-destructive bg-destructive/5 px-2 rounded mt-1">
-                <span>{t.totalDeductions}</span><span>-{fmt(totalDeductions)}</span>
-              </div>
+            {/* Earnings subtotal */}
+            <div className="flex justify-between items-center px-3 py-2.5 bg-success/15 font-bold">
+              <span className="text-success">{t.platformTotal}</span>
+              <span className="text-success text-base">{fmt(totalEarnings)}</span>
             </div>
-          )}
-
-          {/* Net */}
-          <div className="flex justify-between items-center py-3 bg-success/10 rounded-lg px-4">
-            <span className="font-bold text-lg">{t.netSalary}</span>
-            <span className="text-2xl font-black text-success">{fmt(netSalary)}</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {/* ── DEDUCTIONS Section ───────────────────────────── */}
+          {deductionItems.length > 0 && (
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 overflow-hidden">
+              <div className="px-3 py-2 bg-destructive/10 border-b border-destructive/20">
+                <p className="font-bold text-xs text-destructive uppercase tracking-wide">{t.sectionDeductions}</p>
+              </div>
+              <div className="divide-y divide-border/30">
+                {deductionItems.map(d => (
+                  <div key={d.key} className="flex justify-between items-center px-3 py-2">
+                    <span className="text-foreground">{d.label}</span>
+                    <span className="font-semibold text-destructive">-{fmt(d.val)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
+                <span className="text-destructive">{t.totalDeductions}</span>
+                <span className="text-destructive text-base">-{fmt(totalDeductions)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── NET SALARY ──────────────────────────────────── */}
+          <div className="flex justify-between items-center py-3.5 bg-primary text-primary-foreground rounded-xl px-5">
+            <span className="font-bold text-base">{t.netSalary}</span>
+            <span className="text-2xl font-black">{fmt(netSalary)}</span>
+          </div>
+
+          {/* Summary Footer */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground">{t.transfer}</p>
-              <p className="font-bold">{fmt(row.transfer)}</p>
+              <p className="text-[11px] text-muted-foreground mb-0.5">{t.transfer}</p>
+              <p className="font-bold text-sm">{fmt(row.transfer)}</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground">{t.remaining}</p>
-              <p className="font-bold">{fmt(remaining)}</p>
+              <p className="text-[11px] text-muted-foreground mb-0.5">{t.remaining}</p>
+              <p className="font-bold text-sm">{fmt(remaining)}</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground">{t.paymentMethod}</p>
-              <p className="font-bold">{row.paymentMethod === 'bank' ? t.payBank : t.payCash}</p>
+              <p className="text-[11px] text-muted-foreground mb-0.5">{t.advanceBalance}</p>
+              <p className={`font-bold text-sm ${row.advanceRemaining > 0 ? 'text-destructive' : ''}`}>{fmt(row.advanceRemaining)}</p>
             </div>
           </div>
         </div>
