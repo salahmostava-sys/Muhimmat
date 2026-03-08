@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Search, Plus, Download, Upload, Printer, Eye, Edit, Trash2,
+  Search, Plus, Download, Printer, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import {
 import { differenceInDays, parseISO, format } from 'date-fns';
 import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
+import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
@@ -30,9 +31,11 @@ type Employee = {
   phone?: string | null;
   email?: string | null;
   national_id?: string | null;
+  employee_code?: string | null;
   bank_account_number?: string | null;
   city?: string | null;
   join_date?: string | null;
+  birth_date?: string | null;
   residency_expiry?: string | null;
   license_status?: string | null;
   sponsorship_status?: string | null;
@@ -202,7 +205,7 @@ const Employees = () => {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const importRef = useRef<HTMLInputElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // ── Fetch from Supabase ──
   const fetchEmployees = useCallback(async () => {
@@ -303,27 +306,30 @@ const Employees = () => {
     const rows = filtered.map(e => {
       const { days, status } = calcResidency(e.residency_expiry);
       return {
-        [t('name')]: e.name,
-        [t('jobTitle')]: e.job_title || '',
-        [t('nationalId')]: e.national_id || '',
-        [t('phone')]: e.phone || '',
-        [t('email')]: e.email || '',
-        [t('city')]: e.city === 'makkah' ? t('makkah') : e.city === 'jeddah' ? t('jeddah') : '',
-        [t('joinDate')]: e.join_date || '',
-        [t('residencyExpiry')]: e.residency_expiry || '',
-        [t('residencyDays')]: days ?? '',
-        [t('residencyStatus')]: status === 'valid' ? t('residencyValid') : status === 'expired' ? t('residencyExpired') : '',
-        [t('licenseStatus')]: { has_license: t('hasLicense'), no_license: t('noLicense'), applied: t('applied') }[e.license_status || ''] || '',
-        [t('sponsorshipStatus')]: { sponsored: t('sponsored'), not_sponsored: t('notSponsored'), absconded: t('absconded'), terminated: t('terminated') }[e.sponsorship_status || ''] || '',
-        [t('bankAccount')]: e.bank_account_number || '',
-        [t('salaryType')]: e.salary_type === 'orders' ? t('byOrders') : t('shift'),
-        [t('status')]: { active: t('active'), inactive: t('inactive'), ended: t('ended') }[e.status] || e.status,
+        'الاسم': e.name,
+        'كود الموظف': e.employee_code || '',
+        'رقم الهوية': e.national_id || '',
+        'رقم الهاتف': e.phone || '',
+        'البريد الإلكتروني': e.email || '',
+        'المدينة': e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
+        'الجنسية': e.nationality || '',
+        'المسمى الوظيفي': e.job_title || '',
+        'تاريخ الانضمام': e.join_date || '',
+        'تاريخ الميلاد': e.birth_date || '',
+        'تاريخ انتهاء الإقامة': e.residency_expiry || '',
+        'المتبقي (يوم)': days ?? '',
+        'حالة الإقامة': status === 'valid' ? 'صالحة' : status === 'expired' ? 'منتهية' : '',
+        'الرخصة': { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
+        'حالة الكفالة': { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
+        'رقم الحساب البنكي': e.bank_account_number || '',
+        'نوع الراتب': e.salary_type === 'orders' ? 'بالطلب' : 'ثابت',
+        'الحالة': { active: 'نشط', inactive: 'موقوف', ended: 'منتهي' }[e.status] || e.status,
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, t('employees'));
-    XLSX.writeFile(wb, `employees_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'بيانات الموظفين');
+    XLSX.writeFile(wb, `بيانات_المناديب_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const handleTemplate = () => {
@@ -373,19 +379,17 @@ const Employees = () => {
               <Plus size={16} /> {t('addEmployee')}
             </Button>
           )}
-          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
+          {permissions.can_edit && (
+            <Button variant="outline" onClick={() => setShowImportModal(true)} className="gap-2">
+              📥 {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2"><Download size={15} /> {t('downloadReport')} ▾</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>📊 {t('exportExcel')}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {permissions.can_edit && (
-                <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                  <Upload size={14} className="ml-2" /> {t('importExcel')}
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem onClick={handleTemplate}>📋 {t('downloadTemplate')}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => window.print()}>
@@ -611,6 +615,13 @@ const Employees = () => {
             setShowAddModal(false);
             setEditEmployee(null);
           }}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportEmployeesModal
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => { setShowImportModal(false); fetchEmployees(); }}
         />
       )}
 

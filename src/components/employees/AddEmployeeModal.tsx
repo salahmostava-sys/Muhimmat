@@ -138,6 +138,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
 
   const [form, setForm] = useState({
     name: '',
+    employee_code: '',
     job_title: '',
     phone: '',
     email: '',
@@ -146,6 +147,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     bank_account_number: '',
     city: '' as 'makkah' | 'jeddah' | '',
     join_date: '',
+    birth_date: '',
     residency_expiry: '',
     license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
     sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
@@ -156,11 +158,13 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     preferred_language: 'ar' as 'ar' | 'en' | 'ur',
   });
 
+
   // Pre-fill form when editing
   useEffect(() => {
     if (editEmployee) {
       setForm({
         name: editEmployee.name || '',
+        employee_code: (editEmployee as any).employee_code || '',
         job_title: editEmployee.job_title || '',
         phone: editEmployee.phone || '',
         email: editEmployee.email || '',
@@ -169,6 +173,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         bank_account_number: editEmployee.bank_account_number || '',
         city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
         join_date: editEmployee.join_date || '',
+        birth_date: (editEmployee as any).birth_date || '',
         residency_expiry: editEmployee.residency_expiry || '',
         license_status: (editEmployee.license_status as 'has_license' | 'no_license' | 'applied') || 'no_license',
         sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
@@ -228,6 +233,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     try {
       const payload: any = {
         name: form.name,
+        employee_code: form.employee_code || null,
         job_title: form.job_title || null,
         phone: form.phone || null,
         email: form.email || null,
@@ -236,6 +242,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         bank_account_number: form.bank_account_number || null,
         city: form.city || null,
         join_date: form.join_date || null,
+        birth_date: form.birth_date || null,
         residency_expiry: form.residency_expiry || null,
         license_status: form.license_status,
         sponsorship_status: form.sponsorship_status,
@@ -343,6 +350,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="الاسم الكامل" required error={errors.name}>
                 <Input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="أحمد محمد العمري" />
               </F>
+              <F label="كود الموظف">
+                <Input value={form.employee_code} onChange={e => setField('employee_code', e.target.value)} placeholder="EMP-001" dir="ltr" />
+              </F>
               <F label="المسمى الوظيفي">
                 <Input value={form.job_title} onChange={e => setField('job_title', e.target.value)} placeholder="مندوب توصيل" />
               </F>
@@ -373,6 +383,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               </F>
               <F label="تاريخ الانضمام">
                 <Input type="date" value={form.join_date} onChange={e => setField('join_date', e.target.value)} />
+              </F>
+              <F label="تاريخ الميلاد">
+                <Input type="date" value={form.birth_date} onChange={e => setField('birth_date', e.target.value)} />
               </F>
               <F label="لغة كشف الراتب">
                 <div className="flex gap-2 mt-1">
