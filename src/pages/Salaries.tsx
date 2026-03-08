@@ -1224,15 +1224,15 @@ const Salaries = () => {
                       {PLATFORMS.map(p => {
                         const pc = PLATFORM_COLORS[p];
                         const orders = r.platformOrders[p] || 0;
+                        const salary = r.platformSalaries[p] || 0;
                         const scheme = empPlatformScheme?.[r.employeeId]?.[p];
                         const target = scheme?.target_orders;
-                        const cellBg = orders === 0
-                          ? 'bg-muted/20'
-                          : (target && orders >= target)
-                            ? 'bg-success/10'
-                            : '';
-                        return (
-                          <td key={p} className={`${tdClass} text-center ${cellBg}`}
+                        const hitTarget = target && orders >= target;
+                        const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
+                        return [
+                          // Orders column
+                          <td key={`${p}-orders`} className={`${tdClass} text-center`}
+                            style={{ background: rowBg }}
                             onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
                             {editingCell?.rowId === r.id && editingCell?.platform === p ? (
                               <input
@@ -1240,16 +1240,32 @@ const Salaries = () => {
                                 type="number"
                                 defaultValue={orders}
                                 className="w-16 text-center border rounded px-1 py-0.5 text-xs bg-background"
+                                style={{ borderColor: pc?.focusBorder }}
                                 onBlur={e => { updatePlatformOrders(r.id, p, Number(e.target.value)); setEditingCell(null); }}
                                 onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingCell(null); }}
                               />
                             ) : (
-                              <span style={{ color: orders === 0 ? undefined : pc?.valueColor }} className={orders === 0 ? 'text-muted-foreground/30' : 'font-semibold'}>
+                              <span
+                                style={{ color: orders === 0 ? undefined : pc?.valueColor }}
+                                className={`font-semibold ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
+                              >
                                 {orders === 0 ? '—' : orders}
                               </span>
                             )}
-                          </td>
-                        );
+                          </td>,
+                          // Salary column
+                          <td key={`${p}-salary`} className={`${tdClass} text-center border-l border-border/20`}
+                            style={{ background: rowBg }}>
+                            <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
+                              <span
+                                style={{ color: salary === 0 ? undefined : pc?.valueColor }}
+                                className={`text-xs ${salary === 0 ? 'text-muted-foreground/30' : 'font-medium'}`}
+                              >
+                                {salary === 0 ? '—' : salary.toLocaleString()}
+                              </span>
+                            </SalaryBreakdown>
+                          </td>,
+                        ];
                       })}
                       <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
