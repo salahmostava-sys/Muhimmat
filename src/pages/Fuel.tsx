@@ -674,6 +674,7 @@ const FuelPage = () => {
                     <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
                       {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
                     </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
                     <td className="px-4 py-3 text-center text-muted-foreground">
                       {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
