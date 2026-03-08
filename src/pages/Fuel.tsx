@@ -24,6 +24,7 @@ type MileageRow = {
   notes: string | null;
   employee?: { name: string; personal_photo_url?: string | null };
   orders_count?: number;
+  vehicle?: { plate_number: string; type: string; brand?: string | null; model?: string | null } | null;
 };
 
 type Employee = { id: string; name: string; personal_photo_url?: string | null };
