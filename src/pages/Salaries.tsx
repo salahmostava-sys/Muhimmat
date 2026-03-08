@@ -504,6 +504,13 @@ const Salaries = () => {
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
 
+  // ── Batch ZIP export state ────────────────────────────────────
+  const [batchQueue, setBatchQueue] = useState<SalaryRow[]>([]);
+  const [batchIndex, setBatchIndex] = useState(0);
+  const [batchZip, setBatchZip] = useState<JSZip | null>(null);
+  const [batchMonth, setBatchMonth] = useState('');
+  const batchSlipRef = useRef<HTMLDivElement>(null);
+
   // Sync platforms & colors from DB apps
   useEffect(() => {
     if (appColorsList.length === 0) return;
