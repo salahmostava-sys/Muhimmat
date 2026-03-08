@@ -560,6 +560,12 @@ const Employees = () => {
                         renderDisplay={() => <StatusBadge status={emp.status} />}
                       />
                     </td>
+                    <td className="px-3 py-2.5 text-sm" dir="ltr">
+                      {emp.email
+                        ? <a href={`mailto:${emp.email}`} className="text-primary hover:underline" title={`إرسال بريد إلى ${emp.email}`}>{emp.email}</a>
+                        : <span className="text-muted-foreground/40">—</span>
+                      }
+                    </td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">
                         <button onClick={() => setSelectedEmployee(emp.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={t('view')}>
@@ -584,12 +590,6 @@ const Employees = () => {
                           </button>
                         )}
                       </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-sm" dir="ltr">
-                      {emp.email
-                        ? <a href={`mailto:${emp.email}`} className="text-primary hover:underline" title={`إرسال بريد إلى ${emp.email}`}>{emp.email}</a>
-                        : <span className="text-muted-foreground/40">—</span>
-                      }
                     </td>
                   </tr>
                 );
