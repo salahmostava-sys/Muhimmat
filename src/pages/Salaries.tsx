@@ -1142,70 +1142,47 @@ const Salaries = () => {
                   </th>
                   {PLATFORMS.map(p => {
                     const pc = PLATFORM_COLORS[p];
+                    // Use first matching scheme across all employees as header label
+                    const headerScheme = empPlatformScheme
+                      ? Object.values(empPlatformScheme).find(m => m[p])?.[p]
+                      : null;
+                    const schemeName = headerScheme?.name || '';
                     return (
                       <th key={p} className="px-3 py-2 text-xs font-semibold whitespace-nowrap border-b border-border/50 text-center cursor-pointer select-none hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: pc?.header, color: pc?.headerText }}
                         onClick={() => handleSort(p)}>
-                        {p} <SortIcon field={p} sortField={sortField} sortDir={sortDir} />
+                        <div className="flex flex-col items-center gap-0">
+                          <span>{p} <SortIcon field={p} sortField={sortField} sortDir={sortDir} /></span>
+                          {schemeName && <span className="text-[9px] opacity-70 font-normal">{schemeName}</span>}
+                        </div>
                       </th>
                     );
                   })}
-                  <ThSort field="platformSalaries" label="إجمالي الراتب الأساسي" className="text-primary font-bold border-l border-border/50 bg-muted/50 text-muted-foreground" />
-                  <ThSort field="incentives" label="الحوافز" className="text-success bg-muted/50 text-muted-foreground" />
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">بدل مرضي</th>
-                  <ThSort field="totalAdditions" label="إجمالي الإضافات" className="text-success bg-muted/50 text-muted-foreground" />
-                  <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المجموع مع الراتب</th>
-                  <ThSort field="advanceDeduction" label="قسط سلفة" className="text-destructive bg-muted/50 text-muted-foreground" />
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">خصومات خارجية</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">المخالفات</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">محفظة هنقر</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">محفظة تويو</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">تلف طعام</th>
-                  <ThSort field="totalDeductions" label="إجمالي المستقطعات" className="text-destructive font-bold border-l border-border/50 bg-muted/50 text-muted-foreground" />
-                  <ThSort field="netSalary" label="إجمالي الراتب" className="text-success font-bold text-base bg-muted/50 text-muted-foreground" />
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">التحويل</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المتبقي</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">طريقة الصرف</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المدينة</th>
-                  <ThSort field="status" label="الحالة" className="bg-muted/50 text-muted-foreground" />
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">اعتماد</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">تم الصرف</th>
-                  <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">PDF</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => {
-                  const c = computeRow(r);
-                  return (
-                    <tr key={r.id} className="hover:bg-muted/10 transition-colors group">
-                      <td className={`${tdFrozenClass} w-44 text-right`} style={stickyLeft(0)}>
-                        <button className="flex items-center gap-2 hover:text-primary transition-colors text-right" onClick={() => setPayslipRow(r)}>
-                          <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
-                            {r.employeeName.slice(0, 1)}
-                          </span>
-                          <span className="font-medium text-xs whitespace-nowrap">{r.employeeName}</span>
-                        </button>
-                      </td>
-                      <td className={`${tdFrozenClass} w-28 text-right text-muted-foreground`} style={stickyLeft(176)}>
-                        <span className="text-xs">{r.jobTitle}</span>
-                      </td>
-                      <td className={`${tdFrozenClass} w-28 border-l border-border/30 text-right font-mono`} style={stickyLeft(288)}>
-                        <span className="text-xs text-muted-foreground">{r.nationalId}</span>
-                      </td>
+...
                       {PLATFORMS.map(p => {
                         const pc = PLATFORM_COLORS[p];
+                        const orders = r.platformOrders[p] || 0;
+                        const salary = r.platformSalaries[p] || 0;
+                        const rowScheme: SchemeData | null = empPlatformScheme[r.employeeId]?.[p] || null;
+                        const targetOrders = rowScheme?.target_orders;
+                        // Cell background: green if hit target, grey if zero, default otherwise
+                        const cellBg = r.registeredApps.includes(p)
+                          ? (orders === 0 ? 'rgba(150,150,150,0.06)' : (targetOrders && orders >= targetOrders ? 'rgba(18,183,106,0.08)' : pc?.cellBg))
+                          : undefined;
                         return (
-                          <td key={p} className={tdClass} style={{ backgroundColor: r.registeredApps.includes(p) ? pc?.cellBg : undefined }}>
+                          <td key={p} className={tdClass} style={{ backgroundColor: cellBg }}>
                             {r.registeredApps.includes(p) ? (
                               <div className="flex flex-col items-center gap-0.5">
                                 <EditableCell
-                                  value={r.platformOrders[p] || 0}
+                                  value={orders}
                                   onChange={v => updatePlatformOrders(r.id, p, v)}
-                                  accentColor={pc?.valueColor}
+                                  accentColor={targetOrders && orders >= targetOrders ? '#12B76A' : pc?.valueColor}
                                 />
-                                <span className="text-muted-foreground/60 text-[10px]">
-                                  = {(r.platformSalaries[p] || 0).toLocaleString()} ر.س
-                                </span>
+                                <SalaryBreakdown orders={orders} scheme={rowScheme} salary={salary}>
+                                  <span className="text-muted-foreground/60 text-[10px] cursor-help underline decoration-dotted">
+                                    = {salary.toLocaleString()} ر.س
+                                  </span>
+                                </SalaryBreakdown>
                               </div>
                             ) : (
                               <span className="text-muted-foreground/30">—</span>
