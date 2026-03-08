@@ -54,17 +54,6 @@ const Permissions = () => {
   const [saving, setSaving] = useState(false);
   const [pendingRole, setPendingRole] = useState<AppRoleType | null>(null);
 
-  // Only admins can access this page
-  if (currentRole !== 'admin') {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4">
-        <Shield size={48} className="text-muted-foreground" />
-        <p className="text-lg font-semibold text-foreground">غير مصرح</p>
-        <p className="text-sm text-muted-foreground">هذه الصفحة متاحة للمدير فقط</p>
-      </div>
-    );
-  }
-
   const fetchUsers = async () => {
     setLoadingUsers(true);
     const [profilesRes, rolesRes] = await Promise.all([
