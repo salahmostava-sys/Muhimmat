@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, Map, ChevronDown, ChevronUp, Fuel,
+  Settings, Map, ChevronDown, ChevronUp, Fuel, Settings2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { cn } from '@/lib/utils';
 import UserProfileModal from '@/components/UserProfileModal';
 
@@ -16,6 +17,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { isRTL } = useLanguage();
+  const { projectName, projectSubtitle, settings } = useSystemSettings();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     hr: true, finance: false, operations: false, settings: false,
   });
@@ -67,6 +69,7 @@ const AppSidebar = () => {
         { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
         { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('permissions'), icon: Settings, path: '/settings/permissions' },
+        { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
       ],
     },
   ];
@@ -85,15 +88,20 @@ const AppSidebar = () => {
       {/* Logo */}
       <div className="p-5 border-b border-sidebar-border flex-shrink-0">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
-            🚀
-          </div>
+          {settings?.logo_url ? (
+            <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-xl object-cover" />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
+              🚀
+            </div>
+          )}
           <div>
-            <h1 className="text-sm font-bold text-sidebar-accent-foreground leading-tight">{t('appName')}</h1>
-            <p className="text-xs text-sidebar-muted">{t('appSubtitle')}</p>
+            <h1 className="text-sm font-bold text-sidebar-accent-foreground leading-tight">{projectName}</h1>
+            <p className="text-xs text-sidebar-muted">{projectSubtitle}</p>
           </div>
         </Link>
       </div>
+
 
       {/* Dashboard link */}
       <div className="px-3 pt-3">

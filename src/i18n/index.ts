@@ -164,6 +164,20 @@ const resources = {
       finance_role: 'مالية',
       operations_role: 'عمليات',
       viewer: 'عارض',
+
+      // ─── Settings ────────────────────────────────────────────
+      generalSettings: 'إعدادات عامة',
+      projectName: 'اسم المشروع',
+      projectNameAr: 'اسم المشروع (عربي)',
+      projectNameEn: 'اسم المشروع (إنجليزي)',
+      projectSubtitle: 'العنوان الفرعي',
+      defaultLanguage: 'اللغة الافتراضية',
+      systemTheme: 'مظهر النظام',
+      uploadLogo: 'رفع شعار',
+      saveSettings: 'حفظ الإعدادات',
+      settingsSaved: 'تم حفظ الإعدادات',
+      lightTheme: '☀️ فاتح',
+      darkTheme: '🌙 داكن',
     },
   },
   en: {
@@ -328,6 +342,20 @@ const resources = {
       finance_role: 'Finance',
       operations_role: 'Operations',
       viewer: 'Viewer',
+
+      // ─── Settings ────────────────────────────────────────────
+      generalSettings: 'General Settings',
+      projectName: 'Project Name',
+      projectNameAr: 'Project Name (Arabic)',
+      projectNameEn: 'Project Name (English)',
+      projectSubtitle: 'Subtitle',
+      defaultLanguage: 'Default Language',
+      systemTheme: 'System Theme',
+      uploadLogo: 'Upload Logo',
+      saveSettings: 'Save Settings',
+      settingsSaved: 'Settings Saved',
+      lightTheme: '☀️ Light',
+      darkTheme: '🌙 Dark',
     },
   },
 };
