@@ -1094,13 +1094,14 @@ const Salaries = () => {
                   <td className={`${tfClass} text-success text-base`}>{totals.net.toLocaleString()}</td>
                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                  <td className={tfClass} colSpan={5}></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                   <td className={tfClass} colSpan={5}></td>
+                 </tr>
+               </tbody>
+             </table>
+           </div>
+         )}
+       </div>
+      )}
 
       {payslipRow && (
         <PayslipModal
