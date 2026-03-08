@@ -22,6 +22,7 @@ const resources = {
       orders: 'الطلبات اليومية',
       vehicles: 'بيانات المركبات',
       vehicleTracking: 'تتبع المركبات',
+      fuel: 'الوقود والكيلومترات',
       schemes: 'السكيمات',
       users: 'المستخدمون',
       permissions: 'الصلاحيات',
