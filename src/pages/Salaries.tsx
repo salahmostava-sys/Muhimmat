@@ -463,6 +463,7 @@ const Salaries = () => {
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
+  const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
 
   // Sync platforms & colors from DB apps
   useEffect(() => {
