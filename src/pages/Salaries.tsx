@@ -1062,24 +1062,91 @@ const Salaries = () => {
     const toPrint = filtered;
     if (toPrint.length === 0) { toast({ title: 'لا يوجد بيانات للتحميل' }); return; }
 
-    toPrint.forEach((row, idx) => {
-      setTimeout(() => {
-        const html = generateEmployeePDF(row, monthLabel);
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        // Clean filename: employee name + month
-        const [y, m] = selectedMonth.split('-');
-        const safeName = row.employeeName.replace(/\s+/g, '_');
-        a.download = `كشف_راتب_${safeName}_${m}_${y}.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, idx * 150);
+    import('jspdf').then(async ({ default: jsPDF }) => {
+      const autoTableMod = await import('jspdf-autotable');
+      const autoTable = autoTableMod.default;
+
+      toPrint.forEach((row, idx) => {
+        setTimeout(() => {
+          const c = computeRow(row);
+          const [y, m] = selectedMonth.split('-');
+          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+          // Header
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(16);
+          doc.setTextColor(79, 70, 229);
+          doc.text('Salary Slip / كشف راتب', 105, 18, { align: 'center' });
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`${monthLabel}  |  ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' });
+
+          // Info table
+          autoTable(doc, {
+            startY: 32,
+            body: [
+              ['Employee / الاسم', row.employeeName, 'ID / الهوية', row.nationalId],
+              ['City / المدينة', row.city, 'Payment / طريقة الدفع', row.paymentMethod === 'bank' ? 'Bank' : 'Cash'],
+            ],
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            alternateRowStyles: { fillColor: [245, 245, 255] },
+            columnStyles: { 0: { fontStyle: 'bold', fillColor: [240, 240, 255] }, 2: { fontStyle: 'bold', fillColor: [240, 240, 255] } },
+          });
+
+          // Platform orders
+          const platformBody = row.registeredApps.map(app => [
+            app,
+            (row.platformOrders[app] || 0).toLocaleString(),
+            (row.platformSalaries[app] || 0).toLocaleString() + ' SAR',
+          ]);
+          platformBody.push(['Total / الإجمالي', '', c.totalPlatformSalary.toLocaleString() + ' SAR']);
+
+          autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 6,
+            head: [['Platform / المنصة', 'Orders / الطلبات', 'Salary / الراتب']],
+            body: platformBody,
+            headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 9, halign: 'center' },
+            columnStyles: { 0: { halign: 'left' } },
+          });
+
+          // Deductions if any
+          if (c.totalDeductions > 0) {
+            const dedBody: string[][] = [];
+            if (row.advanceDeduction > 0) dedBody.push(['Advance / سلفة', `-${row.advanceDeduction.toLocaleString()} SAR`]);
+            if (row.externalDeduction > 0) dedBody.push(['External / خارجي', `-${row.externalDeduction.toLocaleString()} SAR`]);
+            if (row.violations > 0) dedBody.push(['Violations / مخالفات', `-${row.violations.toLocaleString()} SAR`]);
+            dedBody.push(['Total Deductions', `-${c.totalDeductions.toLocaleString()} SAR`]);
+            autoTable(doc, {
+              startY: (doc as any).lastAutoTable.finalY + 6,
+              head: [['Deductions / المستقطعات', 'Amount / المبلغ']],
+              body: dedBody,
+              headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' },
+              styles: { fontSize: 9 },
+            });
+          }
+
+          // Net salary
+          autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 6,
+            body: [['Net Salary / الراتب الصافي', c.netSalary.toLocaleString() + ' SAR']],
+            styles: { fontSize: 12, fontStyle: 'bold', fillColor: [240, 253, 244], textColor: [22, 163, 74], cellPadding: 4 },
+          });
+
+          // Footer signature
+          const finalY = (doc as any).lastAutoTable.finalY + 20;
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text('Employee Signature: ___________________', 20, finalY);
+          doc.text('Manager Approval: ___________________', 120, finalY);
+
+          const safeName = row.employeeName.replace(/\s+/g, '_');
+          doc.save(`كشف_راتب_${safeName}_${m}_${y}.pdf`);
+        }, idx * 200);
+      });
+      toast({ title: `⬇️ جارٍ تحميل ${toPrint.length} ملف PDF...` });
     });
-    toast({ title: `⬇️ جارٍ تحميل ${toPrint.length} ملف...`, description: 'كل ملف باسم المندوب — يمكن فتحه في المتصفح والطباعة' });
   };
 
   // ── Merged PDF: all employees in a single printable page ──
