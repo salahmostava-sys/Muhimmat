@@ -913,7 +913,7 @@ const Salaries = () => {
 
   const totals = filtered.reduce((acc, r) => {
     const c = computeRow(r);
-    PLATFORMS.forEach(p => {
+    platforms.forEach(p => {
       acc.platform[p] = (acc.platform[p] || 0) + (r.platformOrders[p] || 0);
     });
     acc.platformSalaries += c.totalPlatformSalary;
