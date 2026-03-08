@@ -17,6 +17,7 @@ import Orders from "./pages/Orders";
 import Salaries from "./pages/Salaries";
 import Advances from "./pages/Advances";
 import Vehicles from "./pages/Vehicles";
+import FuelPage from "./pages/Fuel";
 
 import Deductions from "./pages/Deductions";
 import Apps from "./pages/Apps";
@@ -55,6 +56,7 @@ const App = () => (
                         <Route path="/advances" element={<Advances />} />
                         <Route path="/vehicles" element={<Vehicles />} />
                         <Route path="/vehicle-tracking" element={<Vehicles />} />
+                        <Route path="/fuel" element={<FuelPage />} />
                         
                         <Route path="/deductions" element={<Deductions />} />
                         <Route path="/apps" element={<Apps />} />
