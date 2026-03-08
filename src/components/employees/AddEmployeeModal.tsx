@@ -413,10 +413,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               )}
               <SectionTitle title="── المنصات المرتبطة ──" />
               <div className="flex flex-wrap gap-2">
-                {APPS.map(app => (
-                  <button key={app} type="button" onClick={() => toggleApp(app)}
-                    className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${form.selected_apps.includes(app) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
-                    {app}
+                {availableApps.map(app => (
+                  <button key={app.id} type="button" onClick={() => toggleApp(app.name)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${form.selected_apps.includes(app.name) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                    {app.name}
                   </button>
                 ))}
               </div>
