@@ -420,11 +420,16 @@ const FuelPage = () => {
     const start = `${monthYear}-01`;
     const end = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
 
-    const [mileageRes, ordersRes] = await Promise.all([
+    const [mileageRes, ordersRes, assignmentsRes] = await Promise.all([
       supabase.from('vehicle_mileage').select('*, employee:employees(name, personal_photo_url)')
         .eq('month_year', monthYear).order('employee(name)'),
       supabase.from('daily_orders').select('employee_id, orders_count')
         .gte('date', start).lte('date', end),
+      // Fetch active vehicle assignments to show the assigned vehicle per employee
+      supabase.from('vehicle_assignments')
+        .select('employee_id, vehicles(plate_number, type, brand, model)')
+        .is('end_date', null)
+        .order('start_date', { ascending: false }),
     ]);
 
     if (mileageRes.data) {
@@ -432,7 +437,18 @@ const FuelPage = () => {
       (ordersRes.data || []).forEach(o => {
         orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
       });
-      setRows(mileageRes.data.map((r: any) => ({ ...r, orders_count: orderMap[r.employee_id] || 0 })));
+      // Build vehicle map: first active assignment per employee
+      const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
+      (assignmentsRes.data || []).forEach((a: any) => {
+        if (!vehicleMap[a.employee_id] && a.vehicles) {
+          vehicleMap[a.employee_id] = a.vehicles;
+        }
+      });
+      setRows(mileageRes.data.map((r: any) => ({
+        ...r,
+        orders_count: orderMap[r.employee_id] || 0,
+        vehicle: vehicleMap[r.employee_id] || null,
+      })));
     }
     setLoading(false);
   }, [monthYear]);
