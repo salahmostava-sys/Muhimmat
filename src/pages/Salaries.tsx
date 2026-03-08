@@ -1097,7 +1097,7 @@ const Salaries = () => {
                       </div>
                     </div>
                     {r.advanceDeduction > 0 && (
-                      <div className="text-[10px] bg-orange-50 dark:bg-orange-950/20 rounded px-2 py-1 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                      <div className="text-[10px] bg-warning/10 rounded px-2 py-1 text-warning border border-warning/30">
                         💳 قسط سلفة: <span className="font-bold">{r.advanceDeduction.toLocaleString()} ر.س</span>
                       </div>
                     )}
