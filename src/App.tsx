@@ -26,6 +26,7 @@ import SalarySchemes from "./pages/SalarySchemes";
 import UsersAndPermissions from "./pages/UsersAndPermissions";
 import GeneralSettings from "./pages/GeneralSettings";
 import Analytics from "./pages/Analytics";
+import ViolationResolver from "./pages/ViolationResolver";
 import NotFound from "./pages/NotFound";
 import "@/i18n";
 
@@ -69,6 +70,7 @@ const App = () => (
                             <Route path="/settings/permissions" element={<UsersAndPermissions />} />
                             <Route path="/settings/general" element={<GeneralSettings />} />
                             <Route path="/analytics" element={<Analytics />} />
+                            <Route path="/violation-resolver" element={<ViolationResolver />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </AppLayout>
