@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Search, Plus, Upload, Download, Eye, Edit, Trash2,
+  Search, Plus, Download, Upload, Printer, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
