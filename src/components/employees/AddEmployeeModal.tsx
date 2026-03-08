@@ -233,6 +233,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     try {
       const payload: any = {
         name: form.name,
+        employee_code: form.employee_code || null,
         job_title: form.job_title || null,
         phone: form.phone || null,
         email: form.email || null,
@@ -241,6 +242,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         bank_account_number: form.bank_account_number || null,
         city: form.city || null,
         join_date: form.join_date || null,
+        birth_date: form.birth_date || null,
         residency_expiry: form.residency_expiry || null,
         license_status: form.license_status,
         sponsorship_status: form.sponsorship_status,

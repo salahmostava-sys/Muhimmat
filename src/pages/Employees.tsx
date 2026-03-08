@@ -203,7 +203,7 @@ const Employees = () => {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const importRef = useRef<HTMLInputElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // ── Fetch from Supabase ──
   const fetchEmployees = useCallback(async () => {
