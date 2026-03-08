@@ -11,7 +11,6 @@ import { useAppColors, AppColorData } from '@/hooks/useAppColors';
 import { useAuth } from '@/context/AuthContext';
 
 // Kept for legacy references — populated dynamically from DB at runtime
-let PLATFORMS: string[] = [];
 const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
