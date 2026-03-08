@@ -1158,7 +1158,6 @@ const Salaries = () => {
                       </th>
                     );
                   })}
-...
                       {PLATFORMS.map(p => {
                         const pc = PLATFORM_COLORS[p];
                         const orders = r.platformOrders[p] || 0;
