@@ -603,7 +603,7 @@ const Salaries = () => {
         const platformOrders: Record<string, number> = {};
         const platformSalaries: Record<string, number> = {};
 
-        PLATFORMS.forEach(p => {
+        platforms.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
           if (orders === 0) { platformSalaries[p] = 0; return; }
