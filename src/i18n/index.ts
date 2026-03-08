@@ -342,6 +342,20 @@ const resources = {
       finance_role: 'Finance',
       operations_role: 'Operations',
       viewer: 'Viewer',
+
+      // ─── Settings ────────────────────────────────────────────
+      generalSettings: 'General Settings',
+      projectName: 'Project Name',
+      projectNameAr: 'Project Name (Arabic)',
+      projectNameEn: 'Project Name (English)',
+      projectSubtitle: 'Subtitle',
+      defaultLanguage: 'Default Language',
+      systemTheme: 'System Theme',
+      uploadLogo: 'Upload Logo',
+      saveSettings: 'Save Settings',
+      settingsSaved: 'Settings Saved',
+      lightTheme: '☀️ Light',
+      darkTheme: '🌙 Dark',
     },
   },
 };
