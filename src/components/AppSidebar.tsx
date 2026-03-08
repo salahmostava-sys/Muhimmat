@@ -19,6 +19,7 @@ const AppSidebar = () => {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     hr: true, finance: false, operations: false, settings: false,
   });
+  const [showProfile, setShowProfile] = useState(false);
 
   const toggleGroup = (key: string) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
