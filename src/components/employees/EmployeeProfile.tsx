@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Employee } from '@/data/mock';
 import { differenceInDays, parseISO } from 'date-fns';
-import { advances, salaryRecords } from '@/data/mock';
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 
 interface Props {
   employee: Employee;
