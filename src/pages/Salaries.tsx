@@ -605,6 +605,12 @@ const Salaries = () => {
         appSchemeMap[a.name] = a.salary_schemes ? (a.salary_schemes as SchemeData) : null;
       });
 
+      // Track which active platforms have no scheme
+      const missing = (appsWithSchemeRes.data || [])
+        .filter((a: any) => !a.salary_schemes)
+        .map((a: any) => a.name);
+      setAppsWithoutScheme(missing);
+
       // ── Build empPlatformScheme: per-employee per-platform → uses app's scheme ──
       const builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>> = {};
       employees.forEach(emp => {
