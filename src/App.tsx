@@ -59,18 +59,13 @@ const App = () => (
                             <Route path="/orders" element={<Orders />} />
                             <Route path="/salaries" element={<Salaries />} />
                             <Route path="/advances" element={<Advances />} />
-                            <Route path="/vehicles" element={<Motorcycles />} />
-                            <Route path="/vehicle-tracking" element={<Motorcycles />} />
                             <Route path="/motorcycles" element={<Motorcycles />} />
                             <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
                             <Route path="/fuel" element={<FuelPage />} />
-                            <Route path="/deductions" element={<Advances />} />
                             <Route path="/apps" element={<Apps />} />
                             <Route path="/alerts" element={<Alerts />} />
-                            <Route path="/settings" element={<SalarySchemes />} />
                             <Route path="/settings/schemes" element={<SalarySchemes />} />
                             <Route path="/settings/users" element={<UsersAndPermissions />} />
-                            <Route path="/settings/permissions" element={<UsersAndPermissions />} />
                             <Route path="/settings/general" element={<GeneralSettings />} />
                             <Route path="/analytics" element={<Analytics />} />
                             <Route path="/violation-resolver" element={<ViolationResolver />} />
