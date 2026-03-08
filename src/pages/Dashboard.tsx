@@ -226,7 +226,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* ── Page header ────────────────────────────────────── */}
       <div className="page-header">
         <div className="page-breadcrumb">
