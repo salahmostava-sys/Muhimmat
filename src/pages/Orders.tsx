@@ -379,6 +379,7 @@ const SpreadsheetGrid = () => {
 
 // ─── Month Summary ─────────────────────────────────────────────────
 const MonthSummary = () => {
+  const { apps: appColorsList } = useAppColors();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
