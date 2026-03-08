@@ -504,9 +504,11 @@ const Vehicles = () => {
                 <DropdownMenuItem onClick={handleExportAssignments}>📋 سجل التسليم Excel</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {permissions.can_edit && (
             <Button className="gap-2" onClick={() => { setEditVehicle(null); setVehicleFormOpen(true); }}>
               <Plus size={16} /> إضافة مركبة
             </Button>
+            )}
           </div>
         </div>
       </div>
