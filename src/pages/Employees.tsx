@@ -42,6 +42,7 @@ type Employee = {
   status: string;
   salary_type: string;
   base_salary: number;
+  nationality?: string | null;
 };
 
 type SortField =
