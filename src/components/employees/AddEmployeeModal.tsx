@@ -138,6 +138,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
 
   const [form, setForm] = useState({
     name: '',
+    employee_code: '',
     job_title: '',
     phone: '',
     email: '',
@@ -146,6 +147,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     bank_account_number: '',
     city: '' as 'makkah' | 'jeddah' | '',
     join_date: '',
+    birth_date: '',
     residency_expiry: '',
     license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
     sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
@@ -155,6 +157,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     app_schemes: {} as Record<string, string>,
     preferred_language: 'ar' as 'ar' | 'en' | 'ur',
   });
+
 
   // Pre-fill form when editing
   useEffect(() => {
