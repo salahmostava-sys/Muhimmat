@@ -55,7 +55,7 @@ const CityBadge = ({ city }: { city?: string | null }) => {
   const { t } = useTranslation();
   if (!city) return <span className="text-muted-foreground/40">—</span>;
   return city === 'makkah'
-    ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">{t('makkah')}</span>
+    ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-accent text-accent-foreground">{t('makkah')}</span>
     : <span className="badge-info">{t('jeddah')}</span>;
 };
 
