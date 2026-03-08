@@ -111,16 +111,6 @@ const Alerts = () => {
           });
         }
       });
-        generatedAlerts.push({
-          id: `res-${emp.id}`,
-          type: 'residency',
-          entityName: emp.name,
-          dueDate: emp.residency_expiry!,
-          daysLeft,
-          severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
-          resolved: false,
-        });
-      });
 
       // Vehicle alerts
       vehiclesRes.data?.forEach(v => {
