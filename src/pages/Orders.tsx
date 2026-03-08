@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
-import { useAppColors } from '@/hooks/useAppColors';
+import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
