@@ -332,13 +332,13 @@ const AdvanceCard = ({ advance: a, onEdit, onTogglePause, onEmployeeClick, onAdd
 
       {/* Amounts */}
       <div className="flex gap-4">
-        <div className="flex-1 text-center bg-blue-50 dark:bg-blue-950/20 rounded-lg py-2 px-3">
+        <div className="flex-1 text-center bg-info/10 rounded-lg py-2 px-3">
           <p className="text-xs text-muted-foreground">إجمالي</p>
-          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{a.amount.toLocaleString()} ر.س</p>
+          <p className="text-sm font-bold text-info">{a.amount.toLocaleString()} ر.س</p>
         </div>
-        <div className="flex-1 text-center bg-orange-50 dark:bg-orange-950/20 rounded-lg py-2 px-3">
+        <div className="flex-1 text-center bg-warning/10 rounded-lg py-2 px-3">
           <p className="text-xs text-muted-foreground">متبقي</p>
-          <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{remaining.toLocaleString()} ر.س</p>
+          <p className="text-sm font-bold text-warning">{remaining.toLocaleString()} ر.س</p>
         </div>
       </div>
 
