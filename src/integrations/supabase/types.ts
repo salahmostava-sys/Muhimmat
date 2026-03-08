@@ -828,6 +828,45 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          created_at: string
+          default_language: string
+          id: string
+          logo_url: string | null
+          project_name_ar: string
+          project_name_en: string
+          project_subtitle_ar: string
+          project_subtitle_en: string
+          theme: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_language?: string
+          id?: string
+          logo_url?: string | null
+          project_name_ar?: string
+          project_name_en?: string
+          project_subtitle_ar?: string
+          project_subtitle_en?: string
+          theme?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_language?: string
+          id?: string
+          logo_url?: string | null
+          project_name_ar?: string
+          project_name_en?: string
+          project_subtitle_ar?: string
+          project_subtitle_en?: string
+          theme?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trade_registers: {
         Row: {
           cr_number: string | null
