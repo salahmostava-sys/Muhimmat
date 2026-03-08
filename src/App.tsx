@@ -26,6 +26,7 @@ import Alerts from "./pages/Alerts";
 import SalarySchemes from "./pages/SalarySchemes";
 import Users from "./pages/Users";
 import Permissions from "./pages/Permissions";
+import GeneralSettings from "./pages/GeneralSettings";
 import NotFound from "./pages/NotFound";
 import "@/i18n";
 
@@ -40,39 +41,42 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <LanguageProvider>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/employees" element={<Employees />} />
-                          <Route path="/attendance" element={<Attendance />} />
-                          <Route path="/orders" element={<Orders />} />
-                          <Route path="/salaries" element={<Salaries />} />
-                          <Route path="/advances" element={<Advances />} />
-                          <Route path="/vehicles" element={<Vehicles />} />
-                          <Route path="/vehicle-tracking" element={<Vehicles />} />
-                          <Route path="/fuel" element={<FuelPage />} />
-                          <Route path="/deductions" element={<Deductions />} />
-                          <Route path="/apps" element={<Apps />} />
-                          <Route path="/alerts" element={<Alerts />} />
-                          <Route path="/settings" element={<SalarySchemes />} />
-                          <Route path="/settings/schemes" element={<SalarySchemes />} />
-                          <Route path="/settings/users" element={<Users />} />
-                          <Route path="/settings/permissions" element={<Permissions />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
+              <SystemSettingsProvider>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/employees" element={<Employees />} />
+                            <Route path="/attendance" element={<Attendance />} />
+                            <Route path="/orders" element={<Orders />} />
+                            <Route path="/salaries" element={<Salaries />} />
+                            <Route path="/advances" element={<Advances />} />
+                            <Route path="/vehicles" element={<Vehicles />} />
+                            <Route path="/vehicle-tracking" element={<Vehicles />} />
+                            <Route path="/fuel" element={<FuelPage />} />
+                            <Route path="/deductions" element={<Deductions />} />
+                            <Route path="/apps" element={<Apps />} />
+                            <Route path="/alerts" element={<Alerts />} />
+                            <Route path="/settings" element={<SalarySchemes />} />
+                            <Route path="/settings/schemes" element={<SalarySchemes />} />
+                            <Route path="/settings/users" element={<Users />} />
+                            <Route path="/settings/permissions" element={<Permissions />} />
+                            <Route path="/settings/general" element={<GeneralSettings />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </SystemSettingsProvider>
             </LanguageProvider>
           </AuthProvider>
         </BrowserRouter>

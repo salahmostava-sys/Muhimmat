@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, Map, ChevronDown, ChevronUp, Fuel,
+  Settings, Map, ChevronDown, ChevronUp, Fuel, Settings2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { cn } from '@/lib/utils';
 import UserProfileModal from '@/components/UserProfileModal';
 
