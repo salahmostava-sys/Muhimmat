@@ -1542,7 +1542,7 @@ const Salaries = () => {
                                   </span>
                                    {orders > 0 && (
                                      noScheme ? (
-                                       <span className="text-[9px] text-orange-500 font-semibold">⚙️ يحتاج إعداد</span>
+                                       <span className="text-[9px] text-warning font-semibold">⚙️ إعداد مطلوب</span>
                                      ) : (
                                       <span
                                         style={{ color: pc?.valueColor }}
