@@ -867,7 +867,7 @@ const Salaries = () => {
         }
       }
 
-      updateRow(row.id, { status: 'paid' });
+      updateRow(row.id, { status: 'paid', isDirty: false });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
     } catch (err: any) {
       toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
