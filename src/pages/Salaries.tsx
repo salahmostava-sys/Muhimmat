@@ -1860,36 +1860,36 @@ const Salaries = () => {
                           </td>
                         );
                       })}
-                      <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
-                      <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
-                      <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-success" /></td>
-                      <td className={`${tdClass} text-success font-semibold`}>{c.totalAdditions.toLocaleString()}</td>
-                      <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalWithSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
+                      <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
+                      <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} text-foreground font-semibold`}>{c.totalAdditions.toLocaleString()}</td>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalWithSalary.toLocaleString()}</td>
                       <td className={`${tdClass}`}>
                         {r.advanceDeduction > 0 ? (
                           <div className="flex flex-col items-center">
-                            <span className="text-destructive font-semibold">{r.advanceDeduction.toLocaleString()}</span>
-                            <span className="text-[9px] text-warning">قسط سلفة</span>
+                            <span className="text-foreground font-semibold">{r.advanceDeduction.toLocaleString()}</span>
+                            <span className="text-[9px] text-muted-foreground">قسط سلفة</span>
                           </div>
                         ) : <span className="text-muted-foreground/30">—</span>}
                       </td>
                       <td className={tdClass}>
                         {r.advanceRemaining > 0 ? (
                           <div className="flex flex-col items-center">
-                            <span className="text-warning font-semibold">{r.advanceRemaining.toLocaleString()}</span>
+                            <span className="text-foreground font-semibold">{r.advanceRemaining.toLocaleString()}</span>
                             <span className="text-[9px] text-muted-foreground">متبقي</span>
                           </div>
                         ) : <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className={`${tdClass} text-destructive`}>{r.externalDeduction > 0 ? r.externalDeduction.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
-                      <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-destructive" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-destructive" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-destructive" /></td>
-                      <td className={`${tdClass} border-l border-border/20`}><EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-destructive" /></td>
-                      <td className={`${tdClass} font-bold text-destructive border-l border-border/20`}>
+                      <td className={`${tdClass} text-foreground`}>{r.externalDeduction > 0 ? r.externalDeduction.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
+                      <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
+                      <td className={tdClass}><EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-foreground" /></td>
+                      <td className={tdClass}><EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} border-l border-border/20`}><EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className={`${tdClass} font-black text-success text-base`}>{c.netSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} font-black text-foreground text-base`}>{c.netSalary.toLocaleString()}</td>
                       <td className={tdClass}>
                         <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })} />
                       </td>
