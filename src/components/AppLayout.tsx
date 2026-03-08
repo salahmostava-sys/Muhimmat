@@ -1,9 +1,11 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import AppSidebar from './AppSidebar';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogOut, Languages, Sun, Moon } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
@@ -13,11 +15,33 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
+// Route → page title key map
+const routeTitles: Record<string, string> = {
+  '/': 'dashboard',
+  '/employees': 'employees',
+  '/attendance': 'attendance',
+  '/orders': 'orders',
+  '/salaries': 'payroll',
+  '/advances': 'advances',
+  '/vehicles': 'vehicles',
+  '/vehicle-tracking': 'vehicleTracking',
+  '/fuel': 'fuel',
+  '/deductions': 'deductions',
+  '/apps': 'apps',
+  '/alerts': 'alerts',
+  '/settings/schemes': 'schemes',
+  '/settings/users': 'users',
+  '/settings/permissions': 'permissions',
+  '/settings/general': 'generalSettings',
+};
+
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { lang, toggleLang } = useLanguage();
   const { signOut, role } = useAuth();
   const { toggleTheme, isDark } = useTheme();
+  const { projectName } = useSystemSettings();
   const { t } = useTranslation();
+  const location = useLocation();
 
   const roleLabels: Record<string, string> = {
     admin: 'مدير النظام', hr: 'موارد بشرية', finance: 'مالية',
@@ -25,6 +49,13 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   };
 
   const isRtl = lang === 'ar';
+
+  // Dynamic browser tab title
+  useEffect(() => {
+    const pageKey = routeTitles[location.pathname] || 'dashboard';
+    const pageTitle = t(pageKey);
+    document.title = `${projectName} | ${pageTitle}`;
+  }, [location.pathname, projectName, t]);
 
   return (
     <div className="min-h-screen bg-background" dir={isRtl ? 'rtl' : 'ltr'}>
