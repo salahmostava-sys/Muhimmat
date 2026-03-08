@@ -205,9 +205,9 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
               <p className="font-bold">{remaining.toLocaleString()} ر.س</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground">طريقة الصرف</p>
-              <p className="font-bold">{row.bankAccount ? '🏦 بنكي' : '💵 كاش'}</p>
-            </div>
+                <p className="text-xs text-muted-foreground">طريقة الصرف</p>
+                <p className="font-bold">{row.paymentMethod === 'bank' ? '🏦 بنك' : '💵 ماش'}</p>
+              </div>
           </div>
         </div>
         <div className="flex gap-2 justify-between pt-2">
