@@ -49,6 +49,7 @@ type Employee = {
   preferred_language?: string | null;
   department?: { id: string; name: string } | null;
   position?: { id: string; name: string } | null;
+  trade_register?: { id: string; name: string } | null;
 };
 
 type SortField =
