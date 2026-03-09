@@ -1133,6 +1133,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_user: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       advance_status: "active" | "completed" | "paused"
