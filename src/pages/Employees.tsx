@@ -573,6 +573,26 @@ const Employees = () => {
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <DocIcons idUrl={emp.id_photo_url} licUrl={emp.license_photo_url} photoUrl={emp.personal_photo_url} />
                     </td>
+                    {/* Preferred Language */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <InlineSelect
+                        value={emp.preferred_language || 'ar'}
+                        options={[
+                          { value: 'ar', label: '🇸🇦 عربي' },
+                          { value: 'en', label: '🇬🇧 English' },
+                          { value: 'ur', label: '🇵🇰 اردو' },
+                        ]}
+                        onSave={v => saveField(emp.id, 'preferred_language', v)}
+                        renderDisplay={() => {
+                          const langMap: Record<string, string> = { ar: '🇸🇦 عربي', en: '🇬🇧 English', ur: '🇵🇰 اردو' };
+                          return (
+                            <span className="inline-flex items-center text-xs font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
+                              {langMap[emp.preferred_language || 'ar'] || '🇸🇦 عربي'}
+                            </span>
+                          );
+                        }}
+                      />
+                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.status}
