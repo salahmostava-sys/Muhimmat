@@ -457,7 +457,7 @@ const Employees = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-scroll">
-          <table className="w-full min-w-[1400px]">
+          <table className="w-full min-w-[1700px]">
             <thead className="ta-thead">
               <tr>
                 <Th label={t('photo')} sortable={false} />
@@ -465,6 +465,8 @@ const Employees = () => {
                 <Th field="national_id" label={t('nationalId')} />
                 <Th field="phone" label={t('phone')} />
                 <Th field="job_title" label={t('jobTitle')} />
+                <Th label="القسم" sortable={false} />
+                <Th label="المسمى التفصيلي" sortable={false} />
                 <Th field="city" label={t('city')} />
                 <Th label="الجنسية" sortable={false} />
                 <Th field="join_date" label={t('joinDate')} />
@@ -475,6 +477,7 @@ const Employees = () => {
                 <Th field="sponsorship_status" label={t('sponsorshipStatus')} />
                 <Th field="bank_account_number" label={t('bankAccount')} />
                 <Th label={t('documents')} sortable={false} />
+                <Th label="لغة الكشف" sortable={false} />
                 <Th field="status" label={t('status')} />
                 <Th field="email" label={t('email')} />
                 <Th label={t('actions')} sortable={false} />
