@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,28 +9,39 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { SystemSettingsProvider } from "@/context/SystemSettingsContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLayout from "./components/AppLayout";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Employees from "./pages/Employees";
-import Attendance from "./pages/Attendance";
-import Orders from "./pages/Orders";
-import Salaries from "./pages/Salaries";
-import Advances from "./pages/Advances";
-import FuelPage from "./pages/Fuel";
-import Apps from "./pages/Apps";
-import Alerts from "./pages/Alerts";
-import SalarySchemes from "./pages/SalarySchemes";
-import UsersAndPermissions from "./pages/UsersAndPermissions";
-import GeneralSettings from "./pages/GeneralSettings";
-import Analytics from "./pages/Analytics";
-import ViolationResolver from "./pages/ViolationResolver";
-import Motorcycles from "./pages/Motorcycles";
-import VehicleAssignment from "./pages/VehicleAssignment";
-import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
 import "@/i18n";
+
+// Lazy-loaded pages for code splitting
+const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Employees = lazy(() => import("./pages/Employees"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Salaries = lazy(() => import("./pages/Salaries"));
+const Advances = lazy(() => import("./pages/Advances"));
+const FuelPage = lazy(() => import("./pages/Fuel"));
+const Apps = lazy(() => import("./pages/Apps"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const SalarySchemes = lazy(() => import("./pages/SalarySchemes"));
+const UsersAndPermissions = lazy(() => import("./pages/UsersAndPermissions"));
+const GeneralSettings = lazy(() => import("./pages/GeneralSettings"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const ViolationResolver = lazy(() => import("./pages/ViolationResolver"));
+const Motorcycles = lazy(() => import("./pages/Motorcycles"));
+const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const PageLoader = () => (
+  <div className="min-h-[300px] flex items-center justify-center">
+    <Loader2 size={28} className="animate-spin text-primary" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
