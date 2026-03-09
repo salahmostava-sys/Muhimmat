@@ -264,7 +264,8 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         empId = emp.id;
       }
 
-      // Upload documents
+      // Upload documents — store the storage PATH (not a public URL) so we can
+      // generate short-lived signed URLs on demand later.
       const uploads = [
         { file: files.personal, path: `${empId}/personal_photo`, field: 'personal_photo_url' },
         { file: files.id, path: `${empId}/id_photo`, field: 'id_photo_url' },
@@ -274,10 +275,13 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       for (const u of uploads) {
         if (u.file) {
           const ext = u.file.name.split('.').pop();
-          const { data: upData } = await supabase.storage.from('employee-documents').upload(`${u.path}.${ext}`, u.file, { upsert: true });
-          if (upData) {
-            const { data: urlData } = supabase.storage.from('employee-documents').getPublicUrl(upData.path);
-            updates[u.field] = urlData.publicUrl;
+          const storagePath = `${u.path}.${ext}`;
+          const { data: upData, error: upError } = await supabase.storage
+            .from('employee-documents')
+            .upload(storagePath, u.file, { upsert: true });
+          if (!upError && upData) {
+            // Store the raw storage path — NOT a public URL
+            updates[u.field] = upData.path;
           }
         }
       }
