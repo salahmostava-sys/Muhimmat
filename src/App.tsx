@@ -38,6 +38,8 @@ const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const Reports = lazy(() => import("./pages/Reports"));
+const TradeRegisters = lazy(() => import("./pages/TradeRegisters"));
+const MaintenanceLogs = lazy(() => import("./pages/MaintenanceLogs"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -94,6 +96,8 @@ const App = () => (
                                      <Route path="/settings/schemes" element={<SalarySchemes />} />
                                      <Route path="/settings/users" element={<UsersAndPermissions />} />
                                      <Route path="/settings/general" element={<GeneralSettings />} />
+                                     <Route path="/settings/trade-registers" element={<TradeRegisters />} />
+                                     <Route path="/maintenance" element={<MaintenanceLogs />} />
                                      <Route path="/analytics" element={<Analytics />} />
                                      <Route path="/violation-resolver" element={<ViolationResolver />} />
                                      <Route path="/activity-log" element={<ActivityLog />} />

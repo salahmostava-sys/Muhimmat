@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -67,6 +68,7 @@ interface SalaryRow {
   status: 'pending' | 'approved' | 'paid';
   isDirty?: boolean;
   preferredLanguage: SlipLanguage;
+  phone?: string | null;
 }
 
 interface SchemeData {
@@ -619,7 +621,7 @@ const Salaries = () => {
       const [empRes, extRes, ordersRes, appsWithSchemeRes] = await Promise.all([
         supabase
           .from('employees')
-          .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language')
+          .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
           .eq('status', 'active')
           .order('name'),
 
@@ -814,6 +816,7 @@ const Salaries = () => {
           externalDeduction: extDeduction,
           status,
           preferredLanguage: ((emp as any).preferred_language as SlipLanguage) || 'ar',
+          phone: (emp as any).phone || null,
         };
       });
 
@@ -933,6 +936,11 @@ const Salaries = () => {
     }, { onConflict: 'employee_id,month_year' });
     updateRow(id, { status: 'approved', isDirty: false });
     toast({ title: '✅ تم اعتماد الراتب' });
+    if (row.phone) {
+      const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+      sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\nتم اعتماد راتبك لشهر ${monthLabel}\nصافي الراتب: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nللاستفسار تواصل مع الإدارة.`)
+        .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
+    }
   };
 
   // ── Mark as PAID: save to salary_records + update installments + complete advance ──
@@ -990,6 +998,11 @@ const Salaries = () => {
 
       updateRow(row.id, { status: 'paid', isDirty: false });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
+      if (row.phone) {
+        const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+        sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\n✅ تم صرف راتبك لشهر ${monthLabel}\nالمبلغ: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nشكراً لجهودك.`)
+          .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
+      }
     } catch (err: any) {
       toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
     }
