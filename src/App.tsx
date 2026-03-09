@@ -55,44 +55,53 @@ const App = () => (
           <AuthProvider>
             <LanguageProvider>
               <SystemSettingsProvider>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route
-                    path="/*"
-                    element={
-                      <ProtectedRoute>
-                        <AppLayout>
-                          <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/employees" element={<Employees />} />
-                            <Route path="/attendance" element={<Attendance />} />
-                            <Route path="/orders" element={<Orders />} />
-                            <Route path="/salaries" element={<Salaries />} />
-                            <Route path="/advances" element={<Advances />} />
-                            <Route path="/motorcycles" element={<Motorcycles />} />
-                            <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
-                            <Route path="/fuel" element={<FuelPage />} />
-                            <Route path="/apps" element={<Apps />} />
-                            <Route path="/alerts" element={<Alerts />} />
-                            <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
-                            <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
-                            <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
-                            <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
-                            <Route path="/deductions" element={<Navigate to="/advances" replace />} />
-                            <Route path="/settings/schemes" element={<SalarySchemes />} />
-                            <Route path="/settings/users" element={<UsersAndPermissions />} />
-                            <Route path="/settings/general" element={<GeneralSettings />} />
-                            <Route path="/analytics" element={<Analytics />} />
-                            <Route path="/violation-resolver" element={<ViolationResolver />} />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
-                        </AppLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
+                <ErrorBoundary>
+                  <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 size={32} className="animate-spin text-primary" /></div>}>
+                    <Routes>
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route
+                        path="/*"
+                        element={
+                          <ProtectedRoute>
+                            <AppLayout>
+                              <ErrorBoundary>
+                                <Suspense fallback={<PageLoader />}>
+                                  <Routes>
+                                    <Route path="/" element={<Dashboard />} />
+                                    <Route path="/employees" element={<Employees />} />
+                                    <Route path="/attendance" element={<Attendance />} />
+                                    <Route path="/orders" element={<Orders />} />
+                                    <Route path="/salaries" element={<Salaries />} />
+                                    <Route path="/advances" element={<Advances />} />
+                                    <Route path="/motorcycles" element={<Motorcycles />} />
+                                    <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
+                                    <Route path="/fuel" element={<FuelPage />} />
+                                    <Route path="/apps" element={<Apps />} />
+                                    <Route path="/alerts" element={<Alerts />} />
+                                    <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
+                                    <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
+                                    <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
+                                    <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
+                                    <Route path="/deductions" element={<Navigate to="/advances" replace />} />
+                                    <Route path="/settings/schemes" element={<SalarySchemes />} />
+                                    <Route path="/settings/users" element={<UsersAndPermissions />} />
+                                    <Route path="/settings/general" element={<GeneralSettings />} />
+                                    <Route path="/analytics" element={<Analytics />} />
+                                    <Route path="/violation-resolver" element={<ViolationResolver />} />
+                                    <Route path="/activity-log" element={<ActivityLog />} />
+                                    <Route path="*" element={<NotFound />} />
+                                  </Routes>
+                                </Suspense>
+                              </ErrorBoundary>
+                            </AppLayout>
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </Suspense>
+                </ErrorBoundary>
               </SystemSettingsProvider>
             </LanguageProvider>
           </AuthProvider>
