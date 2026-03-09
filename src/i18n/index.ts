@@ -31,6 +31,7 @@ const resources = {
       settings: 'الإعدادات',
       analytics: 'التحليلات',
       violationResolver: 'مُحقق المخالفات',
+      activityLog: 'سجل النشاطات',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'الموارد البشرية',
@@ -217,6 +218,7 @@ const resources = {
       settings: 'Settings',
       analytics: 'Analytics',
       violationResolver: 'Violation Resolver',
+      activityLog: 'Activity Log',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'Human Resources',
