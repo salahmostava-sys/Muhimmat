@@ -22,12 +22,15 @@ const resources = {
       orders: 'الطلبات اليومية',
       vehicles: 'بيانات المركبات',
       vehicleTracking: 'تتبع المركبات',
+      vehicleAssignment: 'تسليم العهد',
       fuel: 'الوقود والكيلومترات',
       schemes: 'السكيمات',
       users: 'المستخدمون',
       permissions: 'الصلاحيات',
       reports: 'التقارير',
       settings: 'الإعدادات',
+      analytics: 'التحليلات',
+      violationResolver: 'مُحقق المخالفات',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'الموارد البشرية',
@@ -205,12 +208,15 @@ const resources = {
       orders: 'Daily Orders',
       vehicles: 'Vehicle Data',
       vehicleTracking: 'Vehicle Tracking',
+      vehicleAssignment: 'Vehicle Assignment',
       fuel: 'Fuel & Mileage',
       schemes: 'Salary Schemes',
       users: 'Users',
       permissions: 'Permissions',
       reports: 'Reports',
       settings: 'Settings',
+      analytics: 'Analytics',
+      violationResolver: 'Violation Resolver',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'Human Resources',

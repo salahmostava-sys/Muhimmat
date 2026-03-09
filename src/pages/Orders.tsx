@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Search, Save, Package, Download, ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, X, Check } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useLanguage } from '@/context/LanguageContext';
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
@@ -367,7 +368,7 @@ const SpreadsheetGrid = () => {
                 const rowBg = idx % 2 === 0 ? 'hsl(var(--card))' : 'hsl(var(--muted)/0.05)';
 
                 return (
-                  <>
+                  <React.Fragment key={emp.id}>
                     {/* Main employee row */}
                     <tr key={emp.id}
                       className={`border-b border-border/30 select-none
@@ -491,7 +492,7 @@ const SpreadsheetGrid = () => {
                         </tr>
                       );
                     })}
-                  </>
+                  </React.Fragment>
                 );
               })}
 
@@ -684,17 +685,18 @@ const Orders = () => {
     XLSX.writeFile(wb, 'template_orders.xlsx');
   };
 
+  const { lang } = useLanguage();
   return (
-  <div className="space-y-3" dir="rtl">
+  <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <div>
         <nav className="page-breadcrumb">
-          <span>الرئيسية</span>
+          <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
           <span className="page-breadcrumb-sep">/</span>
-          <span>الطلبات اليومية</span>
+          <span>{lang === 'ar' ? 'الطلبات اليومية' : 'Daily Orders'}</span>
         </nav>
         <h1 className="page-title flex items-center gap-2">
-          <Package size={18} /> الطلبات اليومية
+          <Package size={18} /> {lang === 'ar' ? 'الطلبات اليومية' : 'Daily Orders'}
         </h1>
       </div>
       <DropdownMenu>
