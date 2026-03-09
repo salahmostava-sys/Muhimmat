@@ -201,6 +201,8 @@ const Employees = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [salaryTypeFilter, setSalaryTypeFilter] = useState('all');
   const [residencyFilter, setResidencyFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [sortField, setSortField] = useState<SortField | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
