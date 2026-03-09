@@ -116,7 +116,7 @@ export default function ActivityLog() {
       setLogs([]);
     }
     setLoading(false);
-  }, [page, filterAction, filterTable]);
+  }, [page, filterAction, filterTable, debouncedSearch]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
   useEffect(() => { setPage(0); }, [filterAction, filterTable, debouncedSearch]);

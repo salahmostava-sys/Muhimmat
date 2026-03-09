@@ -61,7 +61,7 @@ const Reports = () => {
       })));
     } else if (reportType === 'attendance') {
       const start = `${selectedMonth}-01`;
-      const end = `${selectedMonth}-31`;
+      const end = format(endOfMonth(new Date(`${selectedMonth}-01`)), 'yyyy-MM-dd');
       const { data: attData } = await supabase
         .from('attendance')
         .select('date, status, note, employees(name)')
