@@ -80,6 +80,7 @@ const AppSidebar = () => {
         { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
         { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
+        { label: 'السجلات التجارية', icon: FileText, path: '/settings/trade-registers' },
       ],
     },
   ];
