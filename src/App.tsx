@@ -94,6 +94,8 @@ const App = () => (
                                      <Route path="/settings/schemes" element={<SalarySchemes />} />
                                      <Route path="/settings/users" element={<UsersAndPermissions />} />
                                      <Route path="/settings/general" element={<GeneralSettings />} />
+                                     <Route path="/settings/trade-registers" element={<TradeRegisters />} />
+                                     <Route path="/maintenance" element={<MaintenanceLogs />} />
                                      <Route path="/analytics" element={<Analytics />} />
                                      <Route path="/violation-resolver" element={<ViolationResolver />} />
                                      <Route path="/activity-log" element={<ActivityLog />} />

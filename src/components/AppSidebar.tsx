@@ -61,6 +61,7 @@ const AppSidebar = () => {
         { label: t('vehicleAssignment'), icon: FileDown, path: '/vehicle-assignment' },
         { label: t('fuel'), icon: Fuel, path: '/fuel' },
         { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
+        { label: 'سجل الصيانة', icon: Wrench, path: '/maintenance' },
       ],
     },
     {
