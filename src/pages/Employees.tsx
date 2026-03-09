@@ -46,6 +46,9 @@ type Employee = {
   salary_type: string;
   base_salary: number;
   nationality?: string | null;
+  preferred_language?: string | null;
+  department?: { id: string; name: string } | null;
+  position?: { id: string; name: string } | null;
 };
 
 type SortField =
