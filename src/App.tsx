@@ -20,8 +20,6 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Employees = lazy(() => import("./pages/Employees"));
-const Departments = lazy(() => import("./pages/Departments"));
-const Positions = lazy(() => import("./pages/Positions"));
 const Attendance = lazy(() => import("./pages/Attendance"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Salaries = lazy(() => import("./pages/Salaries"));
