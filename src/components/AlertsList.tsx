@@ -72,7 +72,7 @@ const AlertsList = () => {
       });
 
       vehicleRes.data?.forEach(v => {
-        if (v.insurance_expiry && v.insurance_expiry <= in60Days) {
+        if (v.insurance_expiry && v.insurance_expiry <= threshold) {
           const days = differenceInDays(parseISO(v.insurance_expiry), today);
           generated.push({
             id: `ins-${v.id}`,

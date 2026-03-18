@@ -88,7 +88,7 @@ const Alerts = () => {
 
       // Employee residency AND license alerts
       employeesRes.data?.forEach(emp => {
-        if (emp.residency_expiry && emp.residency_expiry <= in60Days) {
+        if (emp.residency_expiry && emp.residency_expiry <= threshold) {
           const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
           generatedAlerts.push({
             id: `res-${emp.id}`,
@@ -96,11 +96,11 @@ const Alerts = () => {
             entityName: emp.name,
             dueDate: emp.residency_expiry,
             daysLeft,
-            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 7 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info',
             resolved: false,
           });
         }
-        if (emp.license_has && emp.license_expiry && emp.license_expiry <= in60Days) {
+        if (emp.license_has && emp.license_expiry && emp.license_expiry <= threshold) {
           const daysLeft = differenceInDays(parseISO(emp.license_expiry), today);
           generatedAlerts.push({
             id: `lic-${emp.id}`,
@@ -108,7 +108,19 @@ const Alerts = () => {
             entityName: emp.name,
             dueDate: emp.license_expiry,
             daysLeft,
-            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 7 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info',
+            resolved: false,
+          });
+        }
+        if ((emp as any).probation_end_date && (emp as any).probation_end_date <= threshold) {
+          const daysLeft = differenceInDays(parseISO((emp as any).probation_end_date), today);
+          generatedAlerts.push({
+            id: `prob-${emp.id}`,
+            type: 'probation',
+            entityName: emp.name,
+            dueDate: (emp as any).probation_end_date,
+            daysLeft,
+            severity: daysLeft < 0 ? 'info' : daysLeft <= 7 ? 'urgent' : 'warning',
             resolved: false,
           });
         }
@@ -116,7 +128,7 @@ const Alerts = () => {
 
       // Vehicle alerts
       vehiclesRes.data?.forEach(v => {
-        if (v.insurance_expiry && v.insurance_expiry <= in60Days) {
+        if (v.insurance_expiry && v.insurance_expiry <= threshold) {
           const days = differenceInDays(parseISO(v.insurance_expiry), today);
           generatedAlerts.push({
             id: `ins-${v.id}`,
@@ -124,11 +136,11 @@ const Alerts = () => {
             entityName: `مركبة ${v.plate_number}`,
             dueDate: v.insurance_expiry,
             daysLeft: days,
-            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : 'warning',
             resolved: false,
           });
         }
-        if (v.registration_expiry && v.registration_expiry <= in60Days) {
+        if (v.registration_expiry && v.registration_expiry <= threshold) {
           const days = differenceInDays(parseISO(v.registration_expiry), today);
           generatedAlerts.push({
             id: `reg-${v.id}`,
@@ -136,11 +148,11 @@ const Alerts = () => {
             entityName: `مركبة ${v.plate_number}`,
             dueDate: v.registration_expiry,
             daysLeft: days,
-            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : 'warning',
             resolved: false,
           });
         }
-        if (v.authorization_expiry && v.authorization_expiry <= in60Days) {
+        if (v.authorization_expiry && v.authorization_expiry <= threshold) {
           const days = differenceInDays(parseISO(v.authorization_expiry), today);
           generatedAlerts.push({
             id: `auth-${v.id}`,
@@ -148,7 +160,7 @@ const Alerts = () => {
             entityName: `مركبة ${v.plate_number}`,
             dueDate: v.authorization_expiry,
             daysLeft: days,
-            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : 'warning',
             resolved: false,
           });
         }
