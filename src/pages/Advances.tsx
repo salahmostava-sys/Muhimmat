@@ -588,7 +588,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">أخذ كام</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">سدّد كام</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground">ملاحظات</th>
-                    <th className="w-10" />
+                    <th className="w-16 px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">حذف</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -621,9 +621,15 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-center">
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => startEditNote(inst)}>
-                          <Edit2 size={11} />
-                        </Button>
+                        {canEdit && (
+                          <button
+                            onClick={() => setDeleteAdvanceId(inst.advance_id)}
+                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            title="حذف السلفة نهائياً"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
