@@ -772,7 +772,7 @@ const Orders = () => {
   const { lang } = useLanguage();
 
   return (
-    <div className="flex flex-col gap-3 h-full" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="flex flex-col gap-3 flex-1 min-h-0" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex-shrink-0">
         <nav className="page-breadcrumb">
           <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
@@ -789,7 +789,7 @@ const Orders = () => {
           <TabsTrigger value="grid">📊 Grid الشهري</TabsTrigger>
           <TabsTrigger value="summary">ملخص الشهر</TabsTrigger>
         </TabsList>
-        <TabsContent value="grid" className="mt-4 flex-1 min-h-0"><SpreadsheetGrid /></TabsContent>
+        <TabsContent value="grid" className="mt-4 flex-1 flex flex-col min-h-0"><SpreadsheetGrid /></TabsContent>
         <TabsContent value="summary" className="mt-4 overflow-auto"><MonthSummary /></TabsContent>
       </Tabs>
     </div>
