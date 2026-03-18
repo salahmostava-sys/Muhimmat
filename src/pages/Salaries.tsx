@@ -2024,7 +2024,7 @@ const Salaries = () => {
                   <th className={thBase}>محفظة هنقرستيشن</th>
                   <th className={thBase}>محفظة طيو</th>
                   <th className={`${thBase} border-l border-border/50`}>تلف طعام</th>
-                  <th className={`${thBase} border-l border-border/50`}>إجمالي المستقطعات</th>
+                  <th className={`${thBase} border-l border-border/50`}>إجمالي المستقطعات</th>PLACEHOLDER
                   <th className={thBase}>الصافي</th>
                   <th className={thBase}>تحويل</th>
                   <th className={`${thBase} border-l border-border/50`}>متبقي</th>
