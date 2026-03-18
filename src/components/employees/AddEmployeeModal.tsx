@@ -294,6 +294,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters: in
         join_date: form.join_date || null,
         birth_date: form.birth_date || null,
         residency_expiry: form.residency_expiry || null,
+        health_insurance_expiry: form.health_insurance_expiry || null,
         probation_end_date: form.probation_end_date || null,
         license_status: form.license_status,
         sponsorship_status: form.sponsorship_status,
@@ -576,6 +577,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters: in
                   </div>
                 )}
               </div>
+              <F label="تاريخ انتهاء التأمين الصحي">
+                <Input type="date" value={form.health_insurance_expiry} onChange={e => setField('health_insurance_expiry', e.target.value)} />
+              </F>
               <F label="حالة الرخصة">
                 <Select value={form.license_status} onValueChange={v => setField('license_status', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
