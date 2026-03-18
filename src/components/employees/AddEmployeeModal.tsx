@@ -119,7 +119,7 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
   );
 };
 
-const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
+const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters = [] }: Props) => {
   const isEdit = !!editEmployee;
   const [step, setStep] = useState(0);
   const { toast } = useToast();
