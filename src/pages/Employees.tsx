@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Download, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
-  Columns, Filter, X, ChevronDown as FilterIcon, Building2
+  Columns, Filter, X, ChevronDown as FilterIcon, Building2, CalendarDays
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -263,6 +263,15 @@ const Employees = () => {
   const [deleting, setDeleting]             = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
+  // Status-date dialog (absconded / terminated)
+  const [statusDateDialog, setStatusDateDialog] = useState<{
+    emp: Employee;
+    newStatus: string;
+    label: string;
+  } | null>(null);
+  const [statusDate, setStatusDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [statusDateSaving, setStatusDateSaving] = useState(false);
+
   // ── Fetch trade registers ──
   useEffect(() => {
     supabase.from('trade_registers').select('id, name, cr_number').order('name').then(({ data: tr }) => {
@@ -320,15 +329,40 @@ const Employees = () => {
   };
 
   // ── Inline save ──
-  const saveField = useCallback(async (id: string, field: string, value: string) => {
+  const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, any>) => {
     const prev = data.find(e => e.id === id);
-    setData(d => d.map(e => e.id === id ? { ...e, [field]: value } : e));
-    const { error } = await supabase.from('employees').update({ [field]: value }).eq('id', id);
+    setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
+    const { error } = await supabase.from('employees').update({ [field]: value, ...(extraFields || {}) }).eq('id', id);
     if (error) {
       setData(d => d.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
       toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
     }
   }, [data, toast]);
+
+  // ── Save status that requires a date ──
+  const handleSaveStatusWithDate = async () => {
+    if (!statusDateDialog) return;
+    setStatusDateSaving(true);
+    const extraFields: Record<string, any> = {};
+    if (statusDateDialog.newStatus === 'absconded') extraFields.probation_end_date = statusDate; // reuse or add dedicated field
+    // Store date in join_date as "end date" for terminated, or we just save the date as a note via toast
+    await saveField(
+      statusDateDialog.emp.id,
+      'sponsorship_status',
+      statusDateDialog.newStatus,
+      statusDateDialog.newStatus === 'absconded'
+        ? { probation_end_date: statusDate }
+        : statusDateDialog.newStatus === 'terminated'
+        ? { probation_end_date: statusDate }
+        : {},
+    );
+    toast({
+      title: `✅ تم تحديث الحالة إلى "${statusDateDialog.label}"`,
+      description: `التاريخ: ${statusDate}`,
+    });
+    setStatusDateSaving(false);
+    setStatusDateDialog(null);
+  };
 
   // ── Delete ──
   const handleDelete = useCallback(async () => {
@@ -749,7 +783,18 @@ const Employees = () => {
                                   { value: 'absconded',     label: 'هروب'             },
                                   { value: 'terminated',    label: 'انتهاء الخدمة'    },
                                 ]}
-                                onSave={v => saveField(emp.id, 'sponsorship_status', v)}
+                                onSave={v => {
+                                  if (v === 'absconded' || v === 'terminated') {
+                                    setStatusDate(format(new Date(), 'yyyy-MM-dd'));
+                                    setStatusDateDialog({
+                                      emp,
+                                      newStatus: v,
+                                      label: v === 'absconded' ? 'هروب' : 'انتهاء الخدمة',
+                                    });
+                                    return Promise.resolve();
+                                  }
+                                  return saveField(emp.id, 'sponsorship_status', v);
+                                }}
                                 renderDisplay={() => <SponsorBadge status={emp.sponsorship_status} />}
                               />
                             </td>
@@ -939,6 +984,46 @@ const Employees = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Status-Date Dialog (absconded / terminated) */}
+      <Dialog open={!!statusDateDialog} onOpenChange={open => !open && setStatusDateDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays size={16} className="text-destructive" />
+              تحديد تاريخ — {statusDateDialog?.label}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              أدخل تاريخ <strong>{statusDateDialog?.label}</strong> للمندوب{' '}
+              <strong className="text-foreground">{statusDateDialog?.emp.name}</strong>
+            </p>
+            <div>
+              <Label className="mb-1.5 block">
+                {statusDateDialog?.newStatus === 'absconded' ? 'تاريخ الهروب' : 'تاريخ انتهاء الخدمة'}
+              </Label>
+              <Input
+                type="date"
+                value={statusDate}
+                onChange={e => setStatusDate(e.target.value)}
+                max={format(new Date(), 'yyyy-MM-dd')}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setStatusDateDialog(null)}>إلغاء</Button>
+            <Button
+              variant="destructive"
+              onClick={handleSaveStatusWithDate}
+              disabled={!statusDate || statusDateSaving}
+            >
+              {statusDateSaving && <Loader2 size={14} className="animate-spin ml-1" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Trade Register Assignment Dialog */}
       <Dialog open={!!tradeAssignEmp} onOpenChange={open => !open && setTradeAssignEmp(null)}>
