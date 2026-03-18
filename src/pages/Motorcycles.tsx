@@ -24,6 +24,7 @@ type Vehicle = {
   model: string | null;
   year: number | null;
   status: VehicleStatus;
+  has_fuel_chip: boolean;
   insurance_expiry: string | null;
   registration_expiry: string | null;
   authorization_expiry: string | null;
@@ -36,19 +37,23 @@ type Vehicle = {
 const statusLabels: Record<string, string> = {
   active: 'نشطة',
   maintenance: 'صيانة',
-  breakdown: 'أعطال',
+  breakdown: 'خربان',
   rental: 'إيجار',
   ended: 'منتهي',
   inactive: 'غير نشطة',
 };
 
-const statusStyles: Record<string, string> = {
-  active: 'badge-success',
-  maintenance: 'badge-warning',
-  breakdown: 'badge-urgent',
-  rental: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  ended: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground',
-  inactive: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground',
+// Smart status badge — considers current_rider for active vehicles
+const SmartStatusBadge = ({ status, rider }: { status: VehicleStatus; rider?: string | null }) => {
+  if (status === 'active') {
+    return rider
+      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">🔑 متاح مع مندوب</span>
+      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">✅ متاح بدون مندوب</span>;
+  }
+  if (status === 'maintenance') return <span className="badge-warning">🔧 صيانة</span>;
+  if (status === 'breakdown') return <span className="badge-urgent">⚠️ خربان</span>;
+  if (status === 'rental') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">🚙 إيجار</span>;
+  return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{statusLabels[status] || status}</span>;
 };
 
 const typeLabels: Record<string, string> = { motorcycle: 'موتوسيكل', car: 'سيارة' };
@@ -94,6 +99,7 @@ const VehicleFormModal = ({
   const [form, setForm] = useState({
     plate_number: '', plate_number_en: '', type: 'motorcycle' as 'motorcycle' | 'car',
     brand: '', model: '', year: '', status: 'active' as VehicleStatus,
+    has_fuel_chip: false,
     insurance_expiry: '', registration_expiry: '', authorization_expiry: '',
     chassis_number: '', serial_number: '', notes: '',
   });
@@ -106,6 +112,7 @@ const VehicleFormModal = ({
         type: editVehicle.type,
         brand: editVehicle.brand || '', model: editVehicle.model || '',
         year: editVehicle.year?.toString() || '', status: editVehicle.status,
+        has_fuel_chip: editVehicle.has_fuel_chip ?? false,
         insurance_expiry: editVehicle.insurance_expiry || '',
         registration_expiry: editVehicle.registration_expiry || '',
         authorization_expiry: editVehicle.authorization_expiry || '',
@@ -114,7 +121,7 @@ const VehicleFormModal = ({
         notes: editVehicle.notes || '',
       });
     } else {
-      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
+      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', has_fuel_chip: false, insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
     }
   }, [editVehicle, open]);
 
@@ -127,6 +134,7 @@ const VehicleFormModal = ({
       type: form.type,
       brand: form.brand || null, model: form.model || null,
       year: form.year ? parseInt(form.year) : null, status: form.status,
+      has_fuel_chip: form.has_fuel_chip,
       insurance_expiry: form.insurance_expiry || null,
       registration_expiry: form.registration_expiry || null,
       authorization_expiry: form.authorization_expiry || null,
@@ -212,6 +220,20 @@ const VehicleFormModal = ({
             <label className="text-sm font-medium mb-1 block">انتهاء التفويض</label>
             <Input type="date" value={form.authorization_expiry} onChange={e => setForm(p => ({ ...p, authorization_expiry: e.target.value }))} />
           </div>
+          <div className="col-span-2 flex items-center gap-3 bg-muted/40 rounded-lg px-3 py-2.5">
+            <span className="text-lg">⛽</span>
+            <label className="text-sm font-medium flex-1">شريحة البنزين</label>
+            <button
+              type="button"
+              onClick={() => setForm(p => ({ ...p, has_fuel_chip: !p.has_fuel_chip }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${form.has_fuel_chip ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.has_fuel_chip ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+            <span className={`text-xs font-semibold ${form.has_fuel_chip ? 'text-primary' : 'text-muted-foreground'}`}>
+              {form.has_fuel_chip ? 'يوجد' : 'لا يوجد'}
+            </span>
+          </div>
           <div className="col-span-2">
             <label className="text-sm font-medium mb-1 block">ملاحظات</label>
             <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="أي ملاحظات إضافية..." />
@@ -229,7 +251,7 @@ const VehicleFormModal = ({
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 12 }).map((_, i) => (
+    {Array.from({ length: 14 }).map((_, i) => (
       <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
@@ -443,7 +465,7 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+           <table className="w-full min-w-[1200px]">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
@@ -455,6 +477,7 @@ const Motorcycles = () => {
                 <th className="ta-th">رقم الهيكل</th>
                 <th className="ta-th">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
+                <th className="ta-th">⛽ شريحة البنزين</th>
                 <th className="ta-th">انتهاء التأمين</th>
                 <th className="ta-th">انتهاء التسجيل</th>
                 <th className="ta-th">انتهاء التفويض</th>
@@ -466,7 +489,7 @@ const Motorcycles = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-16">
+                  <td colSpan={14} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Bike size={40} className="opacity-30" />
                       <p className="font-medium">لا توجد مركبات</p>
@@ -511,8 +534,15 @@ const Motorcycles = () => {
                        )}
                      </td>
                      <td className="px-3 py-2.5">
-                      <span className={statusStyles[v.status] || 'badge-info'}>{statusLabels[v.status] || v.status}</span>
-                    </td>
+                       <SmartStatusBadge status={v.status} rider={v.current_rider} />
+                     </td>
+                     {/* Fuel chip */}
+                     <td className="px-3 py-2.5 text-center">
+                       {v.has_fuel_chip
+                         ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">⛽ يوجد</span>
+                         : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">لا يوجد</span>
+                       }
+                     </td>
                     <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(insDays)}`}>
                       {v.insurance_expiry ? (
                         <div>
