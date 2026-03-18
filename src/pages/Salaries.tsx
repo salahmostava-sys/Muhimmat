@@ -2350,7 +2350,10 @@ const Salaries = () => {
                         </div>
                       </td>
                     );
-                  })}
+                   })}
+                   <td className={`${tfClass} text-center font-bold text-foreground border-l border-border/20`}>
+                     {filtered.reduce((s, r) => s + Object.values(r.platformOrders).reduce((a, v) => a + v, 0), 0).toLocaleString()}
+                   </td>
                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>

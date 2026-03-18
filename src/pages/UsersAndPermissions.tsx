@@ -323,37 +323,8 @@ const UsersTab = () => {
                     </td>
 
                     <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* Edit button */}
-                        <button
-                          onClick={() => openEdit(u)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="تعديل بيانات المستخدم"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        {u.is_active ? (
-                          <button
-                            onClick={() => setDeleteTarget(u)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="تعطيل المستخدم"
-                          >
-                            <UserX size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleReactivate(u)}
-                            disabled={isReactivating}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-success bg-success/10 hover:bg-success/20 transition-colors border border-success/30 disabled:opacity-50"
-                            title="إعادة تفعيل الحساب"
-                          >
-                            {isReactivating
-                              ? <Loader2 size={12} className="animate-spin" />
-                              : <UserCheck size={13} />
-                            }
-                            تفعيل
-                          </button>
-                        )}
+                      <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                        <DropdownMenuRoot u={u} openEdit={openEdit} setDeleteTarget={setDeleteTarget} handleReactivate={handleReactivate} isReactivating={reactivating === u.id} />
                       </div>
                     </td>
                   </tr>
