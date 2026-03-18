@@ -783,7 +783,18 @@ const Employees = () => {
                                   { value: 'absconded',     label: 'هروب'             },
                                   { value: 'terminated',    label: 'انتهاء الخدمة'    },
                                 ]}
-                                onSave={v => saveField(emp.id, 'sponsorship_status', v)}
+                                onSave={v => {
+                                  if (v === 'absconded' || v === 'terminated') {
+                                    setStatusDate(format(new Date(), 'yyyy-MM-dd'));
+                                    setStatusDateDialog({
+                                      emp,
+                                      newStatus: v,
+                                      label: v === 'absconded' ? 'هروب' : 'انتهاء الخدمة',
+                                    });
+                                    return Promise.resolve();
+                                  }
+                                  return saveField(emp.id, 'sponsorship_status', v);
+                                }}
                                 renderDisplay={() => <SponsorBadge status={emp.sponsorship_status} />}
                               />
                             </td>
