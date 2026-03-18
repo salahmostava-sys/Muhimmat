@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
