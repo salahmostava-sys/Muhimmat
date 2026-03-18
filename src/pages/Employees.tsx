@@ -987,6 +987,7 @@ const Employees = () => {
           onClose={() => { setShowAddModal(false); setEditEmployee(null); }}
           editEmployee={editEmployee}
           onSuccess={() => { fetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
+          tradeRegisters={tradeRegisters}
         />
       )}
 

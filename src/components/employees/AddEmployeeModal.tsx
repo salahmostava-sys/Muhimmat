@@ -38,6 +38,7 @@ interface Props {
   onClose: () => void;
   onSuccess?: () => void;
   editEmployee?: EmployeeData | null;
+  tradeRegisters?: { id: string; name: string; cr_number?: string | null }[];
 }
 
 const STEPS = ['البيانات الأساسية', 'الإقامة والوثائق', 'نوع الراتب', 'رفع المستندات'];
@@ -118,7 +119,7 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
   );
 };
 
-const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
+const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters = [] }: Props) => {
   const isEdit = !!editEmployee;
   const [step, setStep] = useState(0);
   const { toast } = useToast();
@@ -165,6 +166,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
     salary_type: 'orders' as 'orders' | 'shift',
     base_salary: '',
+    trade_register_id: '',
     selected_apps: [] as string[],
     app_schemes: {} as Record<string, string>,
     preferred_language: 'ar' as 'ar' | 'en' | 'ur',
@@ -193,6 +195,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
         salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
         base_salary: editEmployee.base_salary ? String(editEmployee.base_salary) : '',
+        trade_register_id: (editEmployee as any).trade_register_id || '',
         selected_apps: [],
         app_schemes: {},
         preferred_language: (editEmployee.preferred_language as 'ar' | 'en' | 'ur') || 'ar',
@@ -264,6 +267,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         salary_type: form.salary_type,
         base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
         preferred_language: form.preferred_language,
+        trade_register_id: form.trade_register_id || null,
       };
 
       let empId: string;
@@ -390,6 +394,21 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="رقم الحساب البنكي">
                 <Input value={form.bank_account_number} onChange={e => setField('bank_account_number', e.target.value)} dir="ltr" />
               </F>
+              <F label="السجل التجاري">
+                <Select value={form.trade_register_id || '__none__'} onValueChange={v => setField('trade_register_id', v === '__none__' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر السجل التجاري (اختياري)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— بدون سجل —</SelectItem>
+                    {tradeRegisters.map(tr => (
+                      <SelectItem key={tr.id} value={tr.id}>
+                        {tr.name}{tr.cr_number ? ` (${tr.cr_number})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </F>
               <F label="المدينة">
                 <div className="flex gap-3 mt-1">
                   {[{ v: 'makkah', l: 'مكة' }, { v: 'jeddah', l: 'جدة' }].map(({ v, l }) => (
@@ -406,6 +425,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="تاريخ الميلاد">
                 <Input type="date" value={form.birth_date} onChange={e => setField('birth_date', e.target.value)} />
               </F>
+
               {/* ─── فترة التجربة ─── */}
               <div className="sm:col-span-2">
                 <SectionTitle title="── فترة التجربة (اختياري) ──" />
