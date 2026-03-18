@@ -423,17 +423,20 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1100px]">
             <thead className="ta-thead">
               <tr>
-                <th className="ta-th">رقم اللوحة</th>
+                <th className="ta-th">#</th>
+                <th className="ta-th">رقم اللوحة ar</th>
+                <th className="ta-th">رقم اللوحة en</th>
                 <th className="ta-th">النوع</th>
                 <th className="ta-th">الماركة / الموديل</th>
-                <th className="ta-th">السنة</th>
+                <th className="ta-th">الرقم التسلسلي</th>
+                <th className="ta-th">رقم الهيكل</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">انتهاء التأمين</th>
+                <th className="ta-th">انتهاء التسجيل</th>
                 <th className="ta-th">انتهاء التفويض</th>
-                <th className="ta-th">حالة التفويض</th>
                 <th className="ta-th">إجراءات</th>
               </tr>
             </thead>
@@ -442,7 +445,7 @@ const Motorcycles = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-16">
+                  <td colSpan={12} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Bike size={40} className="opacity-30" />
                       <p className="font-medium">لا توجد مركبات</p>
@@ -450,23 +453,29 @@ const Motorcycles = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(v => {
+              ) : filtered.map((v, idx) => {
                 const authDays = getDaysLeft(v.authorization_expiry);
                 const insDays = getDaysLeft(v.insurance_expiry);
+                const regDays = getDaysLeft(v.registration_expiry);
                 return (
                   <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground">{idx + 1}</td>
                     <td className="px-3 py-2.5">
                       <span className="font-bold text-foreground font-mono whitespace-nowrap">{v.plate_number}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-sm text-muted-foreground">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
+                      <span className="text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{v.plate_number_en || '—'}</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="text-sm font-medium text-foreground whitespace-nowrap">
-                        {v.brand || '—'} {v.model ? `— ${v.model}` : ''}
+                        {v.brand || '—'}{v.model ? ` — ${v.model}` : ''}{v.year ? ` (${v.year})` : ''}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">{v.year || '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.serial_number || '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
                     <td className="px-3 py-2.5">
                       <span className={statusStyles[v.status] || 'badge-info'}>{statusLabels[v.status] || v.status}</span>
                     </td>
@@ -478,6 +487,14 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
+                    <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(regDays)}`}>
+                      {v.registration_expiry ? (
+                        <div>
+                          <div>{format(parseISO(v.registration_expiry), 'yyyy/MM/dd')}</div>
+                          <div className="text-[10px]">{daysLabel(regDays)}</div>
+                        </div>
+                      ) : '—'}
+                    </td>
                     <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(authDays)}`}>
                       {v.authorization_expiry ? (
                         <div>
@@ -486,7 +503,6 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className="px-3 py-2.5">{authBadge(v.authorization_expiry)}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">
                         {permissions.can_edit && (
