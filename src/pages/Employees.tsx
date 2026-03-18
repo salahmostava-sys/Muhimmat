@@ -520,7 +520,7 @@ const Employees = () => {
               <tr className="bg-muted/30 border-b border-border/40">
                 {activeCols.map(col => (
                   <td key={col.key} className="px-2 py-1.5">
-                    {col.key === 'seq' || col.key === 'actions' || col.key === 'residency_status' || col.key === 'days_residency' || col.key === 'residency_expiry' || col.key === 'join_date' || col.key === 'birth_date' || col.key === 'bank_account_number'
+                    {col.key === 'seq' || col.key === 'actions' || col.key === 'residency_status' || col.key === 'days_residency' || col.key === 'residency_expiry' || col.key === 'join_date' || col.key === 'birth_date' || col.key === 'bank_account_number' || col.key === 'probation_end_date'
                       ? <div className="h-7" /> // no filter
                       : col.key === 'city' ? (
                         <Select value={colFilters.city || 'all'} onValueChange={v => setColFilter('city', v)}>
