@@ -92,9 +92,8 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
       sickDays: acc.sickDays + d.sickDays,
       lateDays: acc.lateDays + d.lateDays,
       totalHours: acc.totalHours + d.totalHours,
-      earnedSalary: acc.earnedSalary + d.earnedSalary,
     }),
-    { presentDays: 0, absentDays: 0, leaveDays: 0, sickDays: 0, lateDays: 0, totalHours: 0, earnedSalary: 0 },
+    { presentDays: 0, absentDays: 0, leaveDays: 0, sickDays: 0, lateDays: 0, totalHours: 0 },
   );
 
   const t = {
