@@ -296,7 +296,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
       {/* Table */}
       <div className="ta-table-wrap shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" dir={isRTL ? "rtl" : "ltr"}>
             <thead className="ta-thead">
               <tr>
                 <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 min-w-[160px] text-start`}>
