@@ -2224,14 +2224,12 @@ const Salaries = () => {
                       </td>
                     );
                   })}
-                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
+                   <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
-                  <td className={tfClass}>—</td>
-                  <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
                   {allCustomCols.map(col => {
                     const colTotal = filtered.reduce((s, r) => s + (r.customDeductions?.[col.fullKey] || 0), 0);
