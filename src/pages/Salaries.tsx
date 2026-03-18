@@ -1963,7 +1963,7 @@ const Salaries = () => {
         // Fixed deduction columns count: advance, remaining, external, violations + dynamic custom cols + total = 4 + allCustomCols.length + 1
         const dedColCount = 4 + allCustomCols.length + 1;
         return (
-      <div className="flex-1 min-h-0 rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
         {loadingData ? (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
             جارٍ تحميل بيانات الرواتب...
@@ -1973,7 +1973,7 @@ const Salaries = () => {
             لا يوجد موظفون نشطون أو بيانات لهذا الشهر
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)]">
+          <div className="overflow-x-auto">
             <table className="text-sm border-collapse" style={{ minWidth: 1800 }}>
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
