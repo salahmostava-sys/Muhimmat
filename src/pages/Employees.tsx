@@ -948,11 +948,6 @@ const Employees = () => {
                                       <Edit size={14} className="me-2" /> تعديل البيانات
                                     </DropdownMenuItem>
                                   )}
-                                  {permissions.can_edit && (
-                                    <DropdownMenuItem onClick={() => { setTradeAssignEmp(emp); setTradeAssignVal(emp.trade_register?.id || '__none__'); }}>
-                                      <Building2 size={14} className="me-2" /> السجل التجاري
-                                    </DropdownMenuItem>
-                                  )}
                                   {permissions.can_delete && (
                                     <>
                                       <DropdownMenuSeparator />
