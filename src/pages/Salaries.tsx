@@ -2170,11 +2170,37 @@ const Salaries = () => {
                         </select>
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${r.city === 'مكة' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-                          {r.city}
-                        </span>
+                        <select
+                          value={r.city === 'مكة' ? 'makkah' : r.city === 'جدة' ? 'jeddah' : ''}
+                          onChange={async e => {
+                            const newCityVal = e.target.value;
+                            const newCityLabel = newCityVal === 'makkah' ? 'مكة' : 'جدة';
+                            updateRow(r.id, { city: newCityLabel });
+                            // Save to employees DB
+                            await supabase.from('employees').update({ city: newCityVal }).eq('id', r.employeeId);
+                          }}
+                          className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.city === 'مكة' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400'}`}
+                        >
+                          <option value="">—</option>
+                          <option value="makkah">🕌 مكة</option>
+                          <option value="jeddah">🌊 جدة</option>
+                        </select>
                       </td>
-                      <td className={tdClass}><span className={statusStyles[r.status]}>{statusLabels[r.status]}</span></td>
+                      <td className={tdClass}>
+                        <button
+                          onClick={() => {
+                            const next = r.status === 'pending' ? 'approved' : r.status === 'approved' ? 'pending' : r.status;
+                            if (r.status === 'paid') return; // can't toggle paid
+                            if (next === 'approved') approveRow(r.id);
+                            else updateRow(r.id, { status: 'pending' as const });
+                          }}
+                          className={`${statusStyles[r.status]} cursor-pointer hover:opacity-80 transition-opacity`}
+                          title={r.status === 'paid' ? 'مصروف — لا يمكن التعديل' : r.status === 'approved' ? 'اضغط لإعادة إلى معلّق' : 'اضغط للاعتماد'}
+                          disabled={r.status === 'paid'}
+                        >
+                          {statusLabels[r.status]}
+                        </button>
+                      </td>
                       <td className={tdClass}>
                         {r.status === 'pending' && (
                           <button onClick={() => approveRow(r.id)} className="text-success hover:text-success/70 transition-colors" title="اعتماد">
