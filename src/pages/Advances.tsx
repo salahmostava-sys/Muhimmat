@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { sendWhatsAppMessage } from '@/lib/whatsapp';
-import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
+import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -24,6 +22,7 @@ type Installment = {
   amount: number;
   status: InstallmentStatus;
   deducted_at: string | null;
+  notes: string | null;
 };
 
 type Advance = {
@@ -37,7 +36,7 @@ type Advance = {
   status: AdvanceStatus;
   note: string | null;
   created_at: string;
-  employees?: { name: string } | null;
+  employees?: { name: string; national_id: string | null } | null;
   advance_installments?: Installment[];
 };
 
@@ -110,7 +109,6 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     }
 
-    // Regenerate pending installments
     await supabase.from('advance_installments').delete()
       .eq('advance_id', advance.id).eq('status', 'pending');
 
@@ -189,207 +187,179 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
   );
 };
 
-// ─── Employee Detail Modal ─────────────────────────────────────────────────────
-interface EmployeeDetailModalProps {
+// ─── Transactions Detail Modal ────────────────────────────────────────────────
+interface TransactionsModalProps {
   employeeId: string;
   employeeName: string;
   advances: Advance[];
   onClose: () => void;
-  onAddNew: () => void;
+  onRefresh: () => void;
 }
-const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAddNew }: EmployeeDetailModalProps) => {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+const TransactionsModal = ({ employeeId, employeeName, advances, onClose, onRefresh }: TransactionsModalProps) => {
+  const { toast } = useToast();
   const empAdvances = advances.filter(a => a.employee_id === employeeId);
-  const totalRemaining = empAdvances.filter(a => a.status === 'active').reduce((s, a) => s + calcRemaining(a), 0);
+  const allInstallments: (Installment & { advanceDate: string; advanceTotal: number })[] = empAdvances.flatMap(adv =>
+    (adv.advance_installments || []).map(i => ({
+      ...i,
+      advanceDate: adv.disbursement_date,
+      advanceTotal: adv.amount,
+    }))
+  ).sort((a, b) => a.month_year.localeCompare(b.month_year));
+
+  const totalDebt = empAdvances.reduce((s, a) => s + a.amount, 0);
+  const totalPaid = empAdvances.reduce((s, a) => s + calcPaid(a.advance_installments || []), 0);
+  const totalRemaining = totalDebt - totalPaid;
+
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteValue, setNoteValue] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  const startEditNote = (inst: Installment) => {
+    setEditingNoteId(inst.id);
+    setNoteValue(inst.notes || '');
+  };
+
+  const saveNote = async (instId: string) => {
+    setSavingNote(true);
+    const { error } = await supabase
+      .from('advance_installments')
+      .update({ notes: noteValue || null } as any)
+      .eq('id', instId);
+    setSavingNote(false);
+    if (error) return toast({ title: 'خطأ في الحفظ', variant: 'destructive' });
+    setEditingNoteId(null);
+    onRefresh();
+    toast({ title: 'تم حفظ الملاحظة ✅' });
+  };
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>سجل السلف — {employeeName}</span>
-            <span className="text-sm font-normal text-muted-foreground">إجمالي المتبقي: <span className="text-destructive font-semibold">{totalRemaining.toLocaleString()} ر.س</span></span>
+          <DialogTitle className="flex items-center gap-3">
+            <FileText size={18} />
+            <span>سجل العمليات — {employeeName}</span>
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          {empAdvances.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">لا توجد سلف لهذا المندوب</p>
-          ) : (
+
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3 mb-2">
+          <div className="bg-info/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-muted-foreground">إجمالي المديونية</p>
+            <p className="text-lg font-bold text-info">{totalDebt.toLocaleString()} ر.س</p>
+          </div>
+          <div className="bg-success/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-muted-foreground">إجمالي المسدّد</p>
+            <p className="text-lg font-bold text-success">{totalPaid.toLocaleString()} ر.س</p>
+          </div>
+          <div className="bg-destructive/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-muted-foreground">المتبقي</p>
+            <p className="text-lg font-bold text-destructive">{totalRemaining.toLocaleString()} ر.س</p>
+          </div>
+        </div>
+
+        {allInstallments.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">لا توجد عمليات لهذا المندوب</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-border/50">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="text-right p-3 font-semibold text-muted-foreground">تاريخ الصرف</th>
-                  <th className="text-center p-3 font-semibold text-muted-foreground">المبلغ</th>
-                  <th className="text-center p-3 font-semibold text-muted-foreground">المسدّد</th>
-                  <th className="text-center p-3 font-semibold text-muted-foreground">المتبقي</th>
-                  <th className="text-center p-3 font-semibold text-muted-foreground">القسط</th>
-                  <th className="text-center p-3 font-semibold text-muted-foreground">الحالة</th>
-                  <th className="text-right p-3 font-semibold text-muted-foreground">ملاحظات</th>
+                <tr className="bg-muted/50 border-b border-border/60">
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground w-10">#</th>
+                  <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground">اسم المندوب</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">الشهر</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">أخذ كام</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">سدّد كام</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">الحالة</th>
+                  <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground">ملاحظات</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground w-16">تعديل</th>
                 </tr>
               </thead>
               <tbody>
-                {empAdvances.map(adv => {
-                  const paid = calcPaid(adv.advance_installments || []);
-                  const rem = adv.amount - paid;
-                  const isExpanded = expandedId === adv.id;
-                  return (
-                    <React.Fragment key={adv.id}>
-                      <tr
-                        className="border-b border-border/30 hover:bg-muted/20 cursor-pointer"
-                        onClick={() => setExpandedId(isExpanded ? null : adv.id)}
-                      >
-                        <td className="p-3 font-medium text-foreground flex items-center gap-1">
-                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          {adv.disbursement_date}
-                        </td>
-                        <td className="p-3 text-center">{adv.amount.toLocaleString()}</td>
-                        <td className="p-3 text-center text-success">{paid.toLocaleString()}</td>
-                        <td className="p-3 text-center text-destructive font-semibold">{rem.toLocaleString()}</td>
-                        <td className="p-3 text-center">{adv.monthly_amount.toLocaleString()}</td>
-                        <td className="p-3 text-center"><span className={statusStyles[adv.status]}>{statusLabels[adv.status]}</span></td>
-                        <td className="p-3 text-muted-foreground text-xs">{adv.note || '—'}</td>
-                      </tr>
-                      {isExpanded && (adv.advance_installments || []).length > 0 && (
-                        <tr className="bg-muted/10">
-                          <td colSpan={7} className="p-0">
-                            <div className="px-4 pb-3">
-                              <table className="w-full text-xs mt-1">
-                                <thead>
-                                  <tr className="text-muted-foreground">
-                                    <th className="text-right py-1 pr-2">الشهر</th>
-                                    <th className="text-center py-1">المبلغ</th>
-                                    <th className="text-center py-1">الحالة</th>
-                                    <th className="text-center py-1">تاريخ الخصم</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(adv.advance_installments || []).sort((a, b) => a.month_year.localeCompare(b.month_year)).map(inst => (
-                                    <tr key={inst.id} className="border-t border-border/20">
-                                      <td className="py-1.5 pr-2">{inst.month_year}</td>
-                                      <td className="py-1.5 text-center">{inst.amount.toLocaleString()} ر.س</td>
-                                      <td className="py-1.5 text-center">
-                                        <span className={instStatusStyle[inst.status]}>{instStatusLabel[inst.status]}</span>
-                                      </td>
-                                      <td className="py-1.5 text-center text-muted-foreground">
-                                        {inst.deducted_at ? format(new Date(inst.deducted_at), 'yyyy-MM-dd') : '—'}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
+                {allInstallments.map((inst, idx) => (
+                  <tr key={inst.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2.5 text-center text-xs text-muted-foreground">{idx + 1}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-foreground">
+                      <div>
+                        <p>{employeeName}</p>
+                        <p className="text-[10px] text-muted-foreground">تاريخ السلفة: {inst.advanceDate}</p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-xs" dir="ltr">{inst.month_year}</td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className="font-semibold text-info text-xs">{inst.advanceTotal.toLocaleString()} ر.س</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      {inst.status === 'deducted' ? (
+                        <span className="font-semibold text-success text-xs">{inst.amount.toLocaleString()} ر.س</span>
+                      ) : (
+                        <span className="text-muted-foreground/40 text-xs">—</span>
                       )}
-                    </React.Fragment>
-                  );
-                })}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={instStatusStyle[inst.status]}>{instStatusLabel[inst.status]}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right max-w-xs">
+                      {editingNoteId === inst.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            autoFocus
+                            value={noteValue}
+                            onChange={e => setNoteValue(e.target.value)}
+                            className="h-7 text-xs"
+                            placeholder="اكتب ملاحظة..."
+                            onKeyDown={e => { if (e.key === 'Enter') saveNote(inst.id); if (e.key === 'Escape') setEditingNoteId(null); }}
+                          />
+                          <Button size="sm" className="h-7 text-xs px-2" onClick={() => saveNote(inst.id)} disabled={savingNote}>
+                            {savingNote ? '...' : 'حفظ'}
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setEditingNoteId(null)}>إلغاء</Button>
+                        </div>
+                      ) : (
+                        <span
+                          className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                          onClick={() => startEditNote(inst)}
+                          title="اضغط للتعديل"
+                        >
+                          {inst.notes || <span className="text-muted-foreground/30 italic">لا توجد ملاحظة — اضغط للإضافة</span>}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => startEditNote(inst)}
+                      >
+                        <Edit2 size={12} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
+              {/* Totals row */}
+              <tfoot>
+                <tr className="bg-muted/60 border-t-2 border-border/60">
+                  <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-bold text-muted-foreground">الإجمالي</td>
+                  <td className="px-3 py-2.5 text-center text-xs font-bold text-info">{totalDebt.toLocaleString()} ر.س</td>
+                  <td className="px-3 py-2.5 text-center text-xs font-bold text-success">{totalPaid.toLocaleString()} ر.س</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
             </table>
-          )}
-        </div>
-        <DialogFooter className="mt-4 gap-2">
+          </div>
+        )}
+
+        <DialogFooter className="mt-2">
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
-          <Button onClick={onAddNew} className="gap-2"><Plus size={15} /> سلفة جديدة</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
-// ─── Advance Card ──────────────────────────────────────────────────────────────
-interface AdvanceCardProps {
-  advance: Advance;
-  onEdit: (a: Advance) => void;
-  onTogglePause: (a: Advance) => void;
-  onEmployeeClick: (a: Advance) => void;
-  onAddNew: () => void;
-}
-const AdvanceCard = ({ advance: a, onEdit, onTogglePause, onEmployeeClick, onAddNew }: AdvanceCardProps) => {
-  const paid = calcPaid(a.advance_installments || []);
-  const remaining = a.amount - paid;
-  const progress = a.amount > 0 ? (paid / a.amount) * 100 : 0;
-  const remInst = calcRemainingInstallments(a);
-  const isCompleted = a.status === 'completed';
-  const isPaused = a.status === 'paused';
-
-  const thisMonthInst = (a.advance_installments || []).find(i => i.month_year === currentMonth);
-
-  return (
-    <div className={`bg-card rounded-xl border shadow-sm p-5 flex flex-col gap-4 transition-all ${isPaused ? 'border-yellow-400 dark:border-yellow-600' : 'border-border/50'} ${isCompleted ? 'opacity-70' : ''}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <button
-          onClick={() => onEmployeeClick(a)}
-          className="text-base font-semibold text-primary hover:underline text-right"
-        >
-          {a.employees?.name || '—'}
-        </button>
-        <span className={statusStyles[a.status]}>{statusLabels[a.status]}</span>
-      </div>
-
-      {/* Date */}
-      <p className="text-xs text-muted-foreground -mt-2">تاريخ الصرف: {a.disbursement_date}</p>
-
-      {/* Amounts */}
-      <div className="flex gap-4">
-        <div className="flex-1 text-center bg-info/10 rounded-lg py-2 px-3">
-          <p className="text-xs text-muted-foreground">إجمالي</p>
-          <p className="text-sm font-bold text-info">{a.amount.toLocaleString()} ر.س</p>
-        </div>
-        <div className="flex-1 text-center bg-warning/10 rounded-lg py-2 px-3">
-          <p className="text-xs text-muted-foreground">متبقي</p>
-          <p className="text-sm font-bold text-warning">{remaining.toLocaleString()} ر.س</p>
-        </div>
-      </div>
-
-      {/* Progress */}
-      <div>
-        <Progress value={progress} className="h-2 bg-muted [&>div]:bg-success" />
-        <p className="text-xs text-muted-foreground mt-1">
-          سُدّد {paid.toLocaleString()} ر.س &nbsp;·&nbsp; {remInst} قسط متبقي
-        </p>
-      </div>
-
-      {/* Monthly installment */}
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">القسط الشهري</span>
-        <span className="font-semibold">{a.monthly_amount.toLocaleString()} ر.س</span>
-      </div>
-
-      {/* This month status */}
-      {thisMonthInst && (
-        <div className="text-xs flex items-center gap-1.5">
-          <span className="text-muted-foreground">هذا الشهر:</span>
-          <span className={instStatusStyle[thisMonthInst.status]}>{instStatusLabel[thisMonthInst.status]}</span>
-        </div>
-      )}
-
-      {/* Actions */}
-      {isCompleted ? (
-        <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={onAddNew}>
-          <Plus size={13} /> سلفة جديدة
-        </Button>
-      ) : (
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="flex-1 gap-1 text-xs" onClick={() => onEdit(a)}>
-            <Edit2 size={13} /> تعديل السلفة
-          </Button>
-          <Button
-            size="sm"
-            variant={isPaused ? 'default' : 'outline'}
-            className="gap-1 text-xs"
-            onClick={() => onTogglePause(a)}
-          >
-            {isPaused ? <><Play size={13} /> تفعيل</> : <><Pause size={13} /> تأجيل</>}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Add Advance Modal (inline, Supabase-connected) ────────────────────────────
+// ─── Add Advance Modal ────────────────────────────────────────────────────────
 interface AddAdvanceModalProps {
   open: boolean;
   onClose: () => void;
@@ -442,7 +412,6 @@ const AddAdvanceModalInline = ({ open, onClose, onSaved, defaultEmployeeId, allA
       return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' });
     }
 
-    // Generate installments
     const installments = [];
     let [year, month] = form.first_deduction_month.split('-').map(Number);
     for (let i = 0; i < projectedInstallments; i++) {
@@ -452,14 +421,6 @@ const AddAdvanceModalInline = ({ open, onClose, onSaved, defaultEmployeeId, allA
       if (month > 12) { month = 1; year++; }
     }
     if (installments.length > 0) await supabase.from('advance_installments').insert(installments);
-
-    // WhatsApp — fire and forget
-    const emp = employees.find(e => e.id === form.employee_id);
-    const { data: empPhone } = await supabase.from('employees').select('phone').eq('id', form.employee_id).single();
-    if (empPhone?.phone) {
-      sendWhatsAppMessage(empPhone.phone, `مرحباً ${emp?.name || ''} 👋\n\nتمت الموافقة على سلفتك بمبلغ ${parseFloat(form.amount).toLocaleString()} ر.س\nعلى ${projectedInstallments} أقساط شهرية بقيمة ${parseFloat(form.monthly_amount).toLocaleString()} ر.س/شهر.`)
-        .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
-    }
 
     setSaving(false);
     toast({ title: 'تم إضافة السلفة بنجاح ✅' });
@@ -536,7 +497,9 @@ const Advances = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [addDefaultEmployee, setAddDefaultEmployee] = useState<string | undefined>(undefined);
   const [editAdvance, setEditAdvance] = useState<Advance | null>(null);
-  const [detailEmployee, setDetailEmployee] = useState<{ id: string; name: string } | null>(null);
+  const [transactionsEmployee, setTransactionsEmployee] = useState<{ id: string; name: string } | null>(null);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -587,7 +550,7 @@ const Advances = () => {
   const fetchAll = async () => {
     setLoading(true);
     const [advRes, empRes] = await Promise.all([
-      supabase.from('advances').select('*, employees(name), advance_installments(*)').order('created_at', { ascending: false }),
+      supabase.from('advances').select('*, employees(name, national_id), advance_installments(*)').order('created_at', { ascending: false }),
       supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
     ]);
     if (advRes.data) setAdvances(advRes.data as Advance[]);
@@ -597,53 +560,112 @@ const Advances = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // Summary stats
-  const stats = useMemo(() => {
-    const active = advances.filter(a => a.status === 'active');
-    const paused = advances.filter(a => a.status === 'paused');
-    const totalRemaining = active.reduce((s, a) => s + calcRemaining(a), 0);
-    const thisMonthDeduction = advances.flatMap(a => a.advance_installments || [])
-      .filter(i => i.month_year === currentMonth && i.status === 'deducted')
-      .reduce((s, i) => s + i.amount, 0);
-    return { activeCount: active.length, totalRemaining, thisMonthDeduction, pausedCount: paused.length };
+  // Group advances by employee
+  type EmployeeSummary = {
+    employeeId: string;
+    employeeName: string;
+    nationalId: string;
+    totalDebt: number;
+    totalPaid: number;
+    remaining: number;
+    activeAdvances: Advance[];
+    allAdvances: Advance[];
+  };
+
+  const employeeSummaries = useMemo(() => {
+    const map = new Map<string, EmployeeSummary>();
+    advances.forEach(adv => {
+      const empId = adv.employee_id;
+      const empName = adv.employees?.name || '—';
+      const nationalId = adv.employees?.national_id || '—';
+      const paid = calcPaid(adv.advance_installments || []);
+      const remaining = adv.amount - paid;
+
+      if (!map.has(empId)) {
+        map.set(empId, {
+          employeeId: empId,
+          employeeName: empName,
+          nationalId,
+          totalDebt: 0,
+          totalPaid: 0,
+          remaining: 0,
+          activeAdvances: [],
+          allAdvances: [],
+        });
+      }
+      const entry = map.get(empId)!;
+      entry.totalDebt += adv.amount;
+      entry.totalPaid += paid;
+      entry.remaining += remaining;
+      entry.allAdvances.push(adv);
+      if (adv.status === 'active') entry.activeAdvances.push(adv);
+    });
+    return Array.from(map.values());
   }, [advances]);
 
   // Filter
-  const filtered = advances.filter(a => {
-    const name = a.employees?.name || '';
-    const matchSearch = name.includes(search);
-    const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = useMemo(() => {
+    let result = employeeSummaries.filter(s => {
+      const matchSearch = s.employeeName.includes(search) || s.nationalId.includes(search);
+      const matchStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && s.activeAdvances.length > 0) ||
+        (statusFilter === 'completed' && s.activeAdvances.length === 0 && s.allAdvances.length > 0) ||
+        (statusFilter === 'has_debt' && s.remaining > 0);
+      return matchSearch && matchStatus;
+    });
 
-  const handleTogglePause = async (a: Advance) => {
-    const newStatus: AdvanceStatus = a.status === 'paused' ? 'active' : 'paused';
-    const { error } = await supabase.from('advances').update({ status: newStatus }).eq('id', a.id);
+    if (sortField) {
+      result = [...result].sort((a, b) => {
+        let aVal: any = (a as any)[sortField];
+        let bVal: any = (b as any)[sortField];
+        if (typeof aVal === 'string') aVal = aVal.localeCompare(bVal);
+        else aVal = aVal - bVal;
+        return sortDir === 'asc' ? aVal : -aVal;
+      });
+    }
+
+    return result;
+  }, [employeeSummaries, search, statusFilter, sortField, sortDir]);
+
+  // Grand totals
+  const grandTotals = useMemo(() => ({
+    count: filtered.length,
+    totalDebt: filtered.reduce((s, e) => s + e.totalDebt, 0),
+    totalPaid: filtered.reduce((s, e) => s + e.totalPaid, 0),
+    remaining: filtered.reduce((s, e) => s + e.remaining, 0),
+  }), [filtered]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const handleTogglePauseById = async (advId: string, currentStatus: AdvanceStatus) => {
+    const newStatus: AdvanceStatus = currentStatus === 'paused' ? 'active' : 'paused';
+    const { error } = await supabase.from('advances').update({ status: newStatus }).eq('id', advId);
     if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
-    setAdvances(prev => prev.map(adv => adv.id === a.id ? { ...adv, status: newStatus } : adv));
+    fetchAll();
     toast({ title: newStatus === 'active' ? 'تم تفعيل السلفة' : 'تم تأجيل السلفة' });
   };
 
   const handleExport = () => {
-    const rows = filtered.map(a => {
-      const paid = calcPaid(a.advance_installments || []);
-      const rem = a.amount - paid;
-      const remInst = calcRemainingInstallments(a);
-      return {
-        'الاسم': a.employees?.name || '',
-        'المبلغ': a.amount,
-        'المسدّد': paid,
-        'المتبقي': rem,
-        'القسط': a.monthly_amount,
-        'أقساط متبقية': remInst,
-        'تاريخ الصرف': a.disbursement_date,
-        'الحالة': statusLabels[a.status],
-      };
-    });
+    const rows = filtered.map((s, idx) => ({
+      '#': idx + 1,
+      'اسم المندوب': s.employeeName,
+      'رقم الإقامة': s.nationalId,
+      'إجمالي المديونية': s.totalDebt,
+      'المسدّد': s.totalPaid,
+      'المتبقي': s.remaining,
+    }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'السلف');
     XLSX.writeFile(wb, `السلف_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
+    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
   return (
@@ -676,9 +698,9 @@ const Advances = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           {permissions.can_edit && (
-          <Button size="sm" className="gap-2 h-8" onClick={() => { setAddDefaultEmployee(undefined); setAddOpen(true); }}>
-            <Plus size={15} /> إضافة سلفة
-          </Button>
+            <Button size="sm" className="gap-2 h-8" onClick={() => { setAddDefaultEmployee(undefined); setAddOpen(true); }}>
+              <Plus size={15} /> إضافة سلفة
+            </Button>
           )}
         </div>
       </div>
@@ -686,10 +708,10 @@ const Advances = () => {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'عدد السلف النشطة', value: stats.activeCount, color: 'text-primary' },
-          { label: 'إجمالي المبالغ المتبقية', value: `${stats.totalRemaining.toLocaleString()} ر.س`, color: 'text-destructive' },
-          { label: 'خصم هذا الشهر', value: `${stats.thisMonthDeduction.toLocaleString()} ر.س`, color: 'text-success' },
-          { label: 'السلف الموقوفة', value: stats.pausedCount, color: 'text-warning' },
+          { label: 'عدد المندوبين', value: grandTotals.count, color: 'text-primary' },
+          { label: 'إجمالي المديونية', value: `${grandTotals.totalDebt.toLocaleString()} ر.س`, color: 'text-info' },
+          { label: 'إجمالي المسدّد', value: `${grandTotals.totalPaid.toLocaleString()} ر.س`, color: 'text-success' },
+          { label: 'إجمالي المتبقي', value: `${grandTotals.remaining.toLocaleString()} ر.س`, color: 'text-destructive' },
         ].map(s => (
           <div key={s.label} className="bg-card rounded-xl border border-border/50 p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -702,10 +724,10 @@ const Advances = () => {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="بحث بالاسم..." className="pr-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="بحث بالاسم أو رقم الإقامة..." className="pr-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-2">
-          {[{ v: 'all', l: 'الكل' }, { v: 'active', l: 'نشطة' }, { v: 'paused', l: 'موقوفة' }, { v: 'completed', l: 'مكتملة' }].map(s => (
+          {[{ v: 'all', l: 'الكل' }, { v: 'active', l: 'نشط' }, { v: 'has_debt', l: 'عليه متبقي' }, { v: 'completed', l: 'منتهي' }].map(s => (
             <button key={s.v} onClick={() => setStatusFilter(s.v)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
               {s.l}
@@ -714,35 +736,155 @@ const Advances = () => {
         </div>
       </div>
 
-      {/* Cards Grid */}
+      {/* Table */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-xl border border-border/50 p-5 space-y-3 animate-pulse">
-              <div className="h-4 bg-muted rounded w-2/3" />
-              <div className="h-3 bg-muted rounded w-1/3" />
-              <div className="flex gap-3">
-                <div className="h-12 bg-muted rounded flex-1" />
-                <div className="h-12 bg-muted rounded flex-1" />
-              </div>
-              <div className="h-2 bg-muted rounded" />
-            </div>
-          ))}
+        <div className="bg-card rounded-xl border border-border/50 p-8 text-center text-muted-foreground animate-pulse">
+          جارٍ التحميل...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">لا توجد سلف مطابقة</div>
+        <div className="text-center py-16 text-muted-foreground bg-card rounded-xl border border-border/50">
+          لا توجد سلف مطابقة
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(a => (
-            <AdvanceCard
-              key={a.id}
-              advance={a}
-              onEdit={setEditAdvance}
-              onTogglePause={handleTogglePause}
-              onEmployeeClick={adv => setDetailEmployee({ id: adv.employee_id, name: adv.employees?.name || '' })}
-              onAddNew={() => { setAddDefaultEmployee(undefined); setAddOpen(true); }}
-            />
-          ))}
+        <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b border-border/60">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
+                  <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('employeeName')}>
+                    اسم المندوب <SortIcon field="employeeName" />
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('nationalId')}>
+                    رقم الإقامة <SortIcon field="nationalId" />
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-info cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('totalDebt')}>
+                    المديونية <SortIcon field="totalDebt" />
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-success cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('totalPaid')}>
+                    المسدّد <SortIcon field="totalPaid" />
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
+                    المتبقي <SortIcon field="remaining" />
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground">الحالة</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((s, idx) => (
+                  <tr key={s.employeeId} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">{idx + 1}</td>
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        className="font-semibold text-primary hover:underline text-sm text-right"
+                        onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName })}
+                        title="اضغط لعرض سجل العمليات"
+                      >
+                        {s.employeeName}
+                      </button>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{s.allAdvances.length} سلفة</p>
+                    </td>
+                    <td className="px-3 py-3 text-center text-xs font-mono text-muted-foreground" dir="ltr">{s.nationalId}</td>
+                    <td className="px-3 py-3 text-center">
+                      <span className="font-bold text-info text-sm">{s.totalDebt.toLocaleString()}</span>
+                      <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className="font-bold text-success text-sm">{s.totalPaid.toLocaleString()}</span>
+                      <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className={`font-bold text-sm ${s.remaining > 0 ? 'text-destructive' : 'text-success'}`}>
+                        {s.remaining.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {s.activeAdvances.length > 0 ? (
+                          <span className="badge-info text-[10px]">نشطة ({s.activeAdvances.length})</span>
+                        ) : s.remaining === 0 ? (
+                          <span className="badge-success text-[10px]">مكتملة</span>
+                        ) : (
+                          <span className="badge-warning text-[10px]">موقوفة</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex items-center gap-1 justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 px-2"
+                          onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName })}
+                        >
+                          <FileText size={11} /> العمليات
+                        </Button>
+                        {permissions.can_edit && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1 px-2"
+                            onClick={() => { setAddDefaultEmployee(s.employeeId); setAddOpen(true); }}
+                          >
+                            <Plus size={11} /> سلفة
+                          </Button>
+                        )}
+                        {s.activeAdvances.length > 0 && permissions.can_edit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-warning"
+                            title="تأجيل/تفعيل السلفة النشطة"
+                            onClick={() => {
+                              const adv = s.activeAdvances[0];
+                              handleTogglePauseById(adv.id, adv.status);
+                            }}
+                          >
+                            <Pause size={12} />
+                          </Button>
+                        )}
+                        {permissions.can_edit && s.allAdvances.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            title="تعديل آخر سلفة"
+                            onClick={() => setEditAdvance(s.allAdvances[0])}
+                          >
+                            <Edit2 size={12} />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {/* Totals footer row */}
+              <tfoot>
+                <tr className="bg-muted/70 border-t-2 border-border/60">
+                  <td colSpan={2} className="px-3 py-3 text-right text-xs font-bold text-muted-foreground">
+                    الإجمالي ({grandTotals.count} مندوب)
+                  </td>
+                  <td className="px-3 py-3 text-center text-xs text-muted-foreground">—</td>
+                  <td className="px-3 py-3 text-center">
+                    <span className="font-bold text-info text-sm">{grandTotals.totalDebt.toLocaleString()}</span>
+                    <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <span className="font-bold text-success text-sm">{grandTotals.totalPaid.toLocaleString()}</span>
+                    <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <span className="font-bold text-destructive text-sm">{grandTotals.remaining.toLocaleString()}</span>
+                    <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
@@ -764,17 +906,13 @@ const Advances = () => {
         />
       )}
 
-      {detailEmployee && (
-        <EmployeeDetailModal
-          employeeId={detailEmployee.id}
-          employeeName={detailEmployee.name}
+      {transactionsEmployee && (
+        <TransactionsModal
+          employeeId={transactionsEmployee.id}
+          employeeName={transactionsEmployee.name}
           advances={advances}
-          onClose={() => setDetailEmployee(null)}
-          onAddNew={() => {
-            setAddDefaultEmployee(detailEmployee.id);
-            setDetailEmployee(null);
-            setAddOpen(true);
-          }}
+          onClose={() => setTransactionsEmployee(null)}
+          onRefresh={fetchAll}
         />
       )}
     </div>
