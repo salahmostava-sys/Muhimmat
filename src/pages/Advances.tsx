@@ -674,7 +674,7 @@ const Advances = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showWrittenOff, setShowWrittenOff] = useState(false);
   const [editAdvance, setEditAdvance] = useState<Advance | null>(null);
-  const [transactionsEmployee, setTransactionsEmployee] = useState<{ id: string; name: string; nationalId: string; totalDebt: number; totalPaid: number; remaining: number } | null>(null);
+  const [transactionsEmployee, setTransactionsEmployee] = useState<{ id: string; name: string; nationalId: string; totalDebt: number; totalPaid: number; remaining: number; isWrittenOff?: boolean; allAdvances: Advance[] } | null>(null);
   const [writeOffEmployee, setWriteOffEmployee] = useState<{ name: string; remaining: number; advanceIds: string[] } | null>(null);
   const [restoreWriteOffEmployee, setRestoreWriteOffEmployee] = useState<{ name: string; advanceIds: string[] } | null>(null);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
