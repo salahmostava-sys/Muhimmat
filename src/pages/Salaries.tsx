@@ -673,7 +673,7 @@ const Salaries = () => {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const [empRes, extRes, ordersRes, appsWithSchemeRes] = await Promise.all([
+      const [empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
@@ -692,11 +692,19 @@ const Salaries = () => {
           .gte('date', startDate)
           .lte('date', endDate),
 
-        // Fetch apps with their assigned scheme (scheme per platform)
+        // Fetch apps with their assigned scheme (scheme per platform) — include scheme_type & monthly_amount
         supabase
           .from('apps')
-          .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order))')
+          .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, scheme_type, monthly_amount, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order, tier_type, incremental_threshold, incremental_price))')
           .eq('is_active', true),
+
+        // Fetch attendance for this month (present/late = worked day)
+        supabase
+          .from('attendance')
+          .select('employee_id, status')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .in('status', ['present', 'late']),
       ]);
 
       // ── Fetch saved salary records for this month (to restore status) ──
