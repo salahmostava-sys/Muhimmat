@@ -1056,6 +1056,46 @@ const Advances = () => {
           onDone={fetchAll}
         />
       )}
+
+      {restoreWriteOffEmployee && (
+        <RestoreWriteOffDialog
+          employeeName={restoreWriteOffEmployee.name}
+          advanceIds={restoreWriteOffEmployee.advanceIds}
+          onClose={() => setRestoreWriteOffEmployee(null)}
+          onDone={fetchAll}
+        />
+      )}
+
+      {/* Add new employee quick dialog */}
+      {showAddEmployee && (
+        <Dialog open onOpenChange={v => !v && setShowAddEmployee(false)}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><UserPlus size={16} /> إضافة مندوب جديد للسلف</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">اختر مندوباً من القائمة لإضافته وتسجيل سلفة مباشرة.</p>
+              <Select onValueChange={(empId) => {
+                setShowAddEmployee(false);
+                setInlineRowEmpId(empId);
+              }}>
+                <SelectTrigger><SelectValue placeholder="اختر المندوب..." /></SelectTrigger>
+                <SelectContent>
+                  {employees
+                    .filter(e => !employeeSummaries.some(s => s.employeeId === e.id))
+                    .map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">* يظهر فقط المناديب الذين ليس لديهم سجل سلف مسبق.</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddEmployee(false)}>إلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
