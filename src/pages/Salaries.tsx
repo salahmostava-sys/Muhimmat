@@ -1661,8 +1661,24 @@ const Salaries = () => {
   const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/60 bg-muted/60";
   const stickyLeft = (offset: number) => ({ left: offset });
 
+  const [detailRow, setDetailRow] = useState<SalaryRow | null>(null);
+  const [detailOrders, setDetailOrders] = useState<{appName: string; orders: number; salary: number}[]>([]);
+
+  const openEmployeeDetail = (row: SalaryRow) => {
+    setDetailRow(row);
+    // Build orders breakdown from row data
+    const orders = platforms
+      .filter(p => row.registeredApps.includes(p))
+      .map(p => ({
+        appName: p,
+        orders: row.platformOrders[p] || 0,
+        salary: row.platformSalaries[p] || 0,
+      }));
+    setDetailOrders(orders);
+  };
+
   return (
-    <div className="space-y-4 h-full flex flex-col" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       {/* Page header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -1740,22 +1756,6 @@ const Salaries = () => {
             </div>
           );
         })()}
-      </div>
-
-      {/* Status mini-cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="stat-card">
-          <p className="text-xs text-muted-foreground">بانتظار الاعتماد</p>
-          <p className="text-2xl font-bold text-warning mt-1">{pendingCount}</p>
-        </div>
-        <div className="stat-card">
-          <p className="text-xs text-muted-foreground">معتمد</p>
-          <p className="text-2xl font-bold text-success mt-1">{approvedCount}</p>
-        </div>
-        <div className="stat-card">
-          <p className="text-xs text-muted-foreground">مصروف</p>
-          <p className="text-2xl font-bold text-info mt-1">{paidCount}</p>
-        </div>
       </div>
 
       {/* Setup Required Banner — platforms without scheme */}
@@ -1959,7 +1959,7 @@ const Salaries = () => {
         // Fixed deduction columns count: advance, remaining, external, violations + dynamic custom cols + total = 4 + allCustomCols.length + 1
         const dedColCount = 4 + allCustomCols.length + 1;
         return (
-      <div className="flex-1 min-h-0 rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
         {loadingData ? (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
             جارٍ تحميل بيانات الرواتب...
@@ -1969,7 +1969,7 @@ const Salaries = () => {
             لا يوجد موظفون نشطون أو بيانات لهذا الشهر
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)]">
+          <div className="overflow-x-auto">
             <table className="text-sm border-collapse" style={{ minWidth: 1800 }}>
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
@@ -2044,7 +2044,12 @@ const Salaries = () => {
                     <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                       <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
                         <div className="flex items-center gap-1.5">
-                          <span className="whitespace-nowrap">{r.employeeName}</span>
+                          <button
+                            className="whitespace-nowrap text-primary hover:underline font-medium text-right"
+                            onClick={() => openEmployeeDetail(r)}
+                          >
+                            {r.employeeName}
+                          </button>
                           {r.isDirty && (
                             <span title="تم تعديل البيانات بعد الاعتماد — يرجى إعادة الاعتماد" className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/40 whitespace-nowrap cursor-help">
                               <AlertTriangle size={9} /> يحتاج إعادة اعتماد
@@ -2239,6 +2244,139 @@ const Salaries = () => {
         />
       )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+
+      {/* Employee Detail Dialog */}
+      {detailRow && (() => {
+        const c = computeRow(detailRow);
+        const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+        return (
+          <Dialog open onOpenChange={() => setDetailRow(null)}>
+            <DialogContent dir="rtl" className="max-w-xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {detailRow.employeeName.slice(0, 1)}
+                  </div>
+                  {detailRow.employeeName}
+                  <span className={`${statusStyles[detailRow.status]} text-xs`}>{statusLabels[detailRow.status]}</span>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                {/* Info */}
+                <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                  <div><span className="text-muted-foreground">المسمى الوظيفي: </span><span className="font-semibold">{detailRow.jobTitle || '—'}</span></div>
+                  <div><span className="text-muted-foreground">رقم الهوية: </span><span className="font-semibold" dir="ltr">{detailRow.nationalId || '—'}</span></div>
+                  <div><span className="text-muted-foreground">المدينة: </span><span className="font-semibold">{detailRow.city || '—'}</span></div>
+                  <div><span className="text-muted-foreground">الشهر: </span><span className="font-semibold">{monthLabel}</span></div>
+                  <div><span className="text-muted-foreground">طريقة الصرف: </span><span className="font-semibold">{detailRow.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
+                  {detailRow.phone && <div><span className="text-muted-foreground">الهاتف: </span><span className="font-semibold" dir="ltr">{detailRow.phone}</span></div>}
+                </div>
+
+                {/* Orders per platform */}
+                <div className="rounded-xl border border-success/20 bg-success/5 overflow-hidden">
+                  <div className="px-3 py-2 bg-success/10 border-b border-success/20">
+                    <p className="font-bold text-xs text-success uppercase tracking-wide">✅ الطلبات والاستحقاقات</p>
+                  </div>
+                  <div className="divide-y divide-border/30">
+                    {detailOrders.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">لا توجد طلبات مسجّلة لهذا الشهر</div>
+                    ) : detailOrders.map(({ appName, orders, salary }) => {
+                      const pc = platformColors[appName];
+                      return (
+                        <div key={appName} className="flex justify-between items-center px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: pc?.header || 'hsl(var(--primary))' }} />
+                            <div>
+                              <span className="font-medium text-xs text-foreground">{appName}</span>
+                              <span className="text-[10px] text-muted-foreground mr-1.5">{orders.toLocaleString()} طلب</span>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-xs" style={{ color: pc?.header || 'hsl(var(--primary))' }}>{salary.toLocaleString()} ر.س</span>
+                        </div>
+                      );
+                    })}
+                    {detailRow.incentives > 0 && (
+                      <div className="flex justify-between items-center px-3 py-2.5">
+                        <span className="text-xs text-foreground">حوافز</span>
+                        <span className="text-xs font-semibold text-success">+{detailRow.incentives.toLocaleString()} ر.س</span>
+                      </div>
+                    )}
+                    {detailRow.sickAllowance > 0 && (
+                      <div className="flex justify-between items-center px-3 py-2.5">
+                        <span className="text-xs text-foreground">بدل مرضي</span>
+                        <span className="text-xs font-semibold text-success">+{detailRow.sickAllowance.toLocaleString()} ر.س</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center px-3 py-2.5 bg-success/15 font-bold">
+                    <span className="text-xs text-success">إجمالي الاستحقاقات</span>
+                    <span className="text-sm text-success">{c.totalWithSalary.toLocaleString()} ر.س</span>
+                  </div>
+                </div>
+
+                {/* Deductions */}
+                {c.totalDeductions > 0 && (
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 overflow-hidden">
+                    <div className="px-3 py-2 bg-destructive/10 border-b border-destructive/20">
+                      <p className="font-bold text-xs text-destructive uppercase tracking-wide">🔻 الاستقطاعات</p>
+                    </div>
+                    <div className="divide-y divide-border/30">
+                      {detailRow.advanceDeduction > 0 && (
+                        <div className="flex justify-between items-center px-3 py-2.5">
+                          <span className="text-xs text-foreground">قسط سلفة</span>
+                          <span className="text-xs font-semibold text-destructive">-{detailRow.advanceDeduction.toLocaleString()} ر.س</span>
+                        </div>
+                      )}
+                      {detailRow.advanceRemaining > 0 && (
+                        <div className="flex justify-between items-center px-3 py-2.5">
+                          <span className="text-xs text-muted-foreground">رصيد السلفة المتبقي</span>
+                          <span className="text-xs font-semibold text-warning">{detailRow.advanceRemaining.toLocaleString()} ر.س</span>
+                        </div>
+                      )}
+                      {detailRow.externalDeduction > 0 && (
+                        <div className="flex justify-between items-center px-3 py-2.5">
+                          <span className="text-xs text-foreground">خصومات خارجية</span>
+                          <span className="text-xs font-semibold text-destructive">-{detailRow.externalDeduction.toLocaleString()} ر.س</span>
+                        </div>
+                      )}
+                      {detailRow.violations > 0 && (
+                        <div className="flex justify-between items-center px-3 py-2.5">
+                          <span className="text-xs text-foreground">مخالفات مرورية</span>
+                          <span className="text-xs font-semibold text-destructive">-{detailRow.violations.toLocaleString()} ر.س</span>
+                        </div>
+                      )}
+                      {Object.entries(detailRow.customDeductions || {}).filter(([, v]) => v > 0).map(([k, v]) => (
+                        <div key={k} className="flex justify-between items-center px-3 py-2.5">
+                          <span className="text-xs text-foreground">{k.split('___').slice(1).join('___') || k}</span>
+                          <span className="text-xs font-semibold text-destructive">-{v.toLocaleString()} ر.س</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
+                      <span className="text-xs text-destructive">إجمالي الاستقطاعات</span>
+                      <span className="text-sm text-destructive">-{c.totalDeductions.toLocaleString()} ر.س</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Net salary */}
+                <div className="flex justify-between items-center py-3.5 bg-primary text-primary-foreground rounded-xl px-5">
+                  <span className="font-bold text-sm">صافي الراتب</span>
+                  <span className="text-xl font-black">{c.netSalary.toLocaleString()} ر.س</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button variant="outline" size="sm" onClick={() => setDetailRow(null)}>إغلاق</Button>
+                  <Button size="sm" className="gap-1.5" onClick={() => { setPayslipRow(detailRow); setDetailRow(null); }}>
+                    <Printer size={13} /> كشف الراتب
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Hidden off-screen renderer for batch ZIP export */}
       {batchQueue.length > 0 && batchIndex < batchQueue.length && (() => {
