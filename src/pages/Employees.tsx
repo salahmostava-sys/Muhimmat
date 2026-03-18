@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Download, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
-  Columns, Filter, X, ChevronDown as FilterIcon, Building2
+  Columns, Filter, X, ChevronDown as FilterIcon, Building2, CalendarDays
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
