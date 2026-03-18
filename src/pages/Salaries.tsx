@@ -837,7 +837,7 @@ const Salaries = () => {
     const totalPlatformSalary = Object.values(r.platformSalaries).reduce((s, v) => s + v, 0);
     const totalAdditions = r.incentives + r.sickAllowance;
     const totalWithSalary = totalPlatformSalary + totalAdditions;
-    const totalDeductions = r.advanceDeduction + r.violations + r.walletHunger + r.walletTuyo + r.walletJahiz + r.foodDamage + r.externalDeduction;
+    const totalDeductions = r.advanceDeduction + r.violations + r.walletHunger + r.walletTuyo + r.walletJahiz + r.foodDamage + r.externalDeduction + Object.values(r.customDeductions || {}).reduce((s, v) => s + v, 0);
     const netSalary = Math.max(0, totalWithSalary - totalDeductions);
     const remaining = netSalary - r.transfer;
     return { totalPlatformSalary, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
