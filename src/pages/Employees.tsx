@@ -175,6 +175,47 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
   return <ChevronDown size={11} className="text-primary inline ms-1" />;
 };
 
+// ─── Column Filter Popover ────────────────────────────────────────────────────
+interface ColFilterPopoverProps {
+  colKey: string;
+  label: string;
+  active: boolean;
+  children: React.ReactNode;
+  onClear: () => void;
+}
+const ColFilterPopover = ({ colKey, label, active, children, onClear }: ColFilterPopoverProps) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={`inline-flex items-center gap-0.5 rounded transition-colors hover:text-primary ${active ? 'text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+          title={`فلترة ${label}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <FilterIcon size={10} className={active ? 'text-primary' : ''} />
+          {active && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-52 p-3 space-y-2"
+        align="start"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-foreground">{label}</span>
+          {active && (
+            <button onClick={() => { onClear(); setOpen(false); }} className="text-xs text-destructive hover:underline flex items-center gap-1">
+              <X size={10} /> مسح
+            </button>
+          )}
+        </div>
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = ({ cols }: { cols: number }) => (
   <tr className="border-b border-border/30">
