@@ -293,8 +293,27 @@ const Motorcycles = () => {
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
     const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number');
-    if (!error && rows) setData(rows as Vehicle[]);
-    else if (error) toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' });
+    if (error) { toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' }); setLoading(false); return; }
+
+    // Fetch current active vehicle assignments (no end_date = still active)
+    const { data: assignments } = await supabase
+      .from('vehicle_assignments')
+      .select('vehicle_id, employees(name)')
+      .is('end_date', null)
+      .is('returned_at', null);
+
+    const assignMap: Record<string, string> = {};
+    if (assignments) {
+      (assignments as any[]).forEach(a => {
+        if (a.vehicle_id && a.employees?.name) {
+          assignMap[a.vehicle_id] = a.employees.name;
+        }
+      });
+    }
+
+    if (rows) {
+      setData(rows.map(v => ({ ...v, current_rider: assignMap[v.id] ?? null })) as Vehicle[]);
+    }
     setLoading(false);
   }, [toast]);
 
