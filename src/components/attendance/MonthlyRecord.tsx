@@ -81,9 +81,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
     const sickDays = rows.filter((r) => r.status === "sick").length;
     const lateDays = rows.filter((r) => r.status === "late").length;
     const totalHours = (presentDays + lateDays) * 8;
-    const workDays = daysInMonth - leaveDays - sickDays;
-    const earnedSalary = workDays > 0 ? Math.round(emp.base_salary * (presentDays / workDays)) : 0;
-    return { ...emp, presentDays, absentDays, leaveDays, sickDays, lateDays, totalHours, earnedSalary };
+    return { ...emp, presentDays, absentDays, leaveDays, sickDays, lateDays, totalHours };
   });
 
   const totals = data.reduce(
