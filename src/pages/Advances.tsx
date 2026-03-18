@@ -806,7 +806,7 @@ const Advances = () => {
                             <Plus size={12} /> إجراء
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-[180px]" dir="rtl">
+                        <DropdownMenuContent align="end" className="min-w-[180px]">
                           {/* عرض العمليات */}
                           <DropdownMenuItem onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName })}>
                             <FileText size={13} className="ml-2 text-muted-foreground" />
