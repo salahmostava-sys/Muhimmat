@@ -2325,6 +2325,16 @@ const Salaries = () => {
                    <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 216, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 328, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                   {/* New info columns totals */}
+                   <td className="px-2 py-2 text-xs font-bold text-center border border-info/20 bg-info/10 text-foreground">
+                     {filtered.reduce((s, r) => s + r.platformIncome, 0).toLocaleString()}
+                   </td>
+                   <td className="px-2 py-2 text-xs font-bold text-center border border-info/20 bg-info/10 text-foreground">
+                     {Math.round(filtered.reduce((s, r) => s + r.workDays, 0) / Math.max(filtered.length, 1))}
+                   </td>
+                   <td className="px-2 py-2 text-xs font-bold text-center border-l-2 border-info/30 bg-info/10 text-foreground">
+                     {filtered.reduce((s, r) => s + r.fuelCost, 0).toLocaleString()}
+                   </td>
                   {platforms.map(p => {
                     const totalOrders = totals.platform[p] || 0;
                     const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);

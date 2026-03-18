@@ -1061,7 +1061,7 @@ const Advances = () => {
                   <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
                     المتبقي <SortIcon field="remaining" />
                   </th>
-                  {permissions.can_edit && <th className="w-12 px-2 py-3 text-center text-xs font-semibold text-muted-foreground">حذف</th>}
+                  {permissions.can_edit && <th className="w-20 px-2 py-3 text-center text-xs font-semibold text-muted-foreground">إجراء</th>}
                 </tr>
               </thead>
               <tbody>
