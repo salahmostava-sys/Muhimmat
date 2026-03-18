@@ -2125,9 +2125,15 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} text-foreground`}>{r.externalDeduction > 0 ? r.externalDeduction.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
                       <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-foreground" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-foreground" /></td>
-                      <td className={`${tdClass} border-l border-border/20`}><EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-foreground" /></td>
+                      {allCustomCols.map(col => (
+                        <td key={col.fullKey} className={tdClass}>
+                          <EditableCell
+                            value={r.customDeductions?.[col.fullKey] || 0}
+                            onChange={v => updateRow(r.id, { customDeductions: { ...r.customDeductions, [col.fullKey]: v } })}
+                            className="text-foreground"
+                          />
+                        </td>
+                      ))}
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                       </td>
@@ -2179,48 +2185,49 @@ const Salaries = () => {
                     </tr>
                   );
                 })}
-                 {/* Totals footer */}
-                 <tr className="bg-muted/60 border-t-2 border-border">
-                   <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
-                   <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                    {platforms.map(p => {
-                      const pc = platformColors[p];
-                      const totalOrders = totals.platform[p] || 0;
-                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
-                      return (
-                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20 text-foreground`}>
-                           <div className="flex flex-col items-center leading-tight">
-                             <span>{totalOrders.toLocaleString()}</span>
-                             <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
-                           </div>
-                         </td>
-                       );
-                     })}
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
-                    <td className={tfClass}>—</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.walletH.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.walletT.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.food.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
-                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
-                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                   <td className={tfClass} colSpan={6}></td>
-                 </tr>
+                {/* Totals footer */}
+                <tr className="bg-muted/60 border-t-2 border-border">
+                  <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
+                  <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                  <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                  {platforms.map(p => {
+                    const totalOrders = totals.platform[p] || 0;
+                    const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+                    return (
+                      <td key={`${p}-col`} className={`${tfClass} border-l border-border/20 text-foreground`}>
+                        <div className="flex flex-col items-center leading-tight">
+                          <span>{totalOrders.toLocaleString()}</span>
+                          <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
+                  <td className={tfClass}>—</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
+                  {allCustomCols.map(col => {
+                    const colTotal = filtered.reduce((s, r) => s + (r.customDeductions?.[col.fullKey] || 0), 0);
+                    return <td key={col.fullKey} className={`${tfClass} text-foreground`}>{colTotal > 0 ? colTotal.toLocaleString() : '—'}</td>;
+                  })}
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
+                  <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
+                  <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
+                  <td className={tfClass} colSpan={6}></td>
+                </tr>
               </tbody>
             </table>
           </div>
         )}
       </div>
-      )}
+        );
+      })()}
 
       {payslipRow && (
         <PayslipModal
