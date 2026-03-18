@@ -547,7 +547,6 @@ const AddAdvanceModalInline = ({ open, onClose, onSaved, defaultEmployeeId, defa
 };
 
 
-
   const projectedInstallments = form.amount && form.monthly_amount
     ? Math.ceil(parseFloat(form.amount) / parseFloat(form.monthly_amount))
     : 0;
