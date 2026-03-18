@@ -1061,6 +1061,7 @@ const Advances = () => {
                   <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
                     المتبقي <SortIcon field="remaining" />
                   </th>
+                  {permissions.can_edit && <th className="w-12 px-2 py-3 text-center text-xs font-semibold text-muted-foreground">حذف</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1088,6 +1089,17 @@ const Advances = () => {
                         <span className={`font-bold text-sm ${s.remaining > 0 ? 'text-destructive' : 'text-success'}`}>{s.remaining.toLocaleString()}</span>
                         <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                       </td>
+                      {permissions.can_edit && (
+                        <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setDeleteEmployeeAdvancesId(s.employeeId)}
+                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            title="حذف جميع سلف هذا المندوب"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   </React.Fragment>
                 ))}
@@ -1110,6 +1122,7 @@ const Advances = () => {
                     <span className="font-bold text-destructive text-sm">{grandTotals.remaining.toLocaleString()}</span>
                     <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                   </td>
+                  {permissions.can_edit && <td />}
                 </tr>
               </tfoot>
             </table>
