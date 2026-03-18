@@ -480,10 +480,16 @@ interface TransactionsModalProps {
   totalPaid: number;
   remaining: number;
   advances: Advance[];
+  allAdvances: Advance[];
+  isWrittenOff?: boolean;
+  canEdit?: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  onWriteOff?: () => void;
+  onRestore?: () => void;
+  onEditAdvance?: (adv: Advance) => void;
 }
-const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, totalPaid, remaining, advances, onClose, onRefresh }: TransactionsModalProps) => {
+const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, totalPaid, remaining, advances, allAdvances, isWrittenOff, canEdit, onClose, onRefresh, onWriteOff, onRestore, onEditAdvance }: TransactionsModalProps) => {
   const { toast } = useToast();
   const empAdvances = advances.filter(a => a.employee_id === employeeId);
   const allInstallments = empAdvances.flatMap(adv =>
@@ -494,6 +500,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const [noteValue, setNoteValue] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
 
   const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
@@ -511,11 +518,49 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
       <Dialog open onOpenChange={v => !v && onClose()}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <FileText size={18} />
-              <span>سجل العمليات — {employeeName}</span>
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText size={18} />
+                سجل العمليات — {employeeName}
+              </DialogTitle>
+              {/* Action buttons inside modal header */}
+              {canEdit && !isWrittenOff && (
+                <div className="flex items-center gap-2 ml-8">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowInlineAdd(true)}>
+                    <Plus size={12} /> إضافة
+                  </Button>
+                  {empAdvances.length > 0 && onEditAdvance && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => onEditAdvance(empAdvances[0])}>
+                      <Edit2 size={12} /> تعديل
+                    </Button>
+                  )}
+                  {remaining > 0 && onWriteOff && (
+                    <Button size="sm" variant="destructive" className="h-7 text-xs gap-1.5" onClick={onWriteOff}>
+                      <AlertTriangle size={12} /> إعدام
+                    </Button>
+                  )}
+                </div>
+              )}
+              {canEdit && isWrittenOff && onRestore && (
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 ml-8 text-warning border-warning/40 hover:bg-warning/10" onClick={onRestore}>
+                  <RotateCcw size={12} /> استرداد الديون
+                </Button>
+              )}
+            </div>
           </DialogHeader>
+
+          {/* Inline add form */}
+          {showInlineAdd && (
+            <div className="border border-border/60 rounded-xl p-4 bg-muted/20">
+              <InlineRowEntry
+                employeeId={employeeId}
+                allAdvances={allAdvances}
+                onSaved={() => { setShowInlineAdd(false); onRefresh(); }}
+                onCancel={() => setShowInlineAdd(false)}
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-3 mb-2">
             <div className="bg-info/10 rounded-xl p-3 text-center">
               <p className="text-xs text-muted-foreground">إجمالي المديونية</p>
@@ -542,7 +587,6 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">تاريخ السلفة</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">أخذ كام</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">سدّد كام</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">الحالة</th>
                     <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground">ملاحظات</th>
                     <th className="w-10" />
                   </tr>
@@ -560,11 +604,6 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                         {inst.status === 'deducted'
                           ? <span className="font-semibold text-success text-xs">{inst.amount.toLocaleString()} ر.س</span>
                           : <span className="text-muted-foreground/40 text-xs">—</span>}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${inst.status === 'deducted' ? 'bg-success/10 text-success' : inst.status === 'pending' ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
-                          {inst.status === 'deducted' ? 'مخصوم' : inst.status === 'pending' ? 'معلّق' : 'مؤجل'}
-                        </span>
                       </td>
                       <td className="px-3 py-2.5 text-right max-w-xs">
                         {editingNoteId === inst.id ? (
@@ -594,7 +633,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                     <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-bold text-muted-foreground">الإجمالي</td>
                     <td className="px-3 py-2.5 text-center text-xs font-bold text-info">{totalDebt.toLocaleString()} ر.س</td>
                     <td className="px-3 py-2.5 text-center text-xs font-bold text-success">{totalPaid.toLocaleString()} ر.س</td>
-                    <td colSpan={3} />
+                    <td colSpan={2} />
                   </tr>
                 </tfoot>
               </table>
