@@ -188,11 +188,6 @@ const UsersTab = () => {
 
       // Update password via edge function if provided
       if (editPassword.trim().length > 0) {
-        if (editPassword.trim().length < 6) {
-          toast({ title: 'خطأ', description: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', variant: 'destructive' });
-          setEditSaving(false);
-          return;
-        }
         const { error: pwError } = await supabase.functions.invoke('admin-update-user', {
           body: { user_id: editTarget.id, password: editPassword.trim() },
         });
