@@ -405,6 +405,7 @@ const SpreadsheetGrid = () => {
                         const val = empDayTotal(emp.id, d);
                         const dow = new Date(year, month - 1, d).getDay();
                         const isWeekend = dow === 5 || dow === 6;
+                        const isThursday = dow === 4;
                         const isToday = d === today;
                         const isOpen = cellPopover?.empId === emp.id && cellPopover?.day === d;
                         const dayApps = apps.filter(a => getVal(emp.id, a.id, d) > 0);
