@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { differenceInDays, parseISO, addDays, format } from 'date-fns';
+import { differenceInDays, parseISO, endOfMonth, format } from 'date-fns';
 
 const typeLabels: Record<string, string> = {
   residency: 'إقامة',

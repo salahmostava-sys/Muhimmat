@@ -57,22 +57,24 @@ const Alerts = () => {
       setLoading(true);
       const today = new Date();
       const todayStr = format(today, 'yyyy-MM-dd');
-      const in60Days = format(addDays(today, 60), 'yyyy-MM-dd');
+      // Show anything expiring by end of current month
+      const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
 
       const [employeesRes, vehiclesRes, installmentsRes] = await Promise.all([
-        // Employees with expiring residency OR license
+        // Employees with expiring residency OR license within current month
         supabase
           .from('employees')
-          .select('id, name, residency_expiry, license_expiry, license_has')
+          .select('id, name, residency_expiry, license_expiry, license_has, probation_end_date')
           .eq('status', 'active')
-          .or(`residency_expiry.lte.${in60Days},license_expiry.lte.${in60Days}`),
+          .or(`residency_expiry.lte.${threshold},license_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
 
-        // Vehicles with expiring docs
+        // Vehicles with expiring docs within current month
         supabase
           .from('vehicles')
           .select('id, plate_number, insurance_expiry, registration_expiry, authorization_expiry')
           .in('status', ['active', 'maintenance', 'rental'])
-          .or(`insurance_expiry.lte.${in60Days},registration_expiry.lte.${in60Days},authorization_expiry.lte.${in60Days}`),
+          .or(`insurance_expiry.lte.${threshold},registration_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
 
         // Pending advance installments overdue
         supabase
