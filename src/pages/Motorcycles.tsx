@@ -465,7 +465,7 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+           <table className="w-full min-w-[1200px]">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
@@ -477,6 +477,7 @@ const Motorcycles = () => {
                 <th className="ta-th">رقم الهيكل</th>
                 <th className="ta-th">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
+                <th className="ta-th">⛽ شريحة البنزين</th>
                 <th className="ta-th">انتهاء التأمين</th>
                 <th className="ta-th">انتهاء التسجيل</th>
                 <th className="ta-th">انتهاء التفويض</th>
