@@ -1,70 +1,46 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
-import { Loader2, Eye, EyeOff, Mail, Lock, User, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-// ── password strength ─────────────────────────────────────────────
-function calcStrength(pw: string): 0 | 1 | 2 | 3 {
-  if (!pw) return 0;
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^a-zA-Z0-9]/.test(pw)) score++;
-  return score as 0 | 1 | 2 | 3;
+interface SystemSettings {
+  project_name_ar: string;
+  project_name_en: string;
+  project_subtitle_ar: string;
+  project_subtitle_en: string;
+  logo_url: string | null;
 }
-
-const strengthColors = ['', 'bg-red-500', 'bg-yellow-400', 'bg-green-500'];
-const strengthLabelsAr = ['', 'ضعيفة', 'متوسطة', 'قوية'];
-const strengthLabelsEn = ['', 'Weak', 'Medium', 'Strong'];
-const strengthTextColors = ['', 'text-red-400', 'text-yellow-400', 'text-green-400'];
-
-const gradientBtn =
-  'w-full h-11 rounded-xl font-bold text-[15px] text-white transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2';
-
-const brandGrad = 'linear-gradient(135deg, #465FFF, #3347D9)';
-const brandShadow = '0 4px 20px rgba(70,95,255,0.35)';
-const brandShadowHover = '0 4px 28px rgba(70,95,255,0.55)';
 
 const Login = () => {
   const { signIn } = useAuth();
-  const { lang, isRTL } = useLanguage();
+  const { lang, toggleLang, isRTL } = useLanguage();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const isAr = lang === 'ar';
 
-  const [tab, setTab] = useState<'login' | 'register'>('login');
-
-  // login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
 
-  // register state
-  const [rName, setRName] = useState('');
-  const [rEmail, setREmail] = useState('');
-  const [rPw, setRPw] = useState('');
-  const [rPwConfirm, setRPwConfirm] = useState('');
-  const [showRPw, setShowRPw] = useState(false);
-  const [showRPwC, setShowRPwC] = useState(false);
-  const [rLoading, setRLoading] = useState(false);
-  const [rError, setRError] = useState('');
-  const [rFieldErrors, setRFieldErrors] = useState<Record<string, string>>({});
-  const [rSuccess, setRSuccess] = useState(false);
+  useEffect(() => {
+    supabase.from('system_settings').select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
+      .limit(1).maybeSingle().then(({ data }) => { if (data) setSettings(data as SystemSettings); });
+  }, []);
 
-  const pwStrength = calcStrength(rPw);
+  const projectName = settings
+    ? (isAr ? settings.project_name_ar : settings.project_name_en)
+    : (isAr ? 'نظام إدارة التوصيل' : 'Delivery Management');
+  const projectSubtitle = settings
+    ? (isAr ? settings.project_subtitle_ar : settings.project_subtitle_en)
+    : (isAr ? 'إدارة المناديب' : 'Rider Management');
 
-  const switchTab = (t: 'login' | 'register') => {
-    setTab(t);
-    setEmail(''); setPassword(''); setLoginError('');
-    setRName(''); setREmail(''); setRPw(''); setRPwConfirm('');
-    setRError(''); setRFieldErrors({}); setRSuccess(false);
-  };
-
-  // ── login submit — navigate immediately on success ──────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -79,246 +55,124 @@ const Login = () => {
     }
   };
 
-  // ── register submit ────────────────────────────────────────────
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs: Record<string, string> = {};
-
-    if (!rName || rName.trim().length < 3)
-      errs.name = isAr ? 'يجب أن يكون الاسم 3 أحرف على الأقل' : 'Name must be at least 3 characters';
-    if (!rEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rEmail))
-      errs.email = isAr ? 'أدخل بريدًا إلكترونيًا صحيحًا' : 'Please enter a valid email';
-    if (!rPw || rPw.length < 8)
-      errs.pw = isAr ? 'يجب أن تكون كلمة المرور 8 أحرف على الأقل' : 'Password must be at least 8 characters';
-    if (rPw !== rPwConfirm)
-      errs.pwc = isAr ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
-
-    setRFieldErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-
-    setRLoading(true);
-    setRError('');
-    const { data, error } = await supabase.auth.signUp({
-      email: rEmail,
-      password: rPw,
-      options: { data: { full_name: rName.trim() } },
-    });
-    setRLoading(false);
-
-    if (error) {
-      if (error.message.includes('already registered') || error.message.includes('User already'))
-        setRError(isAr ? 'هذا البريد الإلكتروني مسجل مسبقاً' : 'This email is already registered');
-      else
-        setRError(error.message);
-      return;
-    }
-
-    if (data.session) {
-      navigate('/', { replace: true });
-    } else {
-      setRSuccess(true);
-    }
-  };
-
-  const inputCls = (hasErr?: boolean) =>
-    `bg-[#1a1f2e] border-[#2a2f3e] text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-blue-500/20 h-11 ${hasErr ? 'border-red-600' : ''}`;
-
-  // ── Login form ─────────────────────────────────────────────────
-  const LoginForm = (
-    <form onSubmit={handleLogin} className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'البريد الإلكتروني' : 'Email Address'}</label>
-        <div className="relative">
-          <Mail size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="example@company.com" required dir="ltr" autoComplete="email"
-            className={`${inputCls()} ${isRTL ? 'pr-9' : 'pl-9'}`} />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'كلمة المرور' : 'Password'}</label>
-        <div className="relative">
-          <Lock size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••" required autoComplete="current-password"
-            className={`${inputCls()} ${isRTL ? 'pr-9 pl-10' : 'pl-9 pr-10'}`} />
-          <button type="button" onClick={() => setShowPw(v => !v)}
-            className={`absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors ${isRTL ? 'left-3' : 'right-3'}`}>
-            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between text-sm">
-        <Link to="/forgot-password" className="text-gray-500 hover:text-gray-300 text-xs transition-colors">
-          {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
-        </Link>
-        <label className="flex items-center gap-2 text-gray-400 text-xs cursor-pointer">
-          <input type="checkbox" className="rounded border-gray-600 bg-[#1a1f2e]" />
-          {isAr ? 'تذكرني' : 'Remember me'}
-        </label>
-      </div>
-
-      {loginError && (
-        <div className="flex items-center gap-2 bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
-          <span className="text-sm">⚠️</span>
-          <p className="text-red-400 text-sm">{loginError}</p>
-        </div>
-      )}
-
-      <button type="submit" disabled={loading} className={gradientBtn}
-        style={{ background: brandGrad, boxShadow: brandShadow }}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = brandShadowHover)}
-        onMouseLeave={e => (e.currentTarget.style.boxShadow = brandShadow)}>
-        {loading ? <><Loader2 size={16} className="animate-spin" /> {isAr ? 'جاري التحقق...' : 'Signing in...'}</> : (isAr ? 'تسجيل الدخول' : 'Sign In')}
-      </button>
-    </form>
-  );
-
-  // ── Register form ──────────────────────────────────────────────
-  const RegisterForm = rSuccess ? (
-    <div className="flex flex-col items-center text-center py-4 space-y-4 animate-in fade-in duration-300">
-      <CheckCircle2 size={64} className="text-green-400" />
-      <div>
-        <p className="text-xl font-bold text-white">{isAr ? 'تم إنشاء الحساب بنجاح! ✓' : 'Account created successfully! ✓'}</p>
-        <p className="text-gray-400 text-sm mt-2">
-          {isAr ? 'تم إرسال رابط التأكيد إلى بريدك الإلكتروني' : 'A confirmation link was sent to your email'}
-        </p>
-        <p className="text-gray-500 text-xs mt-1">
-          {isAr ? 'يرجى التحقق من بريدك ثم تسجيل الدخول' : 'Please verify your email then sign in'}
-        </p>
-      </div>
-      <button onClick={() => switchTab('login')} className={gradientBtn}
-        style={{ background: brandGrad, boxShadow: brandShadow }}>
-        {isAr ? 'العودة لتسجيل الدخول' : 'Back to Sign In'}
-      </button>
-    </div>
-  ) : (
-    <form onSubmit={handleRegister} className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'الاسم الكامل' : 'Full Name'}</label>
-        <div className="relative">
-          <User size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input value={rName} onChange={e => setRName(e.target.value)}
-            placeholder={isAr ? 'أدخل اسمك الكامل' : 'Enter your full name'}
-            className={`${inputCls(!!rFieldErrors.name)} ${isRTL ? 'pr-9' : 'pl-9'}`} />
-        </div>
-        {rFieldErrors.name && <p className="text-red-400 text-xs mt-1">{rFieldErrors.name}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'البريد الإلكتروني' : 'Email Address'}</label>
-        <div className="relative">
-          <Mail size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input type="email" value={rEmail} onChange={e => setREmail(e.target.value)}
-            placeholder="example@company.com" dir="ltr" autoComplete="email"
-            className={`${inputCls(!!rFieldErrors.email)} ${isRTL ? 'pr-9' : 'pl-9'}`} />
-        </div>
-        {rFieldErrors.email && <p className="text-red-400 text-xs mt-1">{rFieldErrors.email}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'كلمة المرور' : 'Password'}</label>
-        <div className="relative">
-          <Lock size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input type={showRPw ? 'text' : 'password'} value={rPw} onChange={e => setRPw(e.target.value)}
-            placeholder="••••••••" autoComplete="new-password"
-            className={`${inputCls(!!rFieldErrors.pw)} ${isRTL ? 'pr-9 pl-10' : 'pl-9 pr-10'}`} />
-          <button type="button" onClick={() => setShowRPw(v => !v)}
-            className={`absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors ${isRTL ? 'left-3' : 'right-3'}`}>
-            {showRPw ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-        {rPw && (
-          <div className="mt-2 space-y-1">
-            <div className="flex gap-1">
-              {[1, 2, 3].map(i => (
-                <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${pwStrength >= i ? strengthColors[pwStrength] : 'bg-gray-700'}`} />
-              ))}
-            </div>
-            <p className={`text-xs ${strengthTextColors[pwStrength]}`}>
-              {isAr ? strengthLabelsAr[pwStrength] : strengthLabelsEn[pwStrength]}
-            </p>
-          </div>
-        )}
-        {rFieldErrors.pw && <p className="text-red-400 text-xs mt-1">{rFieldErrors.pw}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-300 mb-1.5">{isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
-        <div className="relative">
-          <Lock size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
-          <Input type={showRPwC ? 'text' : 'password'} value={rPwConfirm} onChange={e => setRPwConfirm(e.target.value)}
-            placeholder="••••••••" autoComplete="new-password"
-            className={`${inputCls(!!rFieldErrors.pwc)} ${isRTL ? 'pr-9 pl-10' : 'pl-9 pr-10'}`} />
-          <button type="button" onClick={() => setShowRPwC(v => !v)}
-            className={`absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors ${isRTL ? 'left-3' : 'right-3'}`}>
-            {showRPwC ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
-        {rFieldErrors.pwc && <p className="text-red-400 text-xs mt-1">{rFieldErrors.pwc}</p>}
-      </div>
-
-      {rError && (
-        <div className="flex items-center gap-2 bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
-          <span className="text-sm">⚠️</span>
-          <p className="text-red-400 text-sm">{rError}</p>
-        </div>
-      )}
-
-      <button type="submit" disabled={rLoading} className={gradientBtn}
-        style={{ background: brandGrad, boxShadow: brandShadow }}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = brandShadowHover)}
-        onMouseLeave={e => (e.currentTarget.style.boxShadow = brandShadow)}>
-        {rLoading ? <><Loader2 size={16} className="animate-spin" /> {isAr ? 'جاري إنشاء الحساب...' : 'Creating account...'}</> : (isAr ? 'إنشاء الحساب' : 'Create Account')}
-      </button>
-    </form>
-  );
-
-  // ── Single-column centered layout ──────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f1117] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Theme & lang toggles */}
+      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} flex items-center gap-2`}>
+        <button
+          onClick={toggleTheme}
+          className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground border border-border"
+          title={isDark ? 'Light mode' : 'Dark mode'}
+        >
+          {isDark ? <Sun size={15} className="text-yellow-500" /> : <Moon size={15} />}
+        </button>
+        <button
+          onClick={toggleLang}
+          className="h-8 px-3 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground border border-border text-xs font-medium"
+        >
+          {isAr ? 'EN' : 'ع'}
+        </button>
+      </div>
+
       <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-400">
-        {/* Logo */}
+        {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-lg"
-            style={{ background: brandGrad }}>🚀</div>
-          <h1 className="text-[22px] font-extrabold text-white text-center">
-            {isAr ? 'نظام إدارة التوصيل' : 'Delivery Management System'}
+          {settings?.logo_url ? (
+            <img
+              src={settings.logo_url}
+              alt="logo"
+              className="w-16 h-16 rounded-2xl object-cover mb-3 shadow-lg border border-border"
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-lg"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7))' }}
+            >
+              🚀
+            </div>
+          )}
+          <h1 className="text-[22px] font-extrabold text-foreground text-center leading-tight">
+            {projectName}
           </h1>
-          <p className="text-[13px] text-gray-400 text-center mt-1">
-            {isAr ? 'مرحباً بك — سجّل دخولك للمتابعة' : 'Welcome back — sign in to continue'}
+          <p className="text-[13px] text-muted-foreground text-center mt-1">
+            {projectSubtitle}
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#151920] border border-[#232a38] rounded-2xl p-6 shadow-2xl">
-          {/* Tabs */}
-          <div className="flex gap-1 bg-[#1a1f2e] rounded-xl p-1 mb-6" dir="ltr">
-            {(['login', 'register'] as const).map(t => {
-              const label = t === 'login'
-                ? (isAr ? 'تسجيل الدخول' : 'Sign In')
-                : (isAr ? 'حساب جديد' : 'Create Account');
-              const active = tab === t;
-              return (
-                <button key={t} onClick={() => switchTab(t)}
-                  className="flex-1 h-9 rounded-lg text-sm font-semibold transition-all duration-200"
-                  style={active ? { background: brandGrad, color: '#fff', boxShadow: '0 2px 12px rgba(70,95,255,0.4)' } : { color: '#9ca3af' }}>
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
+          <h2 className="text-base font-bold text-foreground mb-5 text-center">
+            {isAr ? 'تسجيل الدخول' : 'Sign In'}
+          </h2>
 
-          {/* Form content */}
-          <div className="animate-in fade-in duration-200">
-            {tab === 'login' ? LoginForm : RegisterForm}
-          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1.5">
+                {isAr ? 'البريد الإلكتروني' : 'Email Address'}
+              </label>
+              <div className="relative">
+                <Mail size={15} className={`absolute top-1/2 -translate-y-1/2 text-muted-foreground ${isRTL ? 'right-3' : 'left-3'}`} />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="example@company.com"
+                  required
+                  dir="ltr"
+                  autoComplete="email"
+                  className={`h-11 ${isRTL ? 'pr-9' : 'pl-9'}`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1.5">
+                {isAr ? 'كلمة المرور' : 'Password'}
+              </label>
+              <div className="relative">
+                <Lock size={15} className={`absolute top-1/2 -translate-y-1/2 text-muted-foreground ${isRTL ? 'right-3' : 'left-3'}`} />
+                <Input
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className={`h-11 ${isRTL ? 'pr-9 pl-10' : 'pl-9 pr-10'}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  className={`absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors ${isRTL ? 'left-3' : 'right-3'}`}
+                >
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
+                <span className="text-sm">⚠️</span>
+                <p className="text-destructive text-sm">{loginError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 rounded-xl font-bold text-[15px] text-primary-foreground transition-all duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.85))' }}
+            >
+              {loading
+                ? <><Loader2 size={16} className="animate-spin" /> {isAr ? 'جاري التحقق...' : 'Signing in...'}</>
+                : (isAr ? 'تسجيل الدخول' : 'Sign In')
+              }
+            </button>
+          </form>
         </div>
 
-        <p className="text-center text-xs text-gray-600 mt-6">
-          {isAr ? 'جميع الحقوق محفوظة © 2025' : '© 2025 All rights reserved'}
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          {isAr ? `جميع الحقوق محفوظة © ${new Date().getFullYear()}` : `© ${new Date().getFullYear()} All rights reserved`}
         </p>
       </div>
     </div>

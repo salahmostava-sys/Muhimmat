@@ -93,7 +93,8 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
       <AppSidebar />
 
       <main className={cn(
-        'min-h-screen flex flex-col transition-all duration-300 h-screen',
+        'flex flex-col transition-all duration-300',
+        'h-screen overflow-hidden',
         isRTL ? 'lg:mr-[260px]' : 'lg:ml-[260px]'
       )}>
         {/* ── Header ──────────────────────────────────────────── */}
@@ -203,7 +204,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
         </header>
 
         {/* ── Page content ───────────────────────────────────── */}
-        <div className="flex-1 p-4 sm:p-5 lg:p-6 xl:p-8 min-h-0 flex flex-col">
+        <div className="flex-1 overflow-auto p-4 sm:p-5 lg:p-6 xl:p-8 min-h-0 flex flex-col">
           {children}
         </div>
       </main>

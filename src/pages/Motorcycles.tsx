@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Wrench, Download, Upload, Edit, Trash2, Bike } from 'lucide-react';
+import { Search, Plus, Download, Upload, Edit, Trash2, Bike, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -30,6 +30,7 @@ type Vehicle = {
   chassis_number?: string | null;
   serial_number?: string | null;
   notes: string | null;
+  current_rider?: string | null; // name from active vehicle_assignment
 };
 
 const statusLabels: Record<string, string> = {
@@ -292,8 +293,27 @@ const Motorcycles = () => {
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
     const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number');
-    if (!error && rows) setData(rows as Vehicle[]);
-    else if (error) toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' });
+    if (error) { toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' }); setLoading(false); return; }
+
+    // Fetch current active vehicle assignments (no end_date = still active)
+    const { data: assignments } = await supabase
+      .from('vehicle_assignments')
+      .select('vehicle_id, employees(name)')
+      .is('end_date', null)
+      .is('returned_at', null);
+
+    const assignMap: Record<string, string> = {};
+    if (assignments) {
+      (assignments as any[]).forEach(a => {
+        if (a.vehicle_id && a.employees?.name) {
+          assignMap[a.vehicle_id] = a.employees.name;
+        }
+      });
+    }
+
+    if (rows) {
+      setData(rows.map(v => ({ ...v, current_rider: assignMap[v.id] ?? null })) as Vehicle[]);
+    }
     setLoading(false);
   }, [toast]);
 
@@ -433,6 +453,7 @@ const Motorcycles = () => {
                 <th className="ta-th">الماركة / الموديل</th>
                 <th className="ta-th">الرقم التسلسلي</th>
                 <th className="ta-th">رقم الهيكل</th>
+                <th className="ta-th">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">انتهاء التأمين</th>
                 <th className="ta-th">انتهاء التسجيل</th>
@@ -445,7 +466,7 @@ const Motorcycles = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-16">
+                  <td colSpan={13} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Bike size={40} className="opacity-30" />
                       <p className="font-medium">لا توجد مركبات</p>
@@ -475,8 +496,21 @@ const Motorcycles = () => {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.serial_number || '—'}</td>
-                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
-                    <td className="px-3 py-2.5">
+                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
+                     {/* Current assigned rider */}
+                     <td className="px-3 py-2.5 whitespace-nowrap">
+                       {v.current_rider ? (
+                         <div className="flex items-center gap-1.5">
+                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                             {v.current_rider.charAt(0)}
+                           </div>
+                           <span className="text-sm font-medium text-foreground">{v.current_rider}</span>
+                         </div>
+                       ) : (
+                         <span className="text-muted-foreground/40 text-xs">—</span>
+                       )}
+                     </td>
+                     <td className="px-3 py-2.5">
                       <span className={statusStyles[v.status] || 'badge-info'}>{statusLabels[v.status] || v.status}</span>
                     </td>
                     <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(insDays)}`}>
