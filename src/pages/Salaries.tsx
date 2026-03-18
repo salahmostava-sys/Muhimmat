@@ -814,6 +814,7 @@ const Salaries = () => {
           walletTuyo: 0,
           walletJahiz: 0,
           foodDamage: 0,
+          customDeductions: {},
           transfer: 0,
           advanceDeduction: advDeduction,
           advanceInstallmentIds: advInstIds[emp.id] || [],
