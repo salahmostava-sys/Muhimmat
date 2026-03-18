@@ -1960,8 +1960,8 @@ const Salaries = () => {
             allCustomCols.push({ appName: p, key: col.key, label: col.label, fullKey: `${p}___${col.key}` });
           });
         });
-        // Fixed deduction columns count: advance, remaining, external, violations + dynamic custom cols + total = 4 + allCustomCols.length + 1
-        const dedColCount = 4 + allCustomCols.length + 1;
+        // Fixed deduction columns count: سلف (manual), violations + dynamic custom cols + total = 2 + allCustomCols.length + 1
+        const dedColCount = 2 + allCustomCols.length + 1;
         return (
       <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
         {loadingData ? (
