@@ -39,6 +39,7 @@ const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warnin
 const typeIcons: Record<string, string> = {
   residency: '🪪', insurance: '🛡️', registration: '📋',
   license: '🪪', installment: '💳', deduction: '📄', authorization: '📜',
+  probation: '⏱️',
 };
 
 const Alerts = () => {
