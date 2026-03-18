@@ -323,10 +323,9 @@ const SpreadsheetGrid = () => {
         💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات
       </p>
 
-      {/* Grid — fixed height with internal scroll only */}
+      {/* Grid — flex-1 fills remaining space, internal scroll only */}
       <div
-        className="bg-card rounded-xl border border-border shadow-sm overflow-auto flex-shrink-0"
-        style={{ maxHeight: 'calc(100vh - 320px)' }}
+        className="bg-card rounded-xl border border-border shadow-sm overflow-auto flex-1 min-h-0"
         onScroll={e => e.stopPropagation()}
       >
         {loading ? (
