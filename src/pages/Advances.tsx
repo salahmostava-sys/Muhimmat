@@ -650,9 +650,9 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                       <td className="px-2 py-2.5 text-center">
                         {canEdit && (
                           <button
-                            onClick={() => setDeleteAdvanceId(inst.advance_id)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteInstallmentId(inst.id); }}
                             className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                            title="حذف السلفة نهائياً"
+                            title="حذف هذا الصف"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -714,6 +714,28 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Confirm Delete Single Installment Row ── */}
+      {deleteInstallmentId && (
+        <Dialog open onOpenChange={v => !v && setDeleteInstallmentId(null)}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={18} /> حذف صف من السجل
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              سيتم حذف هذا الصف من سجل العمليات نهائياً. هل تريد المتابعة؟
+            </p>
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" onClick={() => setDeleteInstallmentId(null)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleDeleteInstallment} disabled={deletingInstallment}>
+                {deletingInstallment ? '...' : 'حذف الصف'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
@@ -737,8 +759,24 @@ const Advances = () => {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [inlineRowEmpId, setInlineRowEmpId] = useState<string | null>(null);
+  const [deleteEmployeeAdvancesId, setDeleteEmployeeAdvancesId] = useState<string | null>(null);
+  const [deletingEmployeeAdvances, setDeletingEmployeeAdvances] = useState(false);
 
   const importRef = useRef<HTMLInputElement>(null);
+
+  const handleDeleteEmployeeAllAdvances = async () => {
+    if (!deleteEmployeeAdvancesId) return;
+    setDeletingEmployeeAdvances(true);
+    const empAdvIds = advances.filter(a => a.employee_id === deleteEmployeeAdvancesId).map(a => a.id);
+    if (empAdvIds.length > 0) {
+      await supabase.from('advance_installments').delete().in('advance_id', empAdvIds);
+      await supabase.from('advances').delete().in('id', empAdvIds);
+    }
+    setDeletingEmployeeAdvances(false);
+    toast({ title: '✅ تم حذف جميع سلف المندوب' });
+    setDeleteEmployeeAdvancesId(null);
+    fetchAll();
+  };
 
   const handleImportAdvances = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1023,6 +1061,7 @@ const Advances = () => {
                   <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
                     المتبقي <SortIcon field="remaining" />
                   </th>
+                  {permissions.can_edit && <th className="w-12 px-2 py-3 text-center text-xs font-semibold text-muted-foreground">حذف</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1050,6 +1089,17 @@ const Advances = () => {
                         <span className={`font-bold text-sm ${s.remaining > 0 ? 'text-destructive' : 'text-success'}`}>{s.remaining.toLocaleString()}</span>
                         <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                       </td>
+                      {permissions.can_edit && (
+                        <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setDeleteEmployeeAdvancesId(s.employeeId)}
+                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            title="حذف جميع سلف هذا المندوب"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   </React.Fragment>
                 ))}
@@ -1072,6 +1122,7 @@ const Advances = () => {
                     <span className="font-bold text-destructive text-sm">{grandTotals.remaining.toLocaleString()}</span>
                     <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                   </td>
+                  {permissions.can_edit && <td />}
                 </tr>
               </tfoot>
             </table>
@@ -1159,6 +1210,28 @@ const Advances = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddEmployee(false)}>إلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Confirm Delete All Employee Advances ── */}
+      {deleteEmployeeAdvancesId && (
+        <Dialog open onOpenChange={v => !v && setDeleteEmployeeAdvancesId(null)}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={18} /> تأكيد حذف جميع السلف
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              سيتم حذف جميع سلف هذا المندوب وكافة أقساطها نهائياً. هل تريد المتابعة؟
+            </p>
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" onClick={() => setDeleteEmployeeAdvancesId(null)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleDeleteEmployeeAllAdvances} disabled={deletingEmployeeAdvances}>
+                {deletingEmployeeAdvances ? '...' : 'حذف نهائياً'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
