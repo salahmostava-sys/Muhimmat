@@ -19,7 +19,9 @@ interface EmployeeData {
   bank_account_number?: string | null;
   city?: string | null;
   join_date?: string | null;
+  birth_date?: string | null;
   residency_expiry?: string | null;
+  probation_end_date?: string | null;
   license_status?: string | null;
   sponsorship_status?: string | null;
   id_photo_url?: string | null;
