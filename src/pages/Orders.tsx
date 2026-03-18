@@ -21,6 +21,8 @@ const monthLabel = (y: number, m: number) =>
   new Date(y, m - 1, 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
 const dateStr = (y: number, m: number, d: number) =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const monthYear = (y: number, m: number) =>
+  `${y}-${String(m).padStart(2, '0')}`;
 
 // ─── Cell Popover ─────────────────────────────────────────────────
 type PopoverState = { empId: string; day: number; x: number; y: number };
@@ -163,7 +165,7 @@ const SpreadsheetGrid = () => {
       .then(({ data: rows }) => {
         const d: DailyData = {};
         rows?.forEach(r => {
-          const day = new Date(r.date).getDate();
+          const day = new Date(r.date + 'T00:00:00').getDate();
           d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
         });
         setData(d);
@@ -288,33 +290,26 @@ const SpreadsheetGrid = () => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3 h-full">
       {/* Controls bar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Month nav */}
+      <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           <button onClick={prevMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronRight size={16} /></button>
           <span className="px-3 text-sm font-medium min-w-28 text-center">{monthLabel(year, month)}</span>
           <button onClick={nextMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronLeft size={16} /></button>
         </div>
-
-        {/* Search */}
         <div className="relative max-w-xs flex-1">
           <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="بحث بالاسم..." className="pr-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-
         <div className="mr-auto flex items-center gap-2">
-          {/* Export */}
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={exportExcel}>
             <Download size={14} /> تصدير
           </Button>
-          {/* Import */}
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => importRef.current?.click()}>
             <Upload size={14} /> استيراد
           </Button>
-          {/* Save */}
           {permissions.can_edit && (
             <Button size="sm" className="gap-1.5 h-9" onClick={handleSave} disabled={saving}>
               {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
@@ -323,21 +318,26 @@ const SpreadsheetGrid = () => {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground flex-shrink-0">
         💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات
       </p>
 
-      {/* Grid */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+      {/* Grid — fixed height with internal scroll only */}
+      <div
+        className="bg-card rounded-xl border border-border shadow-sm overflow-auto flex-shrink-0"
+        style={{ maxHeight: 'calc(100vh - 320px)' }}
+        onScroll={e => e.stopPropagation()}
+      >
         {loading ? (
           <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
             <Loader2 size={20} className="animate-spin" /> جاري التحميل...
           </div>
         ) : (
-          <table className="w-full border-collapse text-xs" style={{ minWidth: `${200 + days * 44 + 60}px` }}>
+          <table className="border-collapse text-xs" style={{ minWidth: `${220 + days * 44 + 80}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
-              <tr className="bg-muted/80 border-b-2 border-border">
-                <th className="sticky right-0 z-30 bg-muted/90 text-right px-3 py-2.5 font-semibold text-foreground min-w-[200px] border-l-2 border-border">
+              <tr className="bg-muted/90 border-b-2 border-border">
+                <th className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border"
+                  style={{ minWidth: 220 }}>
                   المندوب / المنصة
                 </th>
                 {dayArr.map(d => {
@@ -346,13 +346,17 @@ const SpreadsheetGrid = () => {
                   const isToday = d === today;
                   return (
                     <th key={d}
-                      className={`text-center px-1 py-2.5 font-medium min-w-[42px] border-l border-border/50
-                        ${isToday ? 'bg-primary/20 text-primary font-bold' : isWeekend ? 'text-muted-foreground/50 bg-muted/30' : 'text-muted-foreground'}`}>
+                      className={`text-center px-1 py-2.5 font-medium border-l border-border/50
+                        ${isToday ? 'bg-primary/20 text-primary font-bold' : isWeekend ? 'text-muted-foreground/50 bg-muted/40' : 'text-muted-foreground'}`}
+                      style={{ minWidth: 42 }}>
                       {d}
                     </th>
                   );
                 })}
-                <th className="sticky left-0 text-center px-2 py-2.5 font-semibold text-primary min-w-[70px] border-r-2 border-l-2 border-border bg-primary/10 z-30">المجموع</th>
+                <th className="sticky left-0 z-30 text-center py-2.5 font-bold text-primary bg-primary/15 border-r-2 border-border"
+                  style={{ minWidth: 72 }}>
+                  المجموع
+                </th>
               </tr>
             </thead>
 
@@ -367,10 +371,10 @@ const SpreadsheetGrid = () => {
 
                 return (
                   <React.Fragment key={emp.id}>
-                    <tr className={`border-b border-border/40 select-none ${isExpanded ? 'bg-primary/5 border-b-0' : ''}`}>
+                    <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
                       <td
                         className="sticky right-0 z-10 px-3 py-2 border-l-2 border-border cursor-pointer hover:bg-muted/30 transition-colors"
-                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg }}
+                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 220 }}
                         onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
                       >
                         <div className="flex items-center gap-1.5">
@@ -382,21 +386,21 @@ const SpreadsheetGrid = () => {
                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold flex-shrink-0">
                             {emp.name.charAt(0)}
                           </div>
-                          <span className="font-medium text-foreground truncate max-w-[110px]">{emp.name}</span>
-                          {activeApps.length > 0 && (
-                            <div className="flex gap-0.5 flex-wrap">
-                              {activeApps.slice(0, 3).map(a => {
-                                const c = getAppColor(appColorsList, a.name);
-                                return (
-                                  <span key={a.id} className="text-[9px] px-1 rounded font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
-                                    {a.name.slice(0, 3)}
-                                  </span>
-                                );
-                              })}
-                              {activeApps.length > 3 && <span className="text-[9px] text-muted-foreground">+{activeApps.length - 3}</span>}
-                            </div>
-                          )}
+                          <span className="font-medium text-foreground truncate max-w-[140px]">{emp.name}</span>
                         </div>
+                        {activeApps.length > 0 && (
+                          <div className="flex gap-0.5 flex-wrap mt-0.5 pr-7">
+                            {activeApps.slice(0, 3).map(a => {
+                              const c = getAppColor(appColorsList, a.name);
+                              return (
+                                <span key={a.id} className="text-[9px] px-1 rounded font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
+                                  {a.name.slice(0, 3)}
+                                </span>
+                              );
+                            })}
+                            {activeApps.length > 3 && <span className="text-[9px] text-muted-foreground">+{activeApps.length - 3}</span>}
+                          </div>
+                        )}
                       </td>
 
                       {dayArr.map(d => {
@@ -413,6 +417,7 @@ const SpreadsheetGrid = () => {
                               ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : ''}
                               ${isOpen ? 'ring-2 ring-inset ring-primary' : ''}
                               ${permissions.can_edit ? 'cursor-pointer hover:bg-primary/5' : ''}`}
+                            style={{ minWidth: 42 }}
                             onClick={e => handleCellClick(e, emp.id, d)}
                           >
                             <div className="h-9 flex flex-col items-center justify-center gap-0">
@@ -436,7 +441,11 @@ const SpreadsheetGrid = () => {
                         );
                       })}
 
-                      <td className="sticky left-0 text-center px-2 py-2 font-bold text-primary bg-primary/10 border-r-2 border-l-2 border-border z-10">
+                      {/* Totals column - sticky left, solid background to prevent bleed */}
+                      <td
+                        className="sticky left-0 z-10 text-center px-2 py-2 font-bold text-primary border-r-2 border-border"
+                        style={{ minWidth: 72, backgroundColor: 'hsl(var(--primary) / 0.12)' }}
+                      >
                         {total > 0 ? total : <span className="text-muted-foreground/30">0</span>}
                       </td>
                     </tr>
@@ -446,7 +455,7 @@ const SpreadsheetGrid = () => {
                       const appTotal = empAppMonthTotal(emp.id, app.id);
                       return (
                         <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-10 px-3 py-1.5 border-l-2 border-border" style={{ backgroundColor: c.cellBg }}>
+                          <td className="sticky right-0 z-10 px-3 py-1.5 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 220 }}>
                             <div className="flex items-center gap-2 pr-8">
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
                                 {app.name}
@@ -459,14 +468,14 @@ const SpreadsheetGrid = () => {
                             const isWeekend = dow === 5 || dow === 6;
                             const isToday = d === today;
                             return (
-                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'opacity-70' : ''}`}>
+                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'opacity-70' : ''}`} style={{ minWidth: 42 }}>
                                 <div className="h-7 flex items-center justify-center font-medium text-xs" style={{ color: val > 0 ? c.val : undefined }}>
                                   {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
                                 </div>
                               </td>
                             );
                           })}
-                          <td className="sticky left-0 text-center px-2 py-1.5 font-bold border-r-2 border-l-2 border-border z-10 text-xs" style={{ backgroundColor: c.cellBg, color: c.val }}>
+                          <td className="sticky left-0 z-10 text-center px-2 py-1.5 font-bold border-r-2 border-border text-xs" style={{ backgroundColor: c.cellBg, color: c.val, minWidth: 72 }}>
                             {appTotal > 0 ? appTotal : '—'}
                           </td>
                         </tr>
@@ -476,19 +485,24 @@ const SpreadsheetGrid = () => {
                 );
               })}
 
-              {/* Footer totals — separated with strong top border */}
-              <tr className="border-t-2 border-border bg-muted/40 font-semibold">
-                <td className="sticky right-0 z-10 bg-muted/60 px-3 py-2.5 text-sm font-bold border-l-2 border-border text-foreground">الإجمالي</td>
+              {/* Footer totals */}
+              <tr className="border-t-2 border-border font-semibold">
+                <td className="sticky right-0 z-10 px-3 py-2.5 text-sm font-bold border-l-2 border-border text-foreground"
+                  style={{ backgroundColor: 'hsl(var(--muted) / 0.8)', minWidth: 220 }}>
+                  الإجمالي
+                </td>
                 {dayArr.map(d => {
                   const dayTotal = filteredEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
                   const isToday = d === today;
                   return (
-                    <td key={d} className={`text-center px-1 py-2.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}>
+                    <td key={d} className={`text-center px-1 py-2.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
+                      style={{ minWidth: 42, backgroundColor: isToday ? undefined : 'hsl(var(--muted) / 0.4)' }}>
                       {dayTotal > 0 ? dayTotal : <span className="text-muted-foreground/30">—</span>}
                     </td>
                   );
                 })}
-                <td className="sticky left-0 text-center px-2 py-2.5 text-primary bg-primary/15 border-r-2 border-l-2 border-border z-10 font-bold text-sm">
+                <td className="sticky left-0 z-10 text-center px-2 py-2.5 font-bold text-sm text-primary border-r-2 border-border"
+                  style={{ backgroundColor: 'hsl(var(--primary) / 0.2)', minWidth: 72 }}>
                   {filteredEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
                 </td>
               </tr>
@@ -510,6 +524,7 @@ const SpreadsheetGrid = () => {
 // ─── Month Summary ─────────────────────────────────────────────────
 const MonthSummary = () => {
   const { apps: appColorsList } = useAppColors();
+  const { toast } = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -517,8 +532,8 @@ const MonthSummary = () => {
   const [apps, setApps] = useState<App[]>([]);
   const [data, setData] = useState<DailyData>({});
   const [loading, setLoading] = useState(true);
-  // targets: appId → target number
   const [targets, setTargets] = useState<Record<string, string>>({});
+  const [savingTarget, setSavingTarget] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -531,6 +546,19 @@ const MonthSummary = () => {
     });
   }, []);
 
+  // Load targets when month changes
+  useEffect(() => {
+    const my = monthYear(year, month);
+    supabase.from('app_targets' as any).select('app_id, target_orders').eq('month_year', my)
+      .then(({ data: rows }) => {
+        if (rows) {
+          const t: Record<string, string> = {};
+          (rows as any[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
+          setTargets(t);
+        }
+      });
+  }, [year, month]);
+
   useEffect(() => {
     const days = getDaysInMonth(year, month);
     setLoading(true);
@@ -540,13 +568,26 @@ const MonthSummary = () => {
       .then(({ data: rows }) => {
         const d: DailyData = {};
         rows?.forEach(r => {
-          const day = new Date(r.date).getDate();
+          const day = new Date(r.date + 'T00:00:00').getDate();
           d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
         });
         setData(d);
         setLoading(false);
       });
   }, [year, month]);
+
+  const saveTarget = async (appId: string, value: string) => {
+    const targetOrders = parseInt(value) || 0;
+    const my = monthYear(year, month);
+    setSavingTarget(appId);
+    const { error } = await supabase.from('app_targets' as any).upsert(
+      { app_id: appId, month_year: my, target_orders: targetOrders },
+      { onConflict: 'app_id,month_year' }
+    );
+    setSavingTarget(null);
+    if (error) toast({ title: 'خطأ في حفظ التارجت', variant: 'destructive' });
+    else toast({ title: '✅ تم حفظ التارجت' });
+  };
 
   const days = getDaysInMonth(year, month);
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
@@ -597,10 +638,10 @@ const MonthSummary = () => {
               const targetVal = parseInt(targets[app.id] || '0') || 0;
               const pct = targetVal > 0 ? Math.min(Math.round((total / targetVal) * 100), 100) : 0;
               const overTarget = targetVal > 0 && total >= targetVal;
+              const isSaving = savingTarget === app.id;
 
               return (
                 <div key={app.id} className="bg-card border border-border/50 rounded-xl p-3 flex flex-col gap-2.5 hover:border-border transition-colors">
-                  {/* Header */}
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-[11px] px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: c.bg, color: c.text }}>
                       {app.name}
@@ -608,31 +649,28 @@ const MonthSummary = () => {
                     {overTarget && <span className="text-[9px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-semibold">✓ حُقِّق</span>}
                   </div>
 
-                  {/* Total */}
                   <div>
                     <p className="text-xl font-bold" style={{ color: c.val }}>{total.toLocaleString()}</p>
                     <p className="text-[11px] text-muted-foreground">طلب هذا الشهر</p>
                   </div>
 
-                  {/* Target input */}
+                  {/* Target input with save on blur */}
                   <div className="flex items-center gap-1.5">
                     <Target size={11} className="text-muted-foreground flex-shrink-0" />
                     <input
                       type="number" min={0} placeholder="التارجت"
                       value={targets[app.id] ?? ''}
                       onChange={e => setTargets(prev => ({ ...prev, [app.id]: e.target.value }))}
+                      onBlur={e => saveTarget(app.id, e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveTarget(app.id, targets[app.id] || '0'); }}
                       className="w-full h-6 text-xs rounded border border-border bg-muted/30 px-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-center"
                     />
+                    {isSaving && <Loader2 size={10} className="animate-spin text-muted-foreground flex-shrink-0" />}
                   </div>
 
-                  {/* Progress */}
                   {targetVal > 0 && (
                     <div className="space-y-1">
-                      <Progress
-                        value={pct}
-                        className="h-1.5"
-                        style={{ '--progress-color': overTarget ? 'hsl(var(--success))' : c.bg } as React.CSSProperties}
-                      />
+                      <Progress value={pct} className="h-1.5" />
                       <p className="text-[11px] font-semibold" style={{ color: overTarget ? 'hsl(var(--success))' : c.val }}>
                         {pct}% من {targetVal.toLocaleString()}
                       </p>
@@ -651,8 +689,8 @@ const MonthSummary = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-border bg-muted/40">
-                <th className="text-right p-3 font-semibold text-muted-foreground sticky right-0 bg-muted/40 border-l-2 border-border">#</th>
-                <th className="text-right p-3 font-semibold text-foreground sticky right-8 bg-muted/40 border-l border-border min-w-[160px]">المندوب</th>
+                <th className="text-center p-3 font-semibold text-muted-foreground w-10">#</th>
+                <th className="text-right p-3 font-semibold text-foreground min-w-[160px]">المندوب</th>
                 {apps.map(app => {
                   const c = getAppColor(appColorsList, app.name);
                   return (
@@ -662,7 +700,7 @@ const MonthSummary = () => {
                     </th>
                   );
                 })}
-                <th className="text-center p-3 font-semibold text-primary min-w-[80px] bg-primary/8 border-l border-border">الإجمالي</th>
+                <th className="text-center p-3 font-semibold text-primary min-w-[80px] border-l border-border">الإجمالي</th>
                 <th className="text-center p-3 font-semibold text-muted-foreground min-w-[80px]">متوسط يومي</th>
               </tr>
             </thead>
@@ -680,8 +718,8 @@ const MonthSummary = () => {
                 const avg = total > 0 ? Math.round(total / days) : 0;
                 return (
                   <tr key={emp.id} className={`border-b border-border/30 hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/5' : ''}`}>
-                    <td className="p-3 text-center text-xs text-muted-foreground sticky right-0 bg-card border-l-2 border-border font-medium">{idx + 1}</td>
-                    <td className="p-3 sticky right-8 bg-card border-l border-border">
+                    <td className="p-3 text-center text-xs text-muted-foreground font-medium">{idx + 1}</td>
+                    <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold flex-shrink-0">{emp.name.charAt(0)}</div>
                         <span className="font-medium text-foreground whitespace-nowrap">{emp.name}</span>
@@ -696,7 +734,7 @@ const MonthSummary = () => {
                         </td>
                       );
                     })}
-                    <td className="p-3 text-center font-bold text-primary bg-primary/5 border-l border-border">{total > 0 ? total : 0}</td>
+                    <td className="p-3 text-center font-bold text-primary border-l border-border">{total > 0 ? total : 0}</td>
                     <td className="p-3 text-center text-muted-foreground">{avg}</td>
                   </tr>
                 );
@@ -705,7 +743,7 @@ const MonthSummary = () => {
             {!loading && employees.length > 0 && (
               <tfoot>
                 <tr className="bg-muted/40 font-semibold border-t-2 border-border">
-                  <td className="p-3 sticky right-0 bg-muted/50 border-l-2 border-border" colSpan={2}>
+                  <td colSpan={2} className="p-3">
                     <span className="text-sm font-bold text-foreground">الإجمالي</span>
                   </td>
                   {apps.map(app => {
@@ -717,7 +755,7 @@ const MonthSummary = () => {
                       </td>
                     );
                   })}
-                  <td className="p-3 text-center font-bold text-primary bg-primary/8 border-l border-border">{grandTotal}</td>
+                  <td className="p-3 text-center font-bold text-primary border-l border-border">{grandTotal}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -734,8 +772,8 @@ const Orders = () => {
   const { lang } = useLanguage();
 
   return (
-    <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div>
+    <div className="flex flex-col gap-3 h-full" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="flex-shrink-0">
         <nav className="page-breadcrumb">
           <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
           <span className="page-breadcrumb-sep">/</span>
@@ -746,13 +784,13 @@ const Orders = () => {
         </h1>
       </div>
 
-      <Tabs defaultValue="grid" dir="rtl">
-        <TabsList>
+      <Tabs defaultValue="grid" dir="rtl" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="flex-shrink-0">
           <TabsTrigger value="grid">📊 Grid الشهري</TabsTrigger>
           <TabsTrigger value="summary">ملخص الشهر</TabsTrigger>
         </TabsList>
-        <TabsContent value="grid" className="mt-4"><SpreadsheetGrid /></TabsContent>
-        <TabsContent value="summary" className="mt-4"><MonthSummary /></TabsContent>
+        <TabsContent value="grid" className="mt-4 flex-1 min-h-0"><SpreadsheetGrid /></TabsContent>
+        <TabsContent value="summary" className="mt-4 overflow-auto"><MonthSummary /></TabsContent>
       </Tabs>
     </div>
   );
