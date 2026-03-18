@@ -341,8 +341,8 @@ const SalarySchemes = () => {
 
                 {/* Fixed Monthly */}
                 {isFixed ? (
-                  <div className="bg-blue-500/10 rounded-lg px-3 py-2 text-sm mb-3">
-                    <span className="text-blue-600 font-medium">📅 الراتب الشهري الكامل:</span>
+                  <div className="bg-accent rounded-lg px-3 py-2 text-sm mb-3">
+                    <span className="text-accent-foreground font-medium">📅 الراتب الشهري الكامل:</span>
                     <span className="font-bold mr-2">{(s.monthly_amount || 0).toLocaleString()} ر.س</span>
                     <p className="text-xs text-muted-foreground mt-0.5">(monthly_amount ÷ 30) × أيام الحضور</p>
                   </div>
