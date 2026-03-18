@@ -2051,12 +2051,13 @@ const Salaries = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => {
+                {filtered.map((r, rowIdx) => {
                   const c = computeRow(r);
                   if (!c) return null;
                   return (
                     <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                      <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
+                      <td className={`${tdClass} sticky text-center text-xs text-muted-foreground font-mono`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>{rowIdx + 1}</td>
+                      <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 40, zIndex: 10, background: 'hsl(var(--card))' }}>
                         <div className="flex items-center gap-1.5">
                           <button
                             className="whitespace-nowrap text-primary hover:underline font-medium text-right"
@@ -2071,8 +2072,8 @@ const Salaries = () => {
                           )}
                         </div>
                       </td>
-                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 176, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
-                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 288, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 216, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
+                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 328, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
                       {platforms.map(p => {
                         const pc = platformColors[p];
                         const orders = r.platformOrders[p] || 0;
