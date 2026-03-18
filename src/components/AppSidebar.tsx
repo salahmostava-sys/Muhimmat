@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, ChevronDown, Fuel, Settings2, X, TrendingUp, FileWarning, Activity,
-  Building2, Briefcase, FileText, Layers,
+  Settings, ChevronDown, Fuel, Settings2, X, FileWarning, Activity,
+  Briefcase, Layers,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -66,8 +66,6 @@ const AppSidebar = () => {
       key: 'reports',
       sectionLabel: t('reports'),
       items: [
-        { label: t('reports'), icon: FileText, path: '/reports' },
-        { label: t('analytics'), icon: TrendingUp, path: '/analytics' },
         { label: t('activityLog'), icon: Activity, path: '/activity-log' },
       ],
     },

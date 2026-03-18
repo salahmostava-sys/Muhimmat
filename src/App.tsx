@@ -29,12 +29,10 @@ const Alerts = lazy(() => import("./pages/Alerts"));
 const SalarySchemes = lazy(() => import("./pages/SalarySchemes"));
 const UsersAndPermissions = lazy(() => import("./pages/UsersAndPermissions"));
 const GeneralSettings = lazy(() => import("./pages/GeneralSettings"));
-const Analytics = lazy(() => import("./pages/Analytics"));
 const ViolationResolver = lazy(() => import("./pages/ViolationResolver"));
 const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
-const Reports = lazy(() => import("./pages/Reports"));
 const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -81,7 +79,7 @@ const App = () => (
                                     <Route path="/fuel" element={<FuelPage />} />
                                     <Route path="/apps" element={<Apps />} />
                                     <Route path="/alerts" element={<Alerts />} />
-                                    <Route path="/reports" element={<Reports />} />
+                                    <Route path="/reports" element={<Navigate to="/" replace />} />
                                     <Route path="/employee-tiers" element={<EmployeeTiers />} />
                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
@@ -91,7 +89,7 @@ const App = () => (
                                     <Route path="/settings/schemes" element={<SalarySchemes />} />
                                     <Route path="/settings/users" element={<UsersAndPermissions />} />
                                     <Route path="/settings/general" element={<GeneralSettings />} />
-                                    <Route path="/analytics" element={<Analytics />} />
+                                    <Route path="/analytics" element={<Navigate to="/" replace />} />
                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
                                     <Route path="/activity-log" element={<ActivityLog />} />
                                     <Route path="*" element={<NotFound />} />
