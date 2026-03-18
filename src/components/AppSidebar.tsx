@@ -63,13 +63,6 @@ const AppSidebar = () => {
       ],
     },
     {
-      key: 'reports',
-      sectionLabel: t('reports'),
-      items: [
-        { label: t('activityLog'), icon: Activity, path: '/activity-log' },
-      ],
-    },
-    {
       key: 'settings',
       sectionLabel: t('settings'),
       items: [
