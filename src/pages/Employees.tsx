@@ -571,7 +571,7 @@ const Employees = () => {
               )}
               <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.print()}>🖨️ طباعة</DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
