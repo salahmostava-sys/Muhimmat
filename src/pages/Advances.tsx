@@ -503,6 +503,8 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const [showInlineAdd, setShowInlineAdd] = useState(false);
   const [deleteAdvanceId, setDeleteAdvanceId] = useState<string | null>(null);
   const [deletingAdvance, setDeletingAdvance] = useState(false);
+  const [deleteInstallmentId, setDeleteInstallmentId] = useState<string | null>(null);
+  const [deletingInstallment, setDeletingInstallment] = useState(false);
 
   const handleDeleteAdvance = async () => {
     if (!deleteAdvanceId) return;
@@ -513,6 +515,17 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: '✅ تم حذف السلفة نهائياً' });
     setDeleteAdvanceId(null);
+    onRefresh();
+  };
+
+  const handleDeleteInstallment = async () => {
+    if (!deleteInstallmentId) return;
+    setDeletingInstallment(true);
+    const { error } = await supabase.from('advance_installments').delete().eq('id', deleteInstallmentId);
+    setDeletingInstallment(false);
+    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+    toast({ title: '✅ تم حذف الصف' });
+    setDeleteInstallmentId(null);
     onRefresh();
   };
 
@@ -595,7 +608,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
             <div className="overflow-x-auto rounded-xl border border-border/50">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-muted/50 border-b border-border/60">
+                 <tr className="bg-muted/50 border-b border-border/60">
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground w-10">#</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">الشهر</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">تاريخ السلفة</th>
