@@ -90,14 +90,14 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
       brand_color: form.brand_color,
       text_color: form.text_color,
       is_active: form.is_active,
-      custom_columns: customColumns,
+      custom_columns: customColumns as unknown as import('@/integrations/supabase/types').Json,
     };
 
     let error;
     if (isEdit && app) {
       ({ error } = await supabase.from('apps').update(payload).eq('id', app.id));
     } else {
-      ({ error } = await supabase.from('apps').insert(payload));
+      ({ error } = await supabase.from('apps').insert({ ...payload }));
     }
 
     if (error) {
