@@ -58,6 +58,11 @@ interface SalaryRow {
   violations: number;
   // Dynamic deduction columns keyed by "appName___colKey"
   customDeductions: Record<string, number>;
+  // Legacy fields kept for backward compatibility
+  walletHunger: number;
+  walletTuyo: number;
+  walletJahiz: number;
+  foodDamage: number;
   transfer: number;
   advanceDeduction: number;
   advanceInstallmentIds: string[];
