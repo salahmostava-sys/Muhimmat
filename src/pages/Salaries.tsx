@@ -1791,18 +1791,10 @@ const Salaries = () => {
           <Input placeholder="بحث بالاسم..." className="pr-9 h-9 w-48" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-1">
-          {[{ v: 'all', l: 'الكل' }, { v: 'pending', l: 'معلّق' }, { v: 'approved', l: 'معتمد' }, { v: 'paid', l: 'مصروف' }].map(s => (
+          {[{ v: 'all', l: 'الكل' }, { v: 'approved', l: 'معتمد' }, { v: 'paid', l: 'مصروف' }].map(s => (
             <button key={s.v} onClick={() => setStatusFilter(s.v)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
               {s.l}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {[{ v: 'all', l: '🌍 كل المدن' }, { v: 'makkah', l: '🕌 مكة' }, { v: 'jeddah', l: '🌊 جدة' }].map(c => (
-            <button key={c.v} onClick={() => setCityFilter(c.v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${cityFilter === c.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
-              {c.l}
             </button>
           ))}
         </div>
