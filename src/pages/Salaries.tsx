@@ -846,7 +846,7 @@ const Salaries = () => {
     const totalPlatformSalary = Object.values(r.platformSalaries).reduce((s, v) => s + v, 0);
     const totalAdditions = r.incentives + r.sickAllowance;
     const totalWithSalary = totalPlatformSalary + totalAdditions;
-    const totalDeductions = r.advanceDeduction + r.violations + r.walletHunger + r.walletTuyo + r.walletJahiz + r.foodDamage + r.externalDeduction + Object.values(r.customDeductions || {}).reduce((s, v) => s + v, 0);
+    const totalDeductions = r.advanceDeduction + r.violations + r.externalDeduction + Object.values(r.customDeductions || {}).reduce((s, v) => s + v, 0);
     const netSalary = Math.max(0, totalWithSalary - totalDeductions);
     const remaining = netSalary - r.transfer;
     return { totalPlatformSalary, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
@@ -1684,12 +1684,66 @@ const Salaries = () => {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="stat-card">
-          <p className="text-xs text-muted-foreground">إجمالي الرواتب</p>
-          <p className="text-2xl font-bold text-primary mt-1">{totalNet.toLocaleString()} <span className="text-xs">ر.س</span></p>
+      {/* Summary cards — total + per-platform + admin */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))` }}>
+        {/* Total Grand Card */}
+        <div className="bg-card border-t-4 border-primary rounded-xl p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground leading-tight">إجمالي الرواتب</p>
+              <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{totalNet.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={14} className="text-primary" />
+            </div>
+          </div>
         </div>
+
+        {/* Per-platform cards */}
+        {platforms.map(p => {
+          const pc = platformColors[p];
+          const platformTotal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+          return (
+            <div key={p} className="bg-card rounded-xl p-4 shadow-sm border-t-4" style={{ borderTopColor: pc?.header || 'hsl(var(--primary))' }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground leading-tight truncate">{p}</p>
+                  <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{platformTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+                </div>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${pc?.header}20` }}>
+                  <Users size={14} style={{ color: pc?.header || 'hsl(var(--primary))' }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Admin salaries card */}
+        {(() => {
+          const adminTotal = filtered
+            .filter(r => r.jobTitle !== 'مندوب توصيل' && r.jobTitle !== 'Delivery Rider')
+            .reduce((s, r) => s + computeRow(r).netSalary, 0);
+          return (
+            <div className="bg-card border-t-4 border-muted-foreground/30 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground leading-tight">الرواتب الإدارية</p>
+                  <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{adminTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+                </div>
+                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <Building2 size={14} className="text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Status mini-cards */}
+      <div className="grid grid-cols-3 gap-3">
         <div className="stat-card">
           <p className="text-xs text-muted-foreground">بانتظار الاعتماد</p>
           <p className="text-2xl font-bold text-warning mt-1">{pendingCount}</p>
@@ -1894,8 +1948,18 @@ const Salaries = () => {
       )}
 
       {/* Wide table */}
-      {viewMode === 'table' && (
-      <div className="flex-1 min-h-0 rounded-xl border border-border/50 shadow-sm overflow-hidden bg-card">
+      {viewMode === 'table' && (() => {
+        // Build all custom deduction column definitions across all active apps
+        const allCustomCols: { appName: string; key: string; label: string; fullKey: string }[] = [];
+        platforms.forEach(p => {
+          (appCustomColumns[p] || []).forEach(col => {
+            allCustomCols.push({ appName: p, key: col.key, label: col.label, fullKey: `${p}___${col.key}` });
+          });
+        });
+        // Fixed deduction columns count: advance, remaining, external, violations + dynamic custom cols + total = 4 + allCustomCols.length + 1
+        const dedColCount = 4 + allCustomCols.length + 1;
+        return (
+      <div className="flex-1 min-h-0 rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
         {loadingData ? (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
             جارٍ تحميل بيانات الرواتب...
@@ -1915,7 +1979,7 @@ const Salaries = () => {
                   </th>
                   <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الراتب الأساسي</th>
                   <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الإضافات</th>
-                  <th colSpan={6} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">المستقطعات</th>
+                  <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">المستقطعات</th>
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الصافي والصرف</th>
                   <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">معلومات الصرف</th>
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center">الإجراءات</th>
@@ -1957,9 +2021,9 @@ const Salaries = () => {
                   <th className={thBase}>رصيد السلف المتبقي</th>
                   <th className={thBase}>استقطاعات خارجية</th>
                   <th className={thBase}>مخالفات</th>
-                  <th className={thBase}>محفظة هنقرستيشن</th>
-                  <th className={thBase}>محفظة طيو</th>
-                  <th className={`${thBase} border-l border-border/50`}>تلف طعام</th>
+                  {allCustomCols.map(col => (
+                    <th key={col.fullKey} className={thBase}>{col.label}</th>
+                  ))}
                   <th className={`${thBase} border-l border-border/50`}>إجمالي المستقطعات</th>
                   <th className={thBase}>الصافي</th>
                   <th className={thBase}>تحويل</th>
@@ -2061,9 +2125,15 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} text-foreground`}>{r.externalDeduction > 0 ? r.externalDeduction.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
                       <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-foreground" /></td>
-                      <td className={tdClass}><EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-foreground" /></td>
-                      <td className={`${tdClass} border-l border-border/20`}><EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-foreground" /></td>
+                      {allCustomCols.map(col => (
+                        <td key={col.fullKey} className={tdClass}>
+                          <EditableCell
+                            value={r.customDeductions?.[col.fullKey] || 0}
+                            onChange={v => updateRow(r.id, { customDeductions: { ...r.customDeductions, [col.fullKey]: v } })}
+                            className="text-foreground"
+                          />
+                        </td>
+                      ))}
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                       </td>
@@ -2115,48 +2185,49 @@ const Salaries = () => {
                     </tr>
                   );
                 })}
-                 {/* Totals footer */}
-                 <tr className="bg-muted/60 border-t-2 border-border">
-                   <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
-                   <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                    {platforms.map(p => {
-                      const pc = platformColors[p];
-                      const totalOrders = totals.platform[p] || 0;
-                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
-                      return (
-                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20 text-foreground`}>
-                           <div className="flex flex-col items-center leading-tight">
-                             <span>{totalOrders.toLocaleString()}</span>
-                             <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
-                           </div>
-                         </td>
-                       );
-                     })}
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
-                    <td className={tfClass}>—</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.walletH.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground`}>{totals.walletT.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.food.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
-                    <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
-                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
-                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                   <td className={tfClass} colSpan={6}></td>
-                 </tr>
+                {/* Totals footer */}
+                <tr className="bg-muted/60 border-t-2 border-border">
+                  <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
+                  <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                  <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                  {platforms.map(p => {
+                    const totalOrders = totals.platform[p] || 0;
+                    const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+                    return (
+                      <td key={`${p}-col`} className={`${tfClass} border-l border-border/20 text-foreground`}>
+                        <div className="flex flex-col items-center leading-tight">
+                          <span>{totalOrders.toLocaleString()}</span>
+                          <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.totalAdditions.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.advance.toLocaleString()}</td>
+                  <td className={tfClass}>—</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.externalDed.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground`}>{totals.violations.toLocaleString()}</td>
+                  {allCustomCols.map(col => {
+                    const colTotal = filtered.reduce((s, r) => s + (r.customDeductions?.[col.fullKey] || 0), 0);
+                    return <td key={col.fullKey} className={`${tfClass} text-foreground`}>{colTotal > 0 ? colTotal.toLocaleString() : '—'}</td>;
+                  })}
+                  <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
+                  <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
+                  <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
+                  <td className={tfClass} colSpan={6}></td>
+                </tr>
               </tbody>
             </table>
           </div>
         )}
       </div>
-      )}
+        );
+      })()}
 
       {payslipRow && (
         <PayslipModal
