@@ -2013,18 +2013,18 @@ const Salaries = () => {
                     );
                   })}
                   <th className={thBase}>الراتب الأساسي</th>
-                  <th className={thBase}>حوافز</th>
-                  <th className={thBase}>إجازة مرضية</th>
-                  <th className={thBase}>إجمالي الإضافات</th>
-                  <th className={`${thBase} border-l border-border/50`}>الإجمالي مع الراتب</th>
-                  <th className={thBase}>قسط سلفة</th>
-                  <th className={thBase}>رصيد السلف المتبقي</th>
-                  <th className={thBase}>استقطاعات خارجية</th>
-                  <th className={thBase}>مخالفات</th>
+                  <th className={`${thBase} bg-success/5`}>حوافز</th>
+                  <th className={`${thBase} bg-success/5`}>إجازة مرضية</th>
+                  <th className={`${thBase} bg-success/5`}>إجمالي الإضافات</th>
+                  <th className={`${thBase} bg-success/10 border-l-2 border-success/50`}>الإجمالي مع الراتب</th>
+                  <th className={`${thBase} bg-destructive/5`}>قسط سلفة</th>
+                  <th className={`${thBase} bg-destructive/5`}>رصيد السلف المتبقي</th>
+                  <th className={`${thBase} bg-destructive/5`}>استقطاعات خارجية</th>
+                  <th className={`${thBase} bg-destructive/5`}>مخالفات</th>
                   {allCustomCols.map(col => (
-                    <th key={col.fullKey} className={thBase}>{col.label}</th>
+                    <th key={col.fullKey} className={`${thBase} bg-destructive/5`}>{col.label}</th>
                   ))}
-                  <th className={`${thBase} border-l border-border/50`}>إجمالي المستقطعات</th>
+                  <th className={`${thBase} bg-destructive/10 border-l-2 border-destructive/50`}>إجمالي المستقطعات</th>
                   <th className={thBase}>الصافي</th>
                   <th className={thBase}>تحويل</th>
                   <th className={`${thBase} border-l border-border/50`}>متبقي</th>
