@@ -1985,7 +1985,8 @@ const Salaries = () => {
             <table className="text-sm border-collapse" style={{ minWidth: 1800 }}>
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
-                  <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(0)}>بيانات المندوب</th>
+                  <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
+                  <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
                   <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات (نقر مزدوج لتعديل الطلبات)
                   </th>
@@ -1997,13 +1998,14 @@ const Salaries = () => {
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center">الإجراءات</th>
                 </tr>
                 <tr className="bg-muted/50">
-                  <th className={`${thFrozenBase} w-44 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(0)} onClick={() => handleSort('employeeName')}>
+                  <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
+                  <th className={`${thFrozenBase} w-44 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(40)} onClick={() => handleSort('employeeName')}>
                     الاسم <SortIcon field="employeeName" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(176)} onClick={() => handleSort('jobTitle')}>
+                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(216)} onClick={() => handleSort('jobTitle')}>
                     المسمى الوظيفي <SortIcon field="jobTitle" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={`${thFrozenBase} w-28 border-l border-border/50 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(288)} onClick={() => handleSort('nationalId')}>
+                  <th className={`${thFrozenBase} w-28 border-l border-border/50 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(328)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {platforms.map(p => {
@@ -2049,12 +2051,13 @@ const Salaries = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => {
+                {filtered.map((r, rowIdx) => {
                   const c = computeRow(r);
                   if (!c) return null;
                   return (
                     <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                      <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
+                      <td className={`${tdClass} sticky text-center text-xs text-muted-foreground font-mono`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>{rowIdx + 1}</td>
+                      <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 40, zIndex: 10, background: 'hsl(var(--card))' }}>
                         <div className="flex items-center gap-1.5">
                           <button
                             className="whitespace-nowrap text-primary hover:underline font-medium text-right"
@@ -2069,8 +2072,8 @@ const Salaries = () => {
                           )}
                         </div>
                       </td>
-                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 176, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
-                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 288, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 216, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
+                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 328, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
                       {platforms.map(p => {
                         const pc = platformColors[p];
                         const orders = r.platformOrders[p] || 0;
@@ -2228,10 +2231,11 @@ const Salaries = () => {
                   );
                 })}
                 {/* Totals footer */}
-                <tr className="bg-muted/60 border-t-2 border-border">
-                  <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
-                  <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                  <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                 <tr className="bg-muted/60 border-t-2 border-border">
+                   <td className={`${tfClass} sticky text-center`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>—</td>
+                   <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
+                   <td className={tfClass} style={{ position: 'sticky', left: 216, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                   <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 328, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                   {platforms.map(p => {
                     const totalOrders = totals.platform[p] || 0;
                     const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
