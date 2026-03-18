@@ -2084,8 +2084,18 @@ const Salaries = () => {
                   <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(216)} onClick={() => handleSort('jobTitle')}>
                     المسمى الوظيفي <SortIcon field="jobTitle" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={`${thFrozenBase} w-28 border-l border-border/50 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(328)} onClick={() => handleSort('nationalId')}>
+                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(328)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  {/* ── New info columns ── */}
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-info/30 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('platformIncome')}>
+                    دخل <SortIcon field="platformIncome" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-info/30 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('workDays')}>
+                    أيام العمل <SortIcon field="workDays" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border-l-2 border-info/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('fuelCost')}>
+                    البنزين <SortIcon field="fuelCost" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {platforms.map(p => {
                     const pc = platformColors[p];
