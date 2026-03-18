@@ -18,6 +18,7 @@ type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended'
 type Vehicle = {
   id: string;
   plate_number: string;
+  plate_number_en?: string | null;
   type: 'motorcycle' | 'car';
   brand: string | null;
   model: string | null;
@@ -26,6 +27,8 @@ type Vehicle = {
   insurance_expiry: string | null;
   registration_expiry: string | null;
   authorization_expiry: string | null;
+  chassis_number?: string | null;
+  serial_number?: string | null;
   notes: string | null;
 };
 
