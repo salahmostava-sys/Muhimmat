@@ -91,24 +91,29 @@ const VehicleFormModal = ({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    plate_number: '', type: 'motorcycle' as 'motorcycle' | 'car',
+    plate_number: '', plate_number_en: '', type: 'motorcycle' as 'motorcycle' | 'car',
     brand: '', model: '', year: '', status: 'active' as VehicleStatus,
-    insurance_expiry: '', registration_expiry: '', authorization_expiry: '', notes: '',
+    insurance_expiry: '', registration_expiry: '', authorization_expiry: '',
+    chassis_number: '', serial_number: '', notes: '',
   });
 
   useEffect(() => {
     if (editVehicle) {
       setForm({
-        plate_number: editVehicle.plate_number, type: editVehicle.type,
+        plate_number: editVehicle.plate_number,
+        plate_number_en: editVehicle.plate_number_en || '',
+        type: editVehicle.type,
         brand: editVehicle.brand || '', model: editVehicle.model || '',
         year: editVehicle.year?.toString() || '', status: editVehicle.status,
         insurance_expiry: editVehicle.insurance_expiry || '',
         registration_expiry: editVehicle.registration_expiry || '',
         authorization_expiry: editVehicle.authorization_expiry || '',
+        chassis_number: editVehicle.chassis_number || '',
+        serial_number: editVehicle.serial_number || '',
         notes: editVehicle.notes || '',
       });
     } else {
-      setForm({ plate_number: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', notes: '' });
+      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
     }
   }, [editVehicle, open]);
 
