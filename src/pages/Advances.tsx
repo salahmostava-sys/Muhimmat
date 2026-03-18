@@ -501,6 +501,8 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const [savingNote, setSavingNote] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
+  const [deleteAdvanceId, setDeleteAdvanceId] = useState<string | null>(null);
+  const [deletingAdvance, setDeletingAdvance] = useState(false);
 
   const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
