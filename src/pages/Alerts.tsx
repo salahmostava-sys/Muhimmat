@@ -20,6 +20,7 @@ export const alertTypeLabels: Record<string, string> = {
   installment: 'قسط سلفة',
   deduction: 'خصم شركة',
   authorization: 'تفويض',
+  probation: 'فترة التجربة',
 };
 
 export interface Alert {
