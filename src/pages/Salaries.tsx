@@ -789,6 +789,12 @@ const Salaries = () => {
         attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
       });
 
+      // Build fuel cost map: employeeId → fuel_cost
+      const fuelCostMap: Record<string, number> = {};
+      fuelRes.data?.forEach(r => {
+        fuelCostMap[r.employee_id] = (fuelCostMap[r.employee_id] || 0) + Number(r.fuel_cost);
+      });
+
       const extMap: Record<string, number> = {};
       extRes.data?.forEach(d => {
         extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
@@ -878,6 +884,7 @@ const Salaries = () => {
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
         const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
         const hasIban = !!emp.iban;
+        const empPlatformIncome = Object.values(platformSalaries).reduce((s, v) => s + v, 0);
 
         return {
           id: `${emp.id}-${selectedMonth}`,
@@ -908,6 +915,9 @@ const Salaries = () => {
           status,
           preferredLanguage: ((emp as any).preferred_language as SlipLanguage) || 'ar',
           phone: (emp as any).phone || null,
+          workDays: attendanceDays,
+          fuelCost: fuelCostMap[emp.id] || 0,
+          platformIncome: empPlatformIncome,
         };
       });
 
