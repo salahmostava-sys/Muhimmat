@@ -383,9 +383,6 @@ const SpreadsheetGrid = () => {
                               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                             </span>
                           )}
-                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold flex-shrink-0">
-                            {emp.name.charAt(0)}
-                          </div>
                           <span className="font-medium text-foreground truncate max-w-[140px]">{emp.name}</span>
                         </div>
                         {activeApps.length > 0 && (
