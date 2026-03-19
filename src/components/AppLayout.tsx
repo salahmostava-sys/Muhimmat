@@ -166,10 +166,17 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
             {/* ── User profile chip ─────────────────────────── */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 h-9 px-2 rounded-xl hover:bg-muted transition-colors border border-border/60 hover:border-border ml-1">
+                <button className="flex items-center gap-2 h-9 px-2 rounded-xl hover:bg-muted transition-colors border border-border/60 hover:border-border">
+                  {/* Avatar circle */}
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #465FFF, #3347D9)' }}
+                  >
+                    {initials || 'A'}
+                  </div>
                   {/* Name + role — hidden on small screens */}
                   <div className={`hidden md:flex flex-col items-${isRTL ? 'end' : 'start'} leading-none`}>
-                    <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">{displayName}</span>
+                    <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">{displayName || t('systemAdmin')}</span>
                     {roleLabel && (
                       <span className={`text-[10px] font-medium ${roleColor}`}>{roleLabel}</span>
                     )}

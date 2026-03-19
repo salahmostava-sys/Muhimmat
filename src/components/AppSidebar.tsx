@@ -7,24 +7,20 @@ import {
   Briefcase, Layers, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useMobileSidebar } from '@/context/MobileSidebarContext';
 import { cn } from '@/lib/utils';
-import UserProfileModal from '@/components/UserProfileModal';
 
 const AppSidebar = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const { user } = useAuth();
   const { isRTL } = useLanguage();
   const { projectName, projectSubtitle, settings } = useSystemSettings();
   const { isOpen, close } = useMobileSidebar();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     hr: true, finance: false, operations: false, reports: false, settings: false,
   });
-  const [showProfile, setShowProfile] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   );
@@ -269,37 +265,6 @@ const AppSidebar = () => {
           </button>
         </div>
 
-        {/* ── Footer / User ────────────────────────────────────── */}
-        <div className={cn('border-t border-[hsl(var(--sidebar-border))] flex-shrink-0', collapsed ? 'p-2' : 'p-4')}>
-          <button
-            onClick={() => setShowProfile(true)}
-            title={collapsed ? user?.email : undefined}
-            className={cn(
-              'w-full flex items-center gap-3 rounded-xl p-2.5 hover:bg-[hsl(var(--sidebar-accent))] transition-colors text-start group',
-              collapsed && 'justify-center p-2'
-            )}
-          >
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #465FFF, #3347D9)' }}
-            >
-              {user?.email?.[0]?.toUpperCase() || 'A'}
-            </div>
-            {!collapsed && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[hsl(var(--sidebar-accent-foreground))] truncate">
-                    {user?.email}
-                  </p>
-                  <p className="text-[10px] text-[hsl(var(--sidebar-muted))] mt-0.5">{t('systemAdmin')}</p>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-success flex-shrink-0" title="Online" />
-              </>
-            )}
-          </button>
-        </div>
-
-        {showProfile && <UserProfileModal onClose={() => setShowProfile(false)} />}
       </aside>
     </>
   );
