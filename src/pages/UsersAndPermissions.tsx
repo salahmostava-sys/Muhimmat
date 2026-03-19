@@ -256,6 +256,25 @@ const UsersTab = () => {
     setDeleting(false);
   };
 
+  const handleHardDelete = async () => {
+    if (!hardDeleteTarget) return;
+    setHardDeleting(true);
+    try {
+      await Promise.all([
+        supabase.from('user_roles').delete().eq('user_id', hardDeleteTarget.id),
+        supabase.from('user_permissions').delete().eq('user_id', hardDeleteTarget.id),
+      ]);
+      // We can't delete auth users from the client, so we fully deactivate + remove profile data
+      await supabase.from('profiles').update({ is_active: false, name: '[محذوف]', email: null }).eq('id', hardDeleteTarget.id);
+      toast({ title: '🗑️ تم حذف المستخدم نهائياً', description: `تم حذف حساب ${hardDeleteTarget.name || hardDeleteTarget.email}` });
+      setHardDeleteTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setHardDeleting(false);
+  };
+
   const handleReactivate = async (u: Profile) => {
     setReactivating(u.id);
     try {
