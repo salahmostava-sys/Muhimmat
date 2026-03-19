@@ -465,9 +465,10 @@ const SpreadsheetGrid = () => {
                             const val = getVal(emp.id, app.id, d);
                             const dow = new Date(year, month - 1, d).getDay();
                             const isWeekend = dow === 5 || dow === 6;
+                            const isThursday = dow === 4;
                             const isToday = d === today;
                             return (
-                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'opacity-70' : ''}`} style={{ minWidth: 42 }}>
+                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-muted/20 opacity-70' : isThursday ? 'bg-muted/10' : ''}`} style={{ minWidth: 42 }}>
                                 <div className="h-7 flex items-center justify-center font-medium text-xs" style={{ color: val > 0 ? c.val : undefined }}>
                                   {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
                                 </div>
