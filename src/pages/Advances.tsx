@@ -557,7 +557,16 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                     <Plus size={12} /> إضافة
                   </Button>
                   {empAdvances.length > 0 && onEditAdvance && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => onEditAdvance(empAdvances[0])}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        // Open the most recent active advance, not always the first one
+                        const activeAdv = empAdvances.find(a => a.status === 'active') || empAdvances[empAdvances.length - 1];
+                        onEditAdvance(activeAdv);
+                      }}
+                    >
                       <Edit2 size={12} /> تعديل
                     </Button>
                   )}

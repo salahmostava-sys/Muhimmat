@@ -221,7 +221,7 @@ const resources = {
       reports: 'Reports',
       settings: 'Settings',
       analytics: 'Analytics',
-      violationResolver: 'Violation Resolver',
+      violationResolver: 'Violation Inquiry',
       activityLog: 'Activity Log',
 
       // ─── Sections ─────────────────────────────────────────────

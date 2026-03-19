@@ -75,10 +75,11 @@ const BlueSwitch = ({ checked, onCheckedChange, disabled }: { checked: boolean; 
 );
 
 // ─── 3-dot Actions Menu ───────────────────────────────────────────────────────
-const DropdownMenuRoot = ({ u, openEdit, setDeleteTarget, handleReactivate, isReactivating }: {
+const DropdownMenuRoot = ({ u, openEdit, setDeleteTarget, setHardDeleteTarget, handleReactivate, isReactivating }: {
   u: Profile;
   openEdit: (u: Profile) => void;
   setDeleteTarget: (u: Profile) => void;
+  setHardDeleteTarget: (u: Profile) => void;
   handleReactivate: (u: Profile) => void;
   isReactivating: boolean;
 }) => {
@@ -98,7 +99,7 @@ const DropdownMenuRoot = ({ u, openEdit, setDeleteTarget, handleReactivate, isRe
         <MoreVertical size={15} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[140px]" dir="rtl">
+        <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[150px]" dir="rtl">
           <button
             onClick={() => { openEdit(u); setOpen(false); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/60 transition-colors text-foreground"
@@ -121,6 +122,13 @@ const DropdownMenuRoot = ({ u, openEdit, setDeleteTarget, handleReactivate, isRe
               <UserCheck size={13} /> تفعيل
             </button>
           )}
+          <div className="h-px bg-border/50 my-0.5" />
+          <button
+            onClick={() => { setHardDeleteTarget(u); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-destructive/10 transition-colors text-destructive"
+          >
+            <Trash2 size={13} /> حذف نهائي
+          </button>
         </div>
       )}
     </div>
@@ -141,6 +149,8 @@ const UsersTab = () => {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<Profile | null>(null);
+  const [hardDeleting, setHardDeleting] = useState(false);
   const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null);
   const [savingRole, setSavingRole] = useState<string | null>(null);
   const [reactivating, setReactivating] = useState<string | null>(null);
@@ -244,6 +254,25 @@ const UsersTab = () => {
       toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
     }
     setDeleting(false);
+  };
+
+  const handleHardDelete = async () => {
+    if (!hardDeleteTarget) return;
+    setHardDeleting(true);
+    try {
+      await Promise.all([
+        supabase.from('user_roles').delete().eq('user_id', hardDeleteTarget.id),
+        supabase.from('user_permissions').delete().eq('user_id', hardDeleteTarget.id),
+      ]);
+      // We can't delete auth users from the client, so we fully deactivate + remove profile data
+      await supabase.from('profiles').update({ is_active: false, name: '[محذوف]', email: null }).eq('id', hardDeleteTarget.id);
+      toast({ title: '🗑️ تم حذف المستخدم نهائياً', description: `تم حذف حساب ${hardDeleteTarget.name || hardDeleteTarget.email}` });
+      setHardDeleteTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setHardDeleting(false);
   };
 
   const handleReactivate = async (u: Profile) => {
@@ -372,7 +401,7 @@ const UsersTab = () => {
 
                     <td className="p-3 text-center">
                       <div className="relative inline-block" onClick={e => e.stopPropagation()}>
-                        <DropdownMenuRoot u={u} openEdit={openEdit} setDeleteTarget={setDeleteTarget} handleReactivate={handleReactivate} isReactivating={reactivating === u.id} />
+                        <DropdownMenuRoot u={u} openEdit={openEdit} setDeleteTarget={setDeleteTarget} setHardDeleteTarget={setHardDeleteTarget} handleReactivate={handleReactivate} isReactivating={reactivating === u.id} />
                       </div>
                     </td>
                   </tr>
@@ -459,6 +488,33 @@ const UsersTab = () => {
             >
               {deleting ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
               تأكيد التعطيل
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Hard Delete confirmation dialog */}
+      <AlertDialog open={!!hardDeleteTarget} onOpenChange={open => !open && setHardDeleteTarget(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 size={18} /> تأكيد الحذف النهائي
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف حساب <strong>{hardDeleteTarget?.name || hardDeleteTarget?.email}</strong> نهائياً؟
+              <br />
+              سيتم إزالة جميع الصلاحيات والبيانات. <span className="text-destructive font-semibold">لا يمكن التراجع عن هذا الإجراء.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleHardDelete}
+              disabled={hardDeleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
+            >
+              {hardDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              حذف نهائياً
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
