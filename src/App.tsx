@@ -87,7 +87,7 @@ const App = () => (
                                     <Route path="/settings/schemes" element={<Navigate to="/settings?tab=schemes" replace />} />
                                     <Route path="/settings/users" element={<Navigate to="/settings?tab=users" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings?tab=users" replace />} />
-                                    <Route path="/settings/trade-registers" element={<Navigate to="/settings?tab=trade-registers" replace />} />
+
                                     <Route path="/activity-log" element={<Navigate to="/settings?tab=activity" replace />} />
                                     <Route path="/reports" element={<Navigate to="/settings?tab=activity" replace />} />
 

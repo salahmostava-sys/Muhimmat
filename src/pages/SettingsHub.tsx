@@ -2,17 +2,16 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import {
-  Settings2, Users, Wallet, Briefcase, History,
+  Settings2, Users, Wallet, History,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GeneralSettingsContent from './settings-hub/GeneralSettingsContent';
 import UsersContent from './settings-hub/UsersContent';
 import SchemesContent from './settings-hub/SchemesContent';
-import TradeRegistersContent from './settings-hub/TradeRegistersContent';
 import ActivityLogContent from './settings-hub/ActivityLogContent';
 
-type TabKey = 'general' | 'users' | 'schemes' | 'trade-registers' | 'activity';
+type TabKey = 'general' | 'users' | 'schemes' | 'activity';
 
 interface Tab {
   key: TabKey;
@@ -22,19 +21,17 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { key: 'general',         labelAr: 'إعدادات النظام',          labelEn: 'System Settings',   icon: Settings2  },
-  { key: 'users',           labelAr: 'المستخدمون والصلاحيات',   labelEn: 'Users & Permissions', icon: Users    },
-  { key: 'schemes',         labelAr: 'مخططات الرواتب',           labelEn: 'Salary Schemes',    icon: Wallet     },
-  { key: 'trade-registers', labelAr: 'السجلات التجارية',         labelEn: 'Trade Registers',   icon: Briefcase  },
-  { key: 'activity',        labelAr: 'سجل النشاطات',             labelEn: 'Activity Log',      icon: History    },
+  { key: 'general',  labelAr: 'إعدادات النظام',          labelEn: 'System Settings',   icon: Settings2 },
+  { key: 'users',    labelAr: 'المستخدمون والصلاحيات',   labelEn: 'Users & Permissions', icon: Users   },
+  { key: 'schemes',  labelAr: 'مخططات الرواتب',           labelEn: 'Salary Schemes',    icon: Wallet    },
+  { key: 'activity', labelAr: 'سجل النشاطات',             labelEn: 'Activity Log',      icon: History   },
 ];
 
 const TAB_TITLES: Record<TabKey, { ar: string; en: string }> = {
-  'general':         { ar: 'إعدادات النظام',             en: 'System Settings'      },
-  'users':           { ar: 'المستخدمون والصلاحيات',      en: 'Users & Permissions'  },
-  'schemes':         { ar: 'مخططات الرواتب',              en: 'Salary Schemes'       },
-  'trade-registers': { ar: 'السجلات التجارية',            en: 'Trade Registers'      },
-  'activity':        { ar: 'سجل النشاطات',                en: 'Activity Log'         },
+  'general':  { ar: 'إعدادات النظام',            en: 'System Settings'     },
+  'users':    { ar: 'المستخدمون والصلاحيات',     en: 'Users & Permissions' },
+  'schemes':  { ar: 'مخططات الرواتب',             en: 'Salary Schemes'      },
+  'activity': { ar: 'سجل النشاطات',               en: 'Activity Log'        },
 };
 
 export default function SettingsHub() {
@@ -170,11 +167,10 @@ export default function SettingsHub() {
           className="flex-1 overflow-auto p-6 lg:p-8"
           style={{ background: 'var(--ds-surface-lowest)' }}
         >
-          {active === 'general'         && <GeneralSettingsContent />}
-          {active === 'users'           && <UsersContent />}
-          {active === 'schemes'         && <SchemesContent />}
-          {active === 'trade-registers' && <TradeRegistersContent />}
-          {active === 'activity'        && <ActivityLogContent />}
+          {active === 'general'  && <GeneralSettingsContent />}
+          {active === 'users'    && <UsersContent />}
+          {active === 'schemes'  && <SchemesContent />}
+          {active === 'activity' && <ActivityLogContent />}
         </main>
       </div>
     </div>

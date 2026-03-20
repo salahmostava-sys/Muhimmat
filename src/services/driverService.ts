@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 export interface DriverFilters {
   status?: 'active' | 'inactive' | 'ended';
   city?: string;
-  tradeRegisterId?: string;
   search?: string;
 }
 
@@ -13,7 +12,6 @@ export const driverService = {
       .from('employees')
       .select(`
         *,
-        trade_registers(id, name, name_en),
         departments(id, name, name_en),
         positions(id, name, name_en),
         employee_apps(app_id, username, status, apps(name, name_en, brand_color))
@@ -22,7 +20,6 @@ export const driverService = {
 
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.city) query = query.eq('city', filters.city);
-    if (filters.tradeRegisterId) query = query.eq('trade_register_id', filters.tradeRegisterId);
     if (filters.search) {
       query = query.or(
         `name.ilike.%${filters.search}%,name_en.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,national_id.ilike.%${filters.search}%`
@@ -38,7 +35,6 @@ export const driverService = {
       .from('employees')
       .select(`
         *,
-        trade_registers(id, name, name_en),
         departments(id, name, name_en),
         positions(id, name, name_en),
         employee_apps(app_id, username, status, joined_date, apps(name, name_en, brand_color)),

@@ -116,7 +116,7 @@ src/
 | `/settings/schemes` | Salary schemes |
 | `/settings/users` | Users & permissions |
 | `/settings/general` | General settings |
-| `/settings/trade-registers` | Trade registers |
+
 
 ## User Preferences
 - App was migrated from Lovable — preserve existing code structure

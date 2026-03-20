@@ -35,7 +35,6 @@ interface Employee {
   status: string;
   salary_type: string;
   base_salary: number;
-  trade_register?: { id: string; name: string } | null;
 }
 
 interface Advance {
@@ -283,7 +282,6 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
               {employee.job_title && <InfoField label="المسمى الوظيفي" value={employee.job_title} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
               {employee.probation_end_date && <InfoField label="انتهاء فترة التجربة" value={employee.probation_end_date} />}
-              {employee.trade_register?.name && <InfoField label="السجل التجاري" value={employee.trade_register.name} />}
               {employee.sponsorship_status && (
                 <InfoField label="حالة الكفالة" value={{
                   sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة',

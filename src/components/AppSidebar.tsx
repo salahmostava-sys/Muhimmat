@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
   Settings, ChevronDown, Fuel, Settings2, X, FileWarning, Activity,
-  Briefcase, Layers, ChevronsLeft, ChevronsRight,
+  Layers, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -86,7 +86,6 @@ const AppSidebar = () => {
         { label: t('generalSettings'), icon: Settings2, path: '/settings?tab=general' },
         { label: t('users'), icon: Users, path: '/settings?tab=users' },
         { label: t('schemes'), icon: Settings, path: '/settings?tab=schemes' },
-        { label: isRTL ? 'السجلات التجارية' : 'Trade Registers', icon: Briefcase, path: '/settings?tab=trade-registers' },
         { label: t('activityLog'), icon: Activity, path: '/settings?tab=activity' },
       ],
     },
