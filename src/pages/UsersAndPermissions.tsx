@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX, MoreVertical } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX, MoreVertical, Camera, Eye, EyeOff, Mail, Calendar, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { DEFAULT_PERMISSIONS, AppRole, PagePermission } from '@/hooks/usePermissions';
 
 type AppRoleType = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
-type Profile = { id: string; name?: string | null; email?: string | null; is_active: boolean };
+type Profile = { id: string; name?: string | null; email?: string | null; is_active: boolean; avatar_url?: string | null; created_at?: string | null };
 
 const roleLabels: Record<AppRoleType, string> = {
   admin: 'مدير', hr: 'موارد بشرية', finance: 'مالية', operations: 'عمليات', viewer: 'عارض',
@@ -160,11 +160,16 @@ const UsersTab = () => {
   const [editName, setEditName] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
+  const [editRole, setEditRole] = useState<AppRoleType>('viewer');
+  const [showEditPw, setShowEditPw] = useState(false);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
     const [{ data: pData }, { data: rData }] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at'),
+      supabase.from('profiles').select('id, name, email, is_active, avatar_url, created_at').order('created_at'),
       supabase.from('user_roles').select('user_id, role'),
     ]);
     if (pData) setProfiles(pData as Profile[]);
@@ -179,6 +184,22 @@ const UsersTab = () => {
     setEditTarget(u);
     setEditName(u.name || '');
     setEditPassword('');
+    setEditAvatarFile(null);
+    setEditAvatarPreview(null);
+    setShowEditPw(false);
+    const role = getRole(u.id);
+    setEditRole(role || 'viewer');
+  };
+
+  const handleEditAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'الحجم الأقصى 2MB', variant: 'destructive' });
+      return;
+    }
+    setEditAvatarFile(file);
+    setEditAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleEdit = async () => {
@@ -189,12 +210,30 @@ const UsersTab = () => {
     }
     setEditSaving(true);
     try {
-      // Update name in profiles
+      let avatar_url = editTarget.avatar_url || null;
+
+      // Upload avatar if changed
+      if (editAvatarFile) {
+        const ext = editAvatarFile.name.split('.').pop();
+        const path = `${editTarget.id}/avatar.${ext}`;
+        const { data: upData, error: upErr } = await supabase.storage
+          .from('avatars').upload(path, editAvatarFile, { upsert: true });
+        if (upErr) throw upErr;
+        avatar_url = supabase.storage.from('avatars').getPublicUrl(upData.path).data.publicUrl;
+      }
+
+      // Update profile (name + avatar)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ name: editName.trim() })
+        .update({ name: editName.trim(), avatar_url })
         .eq('id', editTarget.id);
       if (profileError) throw profileError;
+
+      // Update role if changed
+      const currentRole = getRole(editTarget.id);
+      if (editRole !== currentRole) {
+        await handleRoleChange(editTarget.id, editRole);
+      }
 
       // Update password via edge function if provided
       if (editPassword.trim().length > 0) {
@@ -204,7 +243,7 @@ const UsersTab = () => {
         if (pwError) throw pwError;
       }
 
-      toast({ title: '✅ تم التحديث', description: `تم تحديث بيانات ${editName}` });
+      toast({ title: '✅ تم التحديث', description: `تم تحديث ملف ${editName} الشخصي` });
       setEditTarget(null);
       fetchUsers();
     } catch (err: any) {
@@ -344,9 +383,13 @@ const UsersTab = () => {
                   <tr key={u.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${!u.is_active ? 'opacity-60' : ''}`}>
                     <td className="p-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${u.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {u.name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || '?'}
-                        </div>
+                        {u.avatar_url ? (
+                          <img src={u.avatar_url} alt={u.name || ''} className={`w-8 h-8 rounded-full object-cover flex-shrink-0 border ${u.is_active ? 'border-border' : 'border-muted opacity-60'}`} />
+                        ) : (
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${u.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            {u.name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || '?'}
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm font-medium text-foreground">{u.name || '—'}</p>
                           {!u.is_active && <p className="text-[10px] text-destructive font-medium">معطّل</p>}
@@ -412,57 +455,134 @@ const UsersTab = () => {
         )}
       </div>
 
-      {/* Edit User Dialog */}
+      {/* ── Rich User Profile Dialog ── */}
       <Dialog open={!!editTarget} onOpenChange={open => !open && setEditTarget(null)}>
-        <DialogContent dir="rtl" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <User size={16} className="text-primary" />
+        <DialogContent dir="rtl" className="max-w-lg p-0 overflow-hidden gap-0">
+
+          {/* Profile header banner */}
+          <div className="relative h-24 bg-gradient-to-l from-primary/20 via-primary/10 to-transparent flex-shrink-0">
+            <div className="absolute bottom-0 translate-y-1/2 end-6 flex items-end gap-4">
+              {/* Avatar */}
+              <div className="relative">
+                {editAvatarPreview || editTarget?.avatar_url ? (
+                  <img
+                    src={editAvatarPreview || editTarget?.avatar_url || ''}
+                    alt={editTarget?.name || ''}
+                    className="w-20 h-20 rounded-full object-cover border-4 border-background shadow-lg"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full border-4 border-background shadow-lg flex items-center justify-center text-2xl font-bold bg-primary/10 text-primary">
+                    {editTarget?.name?.[0]?.toUpperCase() || editTarget?.email?.[0]?.toUpperCase() || '؟'}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => editFileRef.current?.click()}
+                  className="absolute bottom-0.5 start-0.5 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow hover:bg-primary/90 transition-colors"
+                >
+                  <Camera size={11} />
+                </button>
+                <input ref={editFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleEditAvatarChange} />
               </div>
-              تعديل بيانات المستخدم
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-1">
-            <div className="bg-muted/40 rounded-lg px-3 py-2 text-sm text-muted-foreground" dir="ltr">
-              {editTarget?.email}
             </div>
-            <div className="space-y-2">
-              <Label>الاسم الكامل</Label>
-              <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="اسم المستخدم" />
+          </div>
+
+          {/* Content */}
+          <div className="pt-14 px-6 pb-6 space-y-5">
+
+            {/* Name + meta row */}
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{editTarget?.name || '—'}</h2>
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground" dir="ltr">
+                  <Mail size={11} /> {editTarget?.email}
+                </span>
+                {editTarget?.created_at && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar size={11} />
+                    {new Date(editTarget.created_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+                <span className={editTarget?.is_active ? 'badge-success' : 'badge-urgent'}>
+                  {editTarget?.is_active ? 'نشط' : 'معطّل'}
+                </span>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5"><KeyRound size={13} /> كلمة مرور جديدة <span className="text-muted-foreground font-normal text-xs">(اتركها فارغة إن لم ترد التغيير)</span></Label>
-              <Input
-                type="password"
-                value={editPassword}
-                onChange={e => setEditPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Editable fields */}
+            <div className="space-y-4">
+
+              {/* Display name */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><User size={12} /> الاسم الكامل</Label>
+                <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="اسم المستخدم" />
+              </div>
+
+              {/* Role */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><ShieldCheck size={12} /> الدور والصلاحيات</Label>
+                <Select value={editRole} onValueChange={(v: any) => setEditRole(v)} disabled={!editTarget?.is_active}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">🔴 مدير — صلاحيات كاملة</SelectItem>
+                    <SelectItem value="hr">🔵 موارد بشرية</SelectItem>
+                    <SelectItem value="finance">🟢 مالية</SelectItem>
+                    <SelectItem value="operations">🟠 عمليات</SelectItem>
+                    <SelectItem value="viewer">⚪ عارض — عرض فقط</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><KeyRound size={12} /> كلمة مرور جديدة</Label>
+                <div className="relative">
+                  <Input
+                    type={showEditPw ? 'text' : 'password'}
+                    value={editPassword}
+                    onChange={e => setEditPassword(e.target.value)}
+                    placeholder="اتركها فارغة إن لم ترد التغيير"
+                    className="pe-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPw(v => !v)}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showEditPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
             </div>
-            {/* Deactivate option in edit dialog */}
+
+            {/* Danger zone */}
             {editTarget?.is_active && (
               <div className="border border-destructive/30 rounded-lg p-3 bg-destructive/5">
-                <p className="text-xs text-destructive font-medium mb-2 flex items-center gap-1.5">
-                  <AlertTriangle size={13} /> منطقة الخطر
-                </p>
+                <p className="text-xs text-destructive font-semibold mb-2 flex items-center gap-1.5"><AlertTriangle size={12} /> منطقة الخطر</p>
                 <button
                   type="button"
                   onClick={() => { setEditTarget(null); setDeleteTarget(editTarget); }}
-                  className="flex items-center gap-2 text-xs text-destructive hover:underline font-medium"
+                  className="flex items-center gap-1.5 text-xs text-destructive hover:underline font-medium"
                 >
-                  <UserX size={13} /> تعطيل هذا الحساب
+                  <UserX size={12} /> تعطيل هذا الحساب
                 </button>
               </div>
             )}
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setEditTarget(null)}>إلغاء</Button>
+              <Button className="flex-1 gap-2" onClick={handleEdit} disabled={editSaving}>
+                {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                حفظ التغييرات
+              </Button>
+            </div>
           </div>
-          <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" onClick={() => setEditTarget(null)}>إلغاء</Button>
-            <Button onClick={handleEdit} disabled={editSaving} className="gap-2">
-              {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              حفظ التعديلات
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
