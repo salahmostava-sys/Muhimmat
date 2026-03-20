@@ -49,7 +49,12 @@ const Login = () => {
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      setLoginError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
+      const deactivatedMsg = 'هذا الحساب معطّل. تواصل مع المسؤول.';
+      if (error.message === deactivatedMsg) {
+        setLoginError(isAr ? deactivatedMsg : 'This account is deactivated. Contact your administrator.');
+      } else {
+        setLoginError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
+      }
     } else {
       navigate('/', { replace: true });
     }
