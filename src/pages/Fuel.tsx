@@ -418,7 +418,7 @@ const FuelPage = () => {
   const [selectedMonth, setSelectedMonth] = useState(format(now, 'MM'));
   const [selectedYear, setSelectedYear] = useState(format(now, 'yyyy'));
   const [search, setSearch] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('_all_');
 
   // Monthly view state
   const [monthlyRows, setMonthlyRows] = useState<MonthlyRow[]>([]);
@@ -508,7 +508,7 @@ const FuelPage = () => {
       .lte('date', monthEnd)
       .order('date', { ascending: false });
 
-    if (selectedEmployee) q = q.eq('employee_id', selectedEmployee);
+    if (selectedEmployee && selectedEmployee !== '_all_') q = q.eq('employee_id', selectedEmployee);
 
     const { data, error } = await q;
     if (error) toast({ title: 'خطأ في جلب البيانات', variant: 'destructive' });
@@ -819,7 +819,7 @@ const FuelPage = () => {
                 <SelectValue placeholder="كل المناديب" />
               </SelectTrigger>
               <SelectContent className="max-h-60">
-                <SelectItem value="">كل المناديب</SelectItem>
+                <SelectItem value="_all_">كل المناديب</SelectItem>
                 {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
               </SelectContent>
             </Select>
