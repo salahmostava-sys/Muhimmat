@@ -232,7 +232,7 @@ const AppSidebar = () => {
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--ds-surface-container)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">
+                    <span className="text-[13px] font-semibold uppercase tracking-wider">
                       {group.sectionLabel}
                     </span>
                     <ChevronDown

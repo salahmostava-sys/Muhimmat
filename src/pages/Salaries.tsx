@@ -1906,7 +1906,7 @@ const Salaries = () => {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs"><Download size={13} /> 📥 تحميل ▾</Button>
+              <Button size="sm" variant="outline" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={exportExcel}>📊 تصدير Excel</DropdownMenuItem>

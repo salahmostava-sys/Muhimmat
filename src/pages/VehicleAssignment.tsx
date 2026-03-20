@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, RotateCcw, ClipboardList, CheckCircle, Clock, Download, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -256,6 +256,7 @@ const VehicleAssignment = () => {
   const [showActive, setShowActive] = useState<'all' | 'active' | 'returned'>('all');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [returnAssignment, setReturnAssignment] = useState<Assignment | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -305,6 +306,23 @@ const VehicleAssignment = () => {
     return matchSearch && matchStatus;
   });
 
+  const handlePrint = () => {
+    const table = tableRef.current;
+    if (!table) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>سجل تسليم المركبات</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>سجل تسليم المركبات</h2><p class="sub">المجموع: ${filtered.length} سجل — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.close();
+  };
+
+  const handleTemplate = () => {
+    const headers = [['رقم اللوحة', 'نوع المركبة', 'اسم المندوب', 'تاريخ الاستلام', 'تاريخ الإعادة', 'السبب', 'ملاحظات']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+    XLSX.writeFile(wb, 'template_vehicle_assignment.xlsx');
+  };
+
   return (
     <div className="space-y-4" dir="rtl">
       {/* Header */}
@@ -325,7 +343,7 @@ const VehicleAssignment = () => {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download size={15} /> تحميل ▾</Button>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => {
@@ -344,8 +362,9 @@ const VehicleAssignment = () => {
                 XLSX.utils.book_append_sheet(wb, ws, 'سجل تسليم المركبات');
                 XLSX.writeFile(wb, `سجل_تسليم_المركبات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
               }}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.print()}>🖨️ طباعة</DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -405,7 +424,7 @@ const VehicleAssignment = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+          <table ref={tableRef} className="w-full min-w-[800px]">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">المركبة</th>
