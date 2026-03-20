@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1270,8 +1271,8 @@ const Salaries = () => {
       const statusStyle = r.status === 'paid' ? 'background:#dcfce7;color:#15803d' : r.status === 'approved' ? 'background:#dbeafe;color:#1d4ed8' : 'background:#fef9c3;color:#92400e';
       const statusLabel = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[r.status];
       return `<tr>
-        <td>${r.employeeName}</td>
-        <td style="text-align:center;color:#555;font-size:11px">${r.nationalId || '—'}</td>
+        <td>${escapeHtml(r.employeeName)}</td>
+        <td style="text-align:center;color:#555;font-size:11px">${escapeHtml(r.nationalId || '—')}</td>
         ${platformCols}
         <td style="text-align:center;font-weight:700;color:#1d4ed8">${c.totalPlatformSalary.toLocaleString()}</td>
         <td style="text-align:center">${c.totalAdditions > 0 ? `+${c.totalAdditions.toLocaleString()}` : '—'}</td>
@@ -1283,7 +1284,7 @@ const Salaries = () => {
     }).join('');
 
     const platformHeaders = platforms.map(p =>
-      `<th style="background:#4f46e5;color:#fff">${p}</th>`
+      `<th style="background:#4f46e5;color:#fff">${escapeHtml(p)}</th>`
     ).join('');
 
     const totalNet = printRows.reduce((s, r) => s + computeRow(r).netSalary, 0);
@@ -1321,7 +1322,7 @@ const Salaries = () => {
     </head><body>
       <div class="header">
         <div>
-          <div class="company-name">${projectName || 'نظام التوصيل'}</div>
+          <div class="company-name">${escapeHtml(projectName || 'نظام التوصيل')}</div>
           <div class="report-title">تقرير الرواتب الشهرية</div>
           <div class="report-meta">${monthLabel} • تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')} • عدد الموظفين: ${printRows.length}</div>
         </div>
@@ -1402,7 +1403,7 @@ const Salaries = () => {
   const generateEmployeePDF = (row: SalaryRow, monthLabel: string) => {
     const c = computeRow(row);
     const html = `<html dir="rtl"><head><meta charset="utf-8">
-    <title>كشف راتب — ${row.employeeName}</title>
+    <title>كشف راتب — ${escapeHtml(row.employeeName)}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
       body{font-family:'Segoe UI',Arial,sans-serif;padding:24px;color:#1a1a1a;font-size:13px;background:#fff}
@@ -1442,9 +1443,9 @@ const Salaries = () => {
       </div>
 
       <div class="info-grid">
-        <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${row.employeeName}</span></div>
-        <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${row.nationalId}</span></div>
-        <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${row.city}</span></div>
+        <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${escapeHtml(row.employeeName)}</span></div>
+        <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${escapeHtml(row.nationalId)}</span></div>
+        <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${escapeHtml(row.city)}</span></div>
         <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
       </div>
 
@@ -1456,7 +1457,7 @@ const Salaries = () => {
         ${row.registeredApps.length > 0 ? row.registeredApps.map(app => {
           const orders = row.platformOrders[app] || 0;
           const salary = row.platformSalaries[app] || 0;
-          return `<tr><td class="label">${app}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
+          return `<tr><td class="label">${escapeHtml(app)}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
         }).join('') : `<tr><td colspan="3" style="text-align:center;color:#999">لا توجد منصات مسجلة</td></tr>`}
         <tr class="total-row"><td class="label">إجمالي الراتب الأساسي</td><td></td><td class="val-blue" style="text-align:center">${c.totalPlatformSalary.toLocaleString()} ر.س</td></tr>
       </table>
@@ -1610,9 +1611,9 @@ const Salaries = () => {
           <span class="badge badge-${row.status}">${{ pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[row.status]}</span>
         </div>
         <div class="info-grid">
-          <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${row.employeeName}</span></div>
-          <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${row.nationalId}</span></div>
-          <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${row.city}</span></div>
+          <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${escapeHtml(row.employeeName)}</span></div>
+          <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${escapeHtml(row.nationalId)}</span></div>
+          <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${escapeHtml(row.city)}</span></div>
           <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
         </div>
         <h3>الطلبات والراتب حسب المنصة</h3>
@@ -1623,7 +1624,7 @@ const Salaries = () => {
           ${row.registeredApps.length > 0 ? row.registeredApps.map(app => {
             const orders = row.platformOrders[app] || 0;
             const salary = row.platformSalaries[app] || 0;
-            return `<tr><td class="label">${app}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
+            return `<tr><td class="label">${escapeHtml(app)}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
           }).join('') : `<tr><td colspan="3" style="text-align:center;color:#999">لا توجد منصات مسجلة</td></tr>`}
           <tr class="total-row"><td class="label">إجمالي الراتب الأساسي</td><td></td><td class="val-blue" style="text-align:center">${c.totalPlatformSalary.toLocaleString()} ر.س</td></tr>
         </table>

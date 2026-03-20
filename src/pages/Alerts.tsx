@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { escapeHtml } from '@/lib/security';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
@@ -176,7 +177,7 @@ const Alerts = () => {
 
   const handlePrint = () => {
     const severityLabels2: Record<string, string> = { urgent: 'عاجل', warning: 'تحذير', info: 'معلومة' };
-    const rows = filtered.map(a => `<tr><td>${alertTypeLabels[a.type] || a.type}</td><td>${a.entityName}</td><td>${a.dueDate || '—'}</td><td style="text-align:center">${a.daysLeft ?? '—'}</td><td style="text-align:center;font-weight:700;color:${a.severity === 'urgent' ? '#dc2626' : a.severity === 'warning' ? '#d97706' : '#2563eb'}">${severityLabels2[a.severity] || a.severity}</td></tr>`).join('');
+    const rows = filtered.map(a => `<tr><td>${escapeHtml(alertTypeLabels[a.type] || a.type)}</td><td>${escapeHtml(a.entityName)}</td><td>${escapeHtml(a.dueDate || '—')}</td><td style="text-align:center">${escapeHtml(a.daysLeft ?? '—')}</td><td style="text-align:center;font-weight:700;color:${a.severity === 'urgent' ? '#dc2626' : a.severity === 'warning' ? '#d97706' : '#2563eb'}">${escapeHtml(severityLabels2[a.severity] || a.severity)}</td></tr>`).join('');
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير التنبيهات</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير التنبيهات التلقائية</h2><p class="sub">المجموع: ${filtered.length} تنبيه — ${new Date().toLocaleDateString('ar-SA')}</p><table><thead><tr><th>النوع</th><th>الجهة</th><th>تاريخ الاستحقاق</th><th>المتبقي (يوم)</th><th>الأولوية</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
