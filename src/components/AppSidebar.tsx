@@ -83,10 +83,7 @@ const AppSidebar = () => {
       key: 'settings',
       sectionLabel: t('settings'),
       items: [
-        { label: t('generalSettings'), icon: Settings2, path: '/settings?tab=general' },
-        { label: t('users'), icon: Users, path: '/settings?tab=users' },
-        { label: t('schemes'), icon: Settings, path: '/settings?tab=schemes' },
-        { label: t('activityLog'), icon: Activity, path: '/settings?tab=activity' },
+        { label: t('settings'), icon: Settings2, path: '/settings' },
       ],
     },
   ];

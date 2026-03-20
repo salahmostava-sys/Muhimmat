@@ -220,11 +220,11 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                     </div>
                   </div>
                 </div>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings/users'}>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings?tab=profile'}>
                   <User size={14} />
-                  <span>{isRTL ? 'إعدادات الحساب' : 'Account Settings'}</span>
+                  <span>{isRTL ? 'الملف الشخصي' : 'My Profile'}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings/general'}>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings'}>
                   <Settings size={14} />
                   <span>{isRTL ? 'إعدادات النظام' : 'System Settings'}</span>
                 </DropdownMenuItem>

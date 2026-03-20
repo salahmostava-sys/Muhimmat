@@ -3,15 +3,17 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import {
   Settings2, Users, Wallet, History,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Building2, User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GeneralSettingsContent from './settings-hub/GeneralSettingsContent';
 import UsersContent from './settings-hub/UsersContent';
 import SchemesContent from './settings-hub/SchemesContent';
 import ActivityLogContent from './settings-hub/ActivityLogContent';
+import CompanySettingsContent from './settings-hub/CompanySettingsContent';
+import ProfileSettingsContent from './settings-hub/ProfileSettingsContent';
 
-type TabKey = 'general' | 'users' | 'schemes' | 'activity';
+type TabKey = 'general' | 'company' | 'users' | 'schemes' | 'activity' | 'profile';
 
 interface Tab {
   key: TabKey;
@@ -21,17 +23,21 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { key: 'general',  labelAr: 'إعدادات النظام',          labelEn: 'System Settings',   icon: Settings2 },
-  { key: 'users',    labelAr: 'المستخدمون والصلاحيات',   labelEn: 'Users & Permissions', icon: Users   },
-  { key: 'schemes',  labelAr: 'مخططات الرواتب',           labelEn: 'Salary Schemes',    icon: Wallet    },
-  { key: 'activity', labelAr: 'سجل النشاطات',             labelEn: 'Activity Log',      icon: History   },
+  { key: 'general',  labelAr: 'إعدادات النظام',          labelEn: 'System Settings',    icon: Settings2  },
+  { key: 'company',  labelAr: 'بيانات المنشأة',           labelEn: 'Organization Info',  icon: Building2  },
+  { key: 'users',    labelAr: 'المستخدمون والصلاحيات',   labelEn: 'Users & Permissions', icon: Users      },
+  { key: 'schemes',  labelAr: 'مخططات الرواتب',           labelEn: 'Salary Schemes',     icon: Wallet     },
+  { key: 'activity', labelAr: 'سجل النشاطات',             labelEn: 'Activity Log',       icon: History    },
+  { key: 'profile',  labelAr: 'الملف الشخصي',             labelEn: 'My Profile',         icon: User       },
 ];
 
 const TAB_TITLES: Record<TabKey, { ar: string; en: string }> = {
-  'general':  { ar: 'إعدادات النظام',            en: 'System Settings'     },
-  'users':    { ar: 'المستخدمون والصلاحيات',     en: 'Users & Permissions' },
-  'schemes':  { ar: 'مخططات الرواتب',             en: 'Salary Schemes'      },
-  'activity': { ar: 'سجل النشاطات',               en: 'Activity Log'        },
+  'general':  { ar: 'إعدادات النظام',            en: 'System Settings'      },
+  'company':  { ar: 'بيانات المنشأة',             en: 'Organization Info'    },
+  'users':    { ar: 'المستخدمون والصلاحيات',     en: 'Users & Permissions'  },
+  'schemes':  { ar: 'مخططات الرواتب',             en: 'Salary Schemes'       },
+  'activity': { ar: 'سجل النشاطات',               en: 'Activity Log'         },
+  'profile':  { ar: 'الملف الشخصي',               en: 'My Profile'           },
 };
 
 export default function SettingsHub() {
@@ -74,8 +80,8 @@ export default function SettingsHub() {
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--ds-on-surface-variant)' }}>
           {isRTL
-            ? 'تحكم في هوية مؤسستك، صلاحيات الموظفين، وبوابات الربط البرمجي من مكان واحد.'
-            : 'Control your organization identity, employee permissions, and API integrations from one place.'}
+            ? 'تحكم في هوية مؤسستك، صلاحيات الموظفين، وبوابات الربح من مكان واحد.'
+            : 'Control your organization identity, employee permissions, and integrations from one place.'}
         </p>
       </div>
 
@@ -168,9 +174,11 @@ export default function SettingsHub() {
           style={{ background: 'var(--ds-surface-lowest)' }}
         >
           {active === 'general'  && <GeneralSettingsContent />}
+          {active === 'company'  && <CompanySettingsContent />}
           {active === 'users'    && <UsersContent />}
           {active === 'schemes'  && <SchemesContent />}
           {active === 'activity' && <ActivityLogContent />}
+          {active === 'profile'  && <ProfileSettingsContent />}
         </main>
       </div>
     </div>
