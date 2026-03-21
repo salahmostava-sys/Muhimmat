@@ -23,7 +23,7 @@ import { differenceInDays, parseISO, format } from 'date-fns';
 import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
 import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
-import { supabase } from '@/integrations/supabase/client';
+import { driverService } from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -298,7 +298,7 @@ const Employees = () => {
   const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, any>) => {
     const prev = data.find(e => e.id === id);
     setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
-    const { error } = await supabase.from('employees').update({ [field]: value, ...(extraFields || {}) }).eq('id', id);
+    const { error } = await driverService.update(id, { [field]: value, ...(extraFields || {}) });
     if (error) {
       setData(d => d.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
       toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
@@ -334,7 +334,7 @@ const Employees = () => {
   const handleDelete = useCallback(async () => {
     if (!deleteEmployee) return;
     setDeleting(true);
-    const { error } = await supabase.from('employees').delete().eq('id', deleteEmployee.id);
+    const { error } = await driverService.delete(deleteEmployee.id);
     if (error) {
       toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     } else {

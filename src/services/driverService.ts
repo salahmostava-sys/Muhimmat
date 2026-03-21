@@ -64,6 +64,11 @@ export const driverService = {
     return { data, error };
   },
 
+  delete: async (id: string) => {
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    return { error };
+  },
+
   deactivate: async (id: string) => {
     const { data, error } = await supabase
       .from('employees')

@@ -5,7 +5,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
 import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { dashboardService } from '@/services/dashboardService';
 
 interface SystemSettings {
   project_name_ar: string;
@@ -30,8 +30,7 @@ const Login = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
 
   useEffect(() => {
-    supabase.from('system_settings').select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
-      .limit(1).maybeSingle().then(({ data }) => { if (data) setSettings(data as SystemSettings); });
+    dashboardService.getSystemSettings().then(({ data }) => { if (data) setSettings(data as SystemSettings); });
   }, []);
 
   const projectName = settings

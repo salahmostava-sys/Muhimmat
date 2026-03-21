@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Loader2, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
+import { authService } from '@/services/authService';
 
 function calcStrength(pw: string): 0 | 1 | 2 | 3 {
   if (!pw) return 0;
@@ -40,7 +40,7 @@ const ResetPassword = () => {
     if (hash.includes('type=recovery')) {
       setIsRecovery(true);
       // Let Supabase JS parse the hash and establish the session
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      authService.getSession().then(({ session }) => {
         if (!session) setInvalidLink(true);
       });
     } else {
@@ -66,7 +66,7 @@ const ResetPassword = () => {
     }
 
     setLoading(true);
-    const { error: err } = await supabase.auth.updateUser({ password });
+    const { error: err } = await authService.updatePassword(password);
     setLoading(false);
 
     if (err) {

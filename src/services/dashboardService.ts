@@ -142,6 +142,16 @@ export const dashboardService = {
     return { data, error };
   },
 
+  /** System settings (project name, logo, subtitle) */
+  getSystemSettings: async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
+      .limit(1)
+      .maybeSingle();
+    return { data, error };
+  },
+
   /** Employee city + license distribution (for map/stats) */
   getEmployeeDistribution: async () => {
     const { data, error } = await supabase

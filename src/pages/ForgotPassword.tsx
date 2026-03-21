@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
+import { authService } from '@/services/authService';
 
 const gradientBtn =
   'w-full h-11 rounded-xl font-bold text-[15px] text-white transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2';
@@ -23,9 +23,7 @@ const ForgotPassword = () => {
     }
 
     setLoading(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const { error: err } = await authService.sendPasswordReset(email);
     setLoading(false);
 
     if (err) {
