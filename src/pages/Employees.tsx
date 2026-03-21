@@ -25,6 +25,7 @@ import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
 import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
 import { driverService } from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
+import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import * as XLSX from '@e965/xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
@@ -169,6 +170,19 @@ const InlineSelect = ({ value, options, onSave, renderDisplay }: InlineSelectPro
       <Pencil size={10} className="text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-opacity flex-shrink-0" />
     </div>
   );
+};
+
+// ─── Employee Avatar (signed URL from private storage) ─────────────────────
+const EmployeeAvatar = ({ path, name }: { path?: string | null; name: string }) => {
+  const storagePath = extractStoragePath(path);
+  const signedUrl = useSignedUrl('employee-documents', storagePath);
+  if (!path) return null;
+  if (!signedUrl) return (
+    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold text-muted-foreground select-none">
+      {name.charAt(0)}
+    </div>
+  );
+  return <img src={signedUrl} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />;
 };
 
 // ─── Sort Icon ────────────────────────────────────────────────────────────────
@@ -739,10 +753,7 @@ const Employees = () => {
                           return (
                             <td key="name" className="px-3 py-2.5 whitespace-nowrap">
                               <div className="flex items-center gap-2.5">
-                                {emp.personal_photo_url
-                                  ? <img src={emp.personal_photo_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
-                                  : null
-                                }
+                                <EmployeeAvatar path={emp.personal_photo_url} name={emp.name} />
                                 <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
                                   {emp.name}
                                 </button>

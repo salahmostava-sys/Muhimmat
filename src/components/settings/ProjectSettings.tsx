@@ -13,11 +13,13 @@ import { cn } from '@/lib/utils';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
   const { lang } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const { settings, refresh } = useSystemSettings();
   const { toast } = useToast();
   const { isAdmin } = usePermissions('settings');
@@ -62,14 +64,21 @@ export default function ProjectSettings() {
 
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
-        const path = `logo/project-logo.${ext}`;
+        const path = `${user?.id}/project-logo.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('avatars')
           .upload(path, logoFile, { upsert: true });
-        if (!upErr) {
-          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-          logo_url = publicUrl;
+        if (upErr) {
+          setSaving(false);
+          toast({
+            title: isRTL ? 'فشل رفع الشعار' : 'Logo upload failed',
+            description: upErr.message,
+            variant: 'destructive',
+          });
+          return;
         }
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+        logo_url = publicUrl;
       }
 
       const payload = {
