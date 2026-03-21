@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardCheck, CalendarDays, Download, Upload, BarChart2 } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, FolderOpen, Upload, BarChart2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import DailyAttendance from '@/components/attendance/DailyAttendance';
 import MonthlyRecord from '@/components/attendance/MonthlyRecord';
@@ -89,20 +89,19 @@ const Attendance = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <Download size={14} />
-                {lang === 'ar' ? 'البيانات ▾' : 'Data ▾'}
+                <FolderOpen size={14} />
+                {lang === 'ar' ? 'ملفات' : 'Files'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExportAttendance}>
                 📊 {lang === 'ar' ? 'تصدير Excel (ملخص شهري)' : 'Export Excel (Monthly Summary)'}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleAttendanceTemplate}>
+                📋 {lang === 'ar' ? 'تحميل قالب الاستيراد' : 'Download Import Template'}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => importRef.current?.click()}>
                 <Upload size={14} className="ms-2" /> {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleAttendanceTemplate}>
-                📋 {lang === 'ar' ? 'تحميل القالب' : 'Download Template'}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {

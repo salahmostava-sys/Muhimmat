@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Search, Plus, Upload, Download, Edit2, Trash2,
+  Search, Plus, Upload, Download, FolderOpen, Edit2, Trash2,
   Fuel, TrendingUp, DollarSign, Package,
   X, Check, Activity, Calendar, BarChart3,
 } from 'lucide-react';
@@ -656,14 +656,10 @@ const FuelPage = () => {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9"><FolderOpen size={14} /> ملفات</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleExportMonthly}>📊 تصدير Excel (ملخص شهري)</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowImport(true)}>
-                  <Upload size={14} className="ml-2" /> استيراد GPS شهري
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   const headers = [['اسم المندوب', 'الكيلومترات', 'تكلفة البنزين (ر.س)', 'ملاحظات']];
                   const ws = XLSX.utils.aoa_to_sheet(headers);
@@ -671,6 +667,10 @@ const FuelPage = () => {
                   XLSX.utils.book_append_sheet(wb, ws, 'قالب');
                   XLSX.writeFile(wb, 'template_fuel.xlsx');
                 }}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowImport(true)}>
+                  <Upload size={14} className="ml-2" /> استيراد GPS شهري
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

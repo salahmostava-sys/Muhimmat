@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
-  Plus, Download, Eye, Edit, Trash2,
+  Plus, FolderOpen, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
   Columns, Filter, X, ChevronDown as FilterIcon, CalendarDays
 } from 'lucide-react';
@@ -577,15 +577,15 @@ const Employees = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <Download size={14} /> البيانات ▾
+                <FolderOpen size={14} /> ملفات
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
               {permissions.can_edit && (
                 <DropdownMenuItem onClick={() => setShowImportModal(true)}>📥 استيراد Excel</DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
