@@ -7,7 +7,7 @@ import {
   Star, ThumbsUp, ThumbsDown, Minus, Settings2,
 } from 'lucide-react';
 import AlertsList from '@/components/AlertsList';
-import { supabase } from '@/integrations/supabase/client';
+import { dashboardService } from '@/services/dashboardService';
 import {
   format, subDays, formatDistanceToNow,
   subMonths, startOfMonth, endOfMonth, getDaysInMonth, getDate,
@@ -183,18 +183,13 @@ const AnalyticsTab = () => {
       });
       setMonthLabels(months.map(m => m.label));
 
-      const [appsRes, empRes] = await Promise.all([
-        supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
-        supabase.from('employees').select('id, name').eq('status', 'active'),
-      ]);
+      const { appsRes, empRes, monthOrdersResults } = await dashboardService.fetchHistoricalData(months);
       const apps = appsRes.data || [];
       const appMap = Object.fromEntries(apps.map(a => [a.id, a]));
       const empMap = Object.fromEntries((empRes.data || []).map(e => [e.id, e.name]));
 
       // Fetch orders for each of the 6 months
-      const monthOrderResults = await Promise.all(
-        months.map(m => supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', m.start).lte('date', m.end))
-      );
+      const monthOrderResults = monthOrdersResults;
 
       // Build trend
       const trendData = months.map((m, i) => {
@@ -453,19 +448,8 @@ const Dashboard = () => {
       const prevStart = `${prevMonth}-01`;
       const prevEnd = format(endOfMonth(new Date(`${prevMonth}-01`)), 'yyyy-MM-dd');
 
-      const [empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes] = await Promise.all([
-        supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('attendance').select('status').eq('date', today),
-        supabase.from('daily_orders').select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name, city)').gte('date', currentMonth + '-01').lte('date', today),
-        supabase.from('daily_orders').select('orders_count').gte('date', prevStart).lte('date', prevEnd),
-        supabase.from('attendance').select('date, status').gte('date', sixDaysAgo).lte('date', today),
-        supabase.from('audit_log').select('action, table_name, created_at, profiles(name, email)').order('created_at', { ascending: false }).limit(6),
-        supabase.from('employees').select('city, license_status, sponsorship_status').eq('status', 'active'),
-        supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
-        supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
-        supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
-      ]);
+      const { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes } =
+        await dashboardService.fetchMainData(today, currentMonth, prevStart, prevEnd, sixDaysAgo);
 
       const appsData = appsRes.data || [];
       setApps(appsData);

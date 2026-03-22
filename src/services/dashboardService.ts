@@ -152,13 +152,75 @@ export const dashboardService = {
     return { data, error };
   },
 
-  /** Employee city + license distribution (for map/stats) */
+  /** Employee city + license + sponsorship distribution (for map/stats) */
   getEmployeeDistribution: async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('city, license_status')
+      .select('city, license_status, sponsorship_status')
       .eq('status', 'active');
     return { data, error };
+  },
+
+  /** Active vehicles count */
+  getActiveVehiclesCount: async () => {
+    const { count, error } = await supabase
+      .from('vehicles')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active');
+    return { count: count ?? 0, error };
+  },
+
+  /** Unresolved alerts count */
+  getUnresolvedAlertsCount: async () => {
+    const { count, error } = await supabase
+      .from('alerts')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_resolved', false);
+    return { count: count ?? 0, error };
+  },
+
+  /** App monthly targets */
+  getAppTargets: async (monthYear: string) => {
+    const { data, error } = await supabase
+      .from('app_targets')
+      .select('app_id, target_orders')
+      .eq('month_year', monthYear);
+    return { data, error };
+  },
+
+  /**
+   * Main dashboard data — all 11 queries in one parallel call.
+   * Returns raw Supabase response objects so callers need zero reshaping.
+   */
+  fetchMainData: async (today: string, currentMonth: string, prevStart: string, prevEnd: string, sixDaysAgo: string) => {
+    const [empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes] = await Promise.all([
+      supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('attendance').select('status').eq('date', today),
+      supabase.from('daily_orders').select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name, city)').gte('date', currentMonth + '-01').lte('date', today),
+      supabase.from('daily_orders').select('orders_count').gte('date', prevStart).lte('date', prevEnd),
+      supabase.from('attendance').select('date, status').gte('date', sixDaysAgo).lte('date', today),
+      supabase.from('audit_log').select('action, table_name, created_at, profiles(name, email)').order('created_at', { ascending: false }).limit(6),
+      supabase.from('employees').select('city, license_status, sponsorship_status').eq('status', 'active'),
+      supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
+      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
+      supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
+    ]);
+    return { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes };
+  },
+
+  /**
+   * Historical chart data — apps + employees list + N-month orders.
+   */
+  fetchHistoricalData: async (months: { start: string; end: string }[]) => {
+    const [appsRes, empRes, ...monthOrdersResults] = await Promise.all([
+      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
+      supabase.from('employees').select('id, name').eq('status', 'active'),
+      ...months.map(m =>
+        supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', m.start).lte('date', m.end)
+      ),
+    ]);
+    return { appsRes, empRes, monthOrdersResults };
   },
 
   /** All KPIs in one parallel fetch */
