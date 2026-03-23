@@ -10,7 +10,7 @@ interface SystemSettings {
   logo_url: string | null;
   default_language: string;
   theme: string;
-  iqama_alert_days: number;
+  iqama_alert_days?: number;
 }
 
 interface SystemSettingsContextType {
@@ -51,7 +51,7 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
       .select('*')
       .limit(1)
       .maybeSingle();
-    setSettings((data as SystemSettings) ?? defaults);
+    setSettings((data as unknown as SystemSettings) ?? defaults);
     setLoading(false);
   }, []);
 
