@@ -215,21 +215,21 @@ const PlatformAccounts = () => {
     const monthYear = assignForm.start_date.slice(0, 7);
 
     // 1. Close any open assignment for this account
-    const { data: open } = await supabase
+    const { data: open } = await (supabase as any)
       .from('account_assignments')
       .select('id')
       .eq('account_id', assignTarget!.id)
       .is('end_date', null);
 
     if (open && open.length > 0) {
-      await supabase
+      await (supabase as any)
         .from('account_assignments')
         .update({ end_date: today })
         .in('id', open.map((x: any) => x.id));
     }
 
     // 2. Insert new assignment
-    const { error } = await supabase.from('account_assignments').insert({
+    const { error } = await (supabase as any).from('account_assignments').insert({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,
