@@ -77,7 +77,7 @@ const Alerts = () => {
           .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
 
         // Platform accounts with iqama expiring within configurable days
-        supabase
+        (supabase as any)
           .from('platform_accounts')
           .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
           .eq('status', 'active')

@@ -253,7 +253,7 @@ const PlatformAccounts = () => {
     setHistoryDialog(true);
     setHistoryLoading(true);
 
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('account_assignments')
       .select('*')
       .eq('account_id', account.id)

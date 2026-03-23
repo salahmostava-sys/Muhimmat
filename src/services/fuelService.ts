@@ -56,7 +56,7 @@ export const fuelService = {
   },
 
   getMileageByAssignment: async (assignmentId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('vehicle_mileage')
       .select('*')
       .eq('vehicle_assignment_id', assignmentId)
