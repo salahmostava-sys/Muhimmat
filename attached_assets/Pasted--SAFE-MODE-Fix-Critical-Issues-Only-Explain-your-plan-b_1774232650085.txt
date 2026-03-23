@@ -1,0 +1,34 @@
+إليك البرومبت:
+
+---
+
+**SAFE MODE — Fix Critical Issues Only**
+
+Explain your plan before making any changes. Maximum 6 files changed.
+
+**Issue 1 — Update Supabase TypeScript types**
+
+The migration file `20260321000001_platform_accounts.sql` added two new tables (`platform_accounts` and `account_assignments`) and a new column (`iqama_alert_days` in `system_settings`), but `src/integrations/supabase/types.ts` was never updated to reflect these changes. This causes TypeScript errors throughout `PlatformAccounts.tsx`.
+
+Add the correct TypeScript type definitions for both tables to `types.ts` following the exact same pattern used for existing tables in that file. Do NOT regenerate or rewrite the entire types file — only append the new table definitions.
+
+**Issue 2 — Connect existing services to pages**
+
+The following service files exist but are completely unused — no page imports them:
+
+`advanceService.ts`, `fuelService.ts`, `orderService.ts`, `salaryService.ts`, `vehicleService.ts`
+
+For each service, find its corresponding page and replace the direct `supabase.from(...)` calls with the equivalent service function. Do NOT rewrite page logic — only swap the data-fetching calls. If a service function is missing for a specific query used in the page, add it to the service file first.
+
+Start with `orderService.ts` and `Orders.tsx` only — do not touch the other services yet. Confirm it works before proceeding to the next one.
+
+**Issue 3 — Replace hardcoded colors**
+
+There are 156 instances of hardcoded colors (`bg-gray-`, `text-gray-`, `bg-white`, hex values) across page files. This breaks dark mode consistency. Replace all instances in newly added files only — specifically `PlatformAccounts.tsx` — with the existing CSS variables from `index.css`. Do NOT touch `Dashboard.tsx`, `Salaries.tsx`, or any other existing page in this step.
+
+**Hard rules:**
+- Do NOT split or restructure any existing file
+- Do NOT touch `Salaries.tsx` in any way
+- Do NOT regenerate `types.ts` from scratch
+- Show only the changed portions of each file
+- If any change risks breaking existing functionality, stop and ask
