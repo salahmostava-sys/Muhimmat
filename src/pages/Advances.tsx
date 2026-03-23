@@ -45,6 +45,40 @@ type Advance = {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const calcPaid = (installments: Installment[]) =>
   installments.filter(i => i.status === 'deducted').reduce((s, i) => s + i.amount, 0);
+const calcPending = (installments: Installment[]) =>
+  installments.filter(i => i.status === 'pending').reduce((s, i) => s + i.amount, 0);
+
+const buildInstallmentsPayload = (
+  advanceId: string,
+  firstMonthYear: string,
+  totalAmount: number,
+  installmentCount: number
+) => {
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0 || installmentCount <= 0) return [];
+  const list = [];
+  const baseAmount = Math.round(totalAmount / installmentCount);
+  let remaining = totalAmount;
+  let [yr, mo] = firstMonthYear.split('-').map(Number);
+
+  for (let i = 0; i < installmentCount; i++) {
+    const isLast = i === installmentCount - 1;
+    const amount = isLast ? remaining : baseAmount;
+    list.push({
+      advance_id: advanceId,
+      month_year: `${yr}-${String(mo).padStart(2, '0')}`,
+      amount,
+      status: 'pending' as const,
+    });
+    remaining -= amount;
+    mo++;
+    if (mo > 12) {
+      mo = 1;
+      yr++;
+    }
+  }
+
+  return list;
+};
 
 const currentMonth = format(new Date(), 'yyyy-MM');
 
@@ -81,12 +115,12 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
       note: form.note || null, status: 'active',
     }).select().single();
     if (error || !adv) { setSaving(false); return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' }); }
-    const installments = [];
-    let [yr, mo] = form.first_deduction_month.split('-').map(Number);
-    for (let i = 0; i < projectedInstallments; i++) {
-      installments.push({ advance_id: adv.id, month_year: `${yr}-${String(mo).padStart(2, '0')}`, amount: parseFloat(form.monthly_amount), status: 'pending' as const });
-      mo++; if (mo > 12) { mo = 1; yr++; }
-    }
+    const installments = buildInstallmentsPayload(
+      adv.id,
+      form.first_deduction_month,
+      parseFloat(form.amount),
+      projectedInstallments
+    );
     if (installments.length > 0) await supabase.from('advance_installments').insert(installments);
     setSaving(false);
     toast({ title: '✅ تم إضافة السلفة' });
@@ -101,10 +135,12 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
       .sort((a, b) => a.month_year.localeCompare(b.month_year));
     if (pendingInst.length === 0) return toast({ title: 'لا توجد أقساط معلّقة', variant: 'destructive' });
     setSaving(true);
+    const paymentAmount = parseFloat(payAmount);
     const noteText = payNote || `سداد يدوي بتاريخ ${payDate} — ${payAmount} ر.س`;
+    const targetInstallment = pendingInst.find(i => i.amount === paymentAmount) || pendingInst[0];
     const { error } = await supabase.from('advance_installments').update({
       status: 'deducted' as const, deducted_at: new Date().toISOString(), notes: noteText,
-    } as any).eq('id', pendingInst[0].id);
+    } as any).eq('id', targetInstallment.id);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
     toast({ title: `✅ تم تسجيل السداد — ${payAmount} ر.س` });
@@ -321,15 +357,17 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
     }).eq('id', advance.id);
     if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
     await supabase.from('advance_installments').delete().eq('advance_id', advance.id).eq('status', 'pending');
-    const installments = [];
-    let [year, month] = form.first_deduction_month.split('-').map(Number);
-    const paidCount = (advance.advance_installments || []).filter(i => i.status === 'deducted').length;
-    const remaining_count = projectedInstallments - paidCount;
-    for (let i = 0; i < remaining_count; i++) {
-      const my = `${year}-${String(month).padStart(2, '0')}`;
-      installments.push({ advance_id: advance.id, month_year: my, amount: parseFloat(form.monthly_amount), status: 'pending' as const });
-      month++; if (month > 12) { month = 1; year++; }
-    }
+    const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
+    const paidCount = paidInstallments.length;
+    const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
+    const remaining_count = Math.max(projectedInstallments - paidCount, 0);
+    const remainingAmount = Math.max((parseFloat(form.amount) || 0) - paidAmount, 0);
+    const installments = buildInstallmentsPayload(
+      advance.id,
+      form.first_deduction_month,
+      remainingAmount,
+      remaining_count
+    );
     if (installments.length > 0) await supabase.from('advance_installments').insert(installments);
     setSaving(false);
     toast({ title: 'تم تحديث السلفة ✅' });
@@ -846,8 +884,11 @@ const Advances = () => {
       .map(emp => {
         const empAdvances = advances.filter(a => a.employee_id === emp.id && !a.is_written_off && a.status === 'active');
         const remaining = empAdvances.reduce((sum, adv) => {
-          const paid = calcPaid(adv.advance_installments || []);
-          return sum + (adv.amount - paid);
+          const installments = adv.advance_installments || [];
+          const pending = calcPending(installments);
+          const paid = calcPaid(installments);
+          const fallback = Math.max(adv.amount - paid, 0);
+          return sum + (installments.length > 0 ? pending : fallback);
         }, 0);
         const activeIds = empAdvances.map(a => a.id);
         return remaining > 0 ? { ...emp, remaining, activeIds } : null;
@@ -873,8 +914,10 @@ const Advances = () => {
       const empId = adv.employee_id;
       const empName = adv.employees?.name || '—';
       const nationalId = adv.employees?.national_id || '—';
-      const paid = calcPaid(adv.advance_installments || []);
-      const remaining = adv.amount - paid;
+      const installments = adv.advance_installments || [];
+      const paid = calcPaid(installments);
+      const pending = calcPending(installments);
+      const remaining = installments.length > 0 ? pending : Math.max(adv.amount - paid, 0);
       if (!map.has(empId)) {
         map.set(empId, { employeeId: empId, employeeName: empName, nationalId, totalDebt: 0, totalPaid: 0, remaining: 0, activeAdvances: [], allAdvances: [], isWrittenOff: false });
       }

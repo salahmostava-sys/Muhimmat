@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
 
 /* ─── Types ─── */
@@ -148,6 +149,7 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
 ═══════════════════════════════════════════════════════════════ */
 const EmployeeTiers = () => {
   const { toast } = useToast();
+  const { permissions: perms } = usePermissions('employee_tiers');
 
   const [tiers, setTiers]       = useState<TierRow[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -252,6 +254,10 @@ const EmployeeTiers = () => {
   const isDirty = (tier: TierRow) => !!editRows[tier.id];
 
   const saveRow = async (tier: TierRow) => {
+    if (!perms.can_edit) {
+      toast({ title: 'صلاحية غير كافية', description: 'ليس لديك صلاحية التعديل', variant: 'destructive' });
+      return;
+    }
     const merged = { ...tier, ...editRows[tier.id] };
     if (!merged.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     setSavingId(tier.id);
@@ -277,6 +283,10 @@ const EmployeeTiers = () => {
 
   /* ── Add new row ── */
   const saveNew = async () => {
+    if (!perms.can_edit) {
+      toast({ title: 'صلاحية غير كافية', description: 'ليس لديك صلاحية الإضافة', variant: 'destructive' });
+      return;
+    }
     if (!newRow.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     if (!newRow.renewal_date) { toast({ title: 'خطأ', description: 'أدخل تاريخ التجديد', variant: 'destructive' }); return; }
     setSavingNew(true);
@@ -301,6 +311,10 @@ const EmployeeTiers = () => {
 
   /* ── Delete ── */
   const handleDelete = async () => {
+    if (!perms.can_delete) {
+      toast({ title: 'صلاحية غير كافية', description: 'ليس لديك صلاحية الحذف', variant: 'destructive' });
+      return;
+    }
     if (!deleteId) return;
     await (supabase as any).from('employee_tiers').delete().eq('id', deleteId);
     toast({ title: 'تم الحذف' });
@@ -372,7 +386,7 @@ const EmployeeTiers = () => {
           </nav>
           <h1 className="page-title flex items-center gap-2"><Layers size={20} /> شرائح الشركة</h1>
         </div>
-        <Button className="gap-2" onClick={() => setAddingRow(true)} disabled={addingRow}>
+        <Button className="gap-2" onClick={() => setAddingRow(true)} disabled={addingRow || !perms.can_edit}>
           <Plus size={15} /> إضافة شريحة
         </Button>
       </div>
@@ -413,7 +427,7 @@ const EmployeeTiers = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card border border-border/50 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
         {loading ? (
           <div className="h-48 flex items-center justify-center text-muted-foreground gap-2">
             <Loader2 size={18} className="animate-spin" /> جارٍ التحميل...
@@ -486,7 +500,7 @@ const EmployeeTiers = () => {
                     {/* actions */}
                     <td className="px-2 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Button size="sm" onClick={saveNew} disabled={savingNew} className="h-7 px-2 text-xs gap-1">
+                        <Button size="sm" onClick={saveNew} disabled={savingNew || !perms.can_edit} className="h-7 px-2 text-xs gap-1">
                           {savingNew ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                           حفظ
                         </Button>
@@ -588,7 +602,7 @@ const EmployeeTiers = () => {
                           <div className="flex items-center justify-center gap-1">
                             {dirty ? (
                               <>
-                                <Button size="sm" onClick={() => saveRow(tier)} disabled={savingId === tier.id} className="h-7 px-2 text-xs gap-1">
+                                <Button size="sm" onClick={() => saveRow(tier)} disabled={savingId === tier.id || !perms.can_edit} className="h-7 px-2 text-xs gap-1">
                                   {savingId === tier.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                                   حفظ
                                 </Button>
@@ -597,7 +611,12 @@ const EmployeeTiers = () => {
                                 </button>
                               </>
                             ) : (
-                              <button onClick={() => setDeleteId(tier.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="حذف">
+                              <button
+                                onClick={() => setDeleteId(tier.id)}
+                                disabled={!perms.can_delete}
+                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="حذف"
+                              >
                                 <Trash2 size={13} />
                               </button>
                             )}
@@ -644,7 +663,7 @@ const EmployeeTiers = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={!perms.can_delete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed">حذف</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

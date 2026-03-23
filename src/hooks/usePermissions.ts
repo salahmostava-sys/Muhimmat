@@ -24,6 +24,10 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     settings:           { can_view: true,  can_edit: true,  can_delete: true  },
     apps:               { can_view: true,  can_edit: true,  can_delete: true  },
     platform_accounts:  { can_view: true,  can_edit: true,  can_delete: true  },
+    violation_resolver: { can_view: true,  can_edit: true,  can_delete: true  },
+    vehicle_assignment: { can_view: true,  can_edit: true,  can_delete: true  },
+    fuel:               { can_view: true,  can_edit: true,  can_delete: true  },
+    employee_tiers:     { can_view: true,  can_edit: true,  can_delete: true  },
   },
   hr: {
     employees:          { can_view: true,  can_edit: true,  can_delete: false },
@@ -37,6 +41,10 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     settings:           { can_view: false, can_edit: false, can_delete: false },
     apps:               { can_view: true,  can_edit: false, can_delete: false },
     platform_accounts:  { can_view: true,  can_edit: true,  can_delete: false },
+    violation_resolver: { can_view: false, can_edit: false, can_delete: false },
+    vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
+    fuel:               { can_view: true,  can_edit: false, can_delete: false },
+    employee_tiers:     { can_view: true,  can_edit: true,  can_delete: true  },
   },
   finance: {
     employees:          { can_view: true,  can_edit: false, can_delete: false },
@@ -50,6 +58,10 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     settings:           { can_view: false, can_edit: false, can_delete: false },
     apps:               { can_view: true,  can_edit: false, can_delete: false },
     platform_accounts:  { can_view: true,  can_edit: false, can_delete: false },
+    violation_resolver: { can_view: true,  can_edit: true,  can_delete: true  },
+    vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
+    fuel:               { can_view: true,  can_edit: true,  can_delete: true  },
+    employee_tiers:     { can_view: true,  can_edit: false, can_delete: false },
   },
   operations: {
     employees:          { can_view: true,  can_edit: false, can_delete: false },
@@ -63,6 +75,10 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     settings:           { can_view: false, can_edit: false, can_delete: false },
     apps:               { can_view: true,  can_edit: false, can_delete: false },
     platform_accounts:  { can_view: true,  can_edit: false, can_delete: false },
+    violation_resolver: { can_view: false, can_edit: false, can_delete: false },
+    vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
+    fuel:               { can_view: true,  can_edit: false, can_delete: false },
+    employee_tiers:     { can_view: true,  can_edit: false, can_delete: false },
   },
   viewer: {
     employees:          { can_view: false, can_edit: false, can_delete: false },
@@ -76,6 +92,10 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     settings:           { can_view: false, can_edit: false, can_delete: false },
     apps:               { can_view: false, can_edit: false, can_delete: false },
     platform_accounts:  { can_view: false, can_edit: false, can_delete: false },
+    violation_resolver: { can_view: false, can_edit: false, can_delete: false },
+    vehicle_assignment: { can_view: false, can_edit: false, can_delete: false },
+    fuel:               { can_view: false, can_edit: false, can_delete: false },
+    employee_tiers:     { can_view: false, can_edit: false, can_delete: false },
   },
 };
 

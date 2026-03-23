@@ -43,6 +43,11 @@ const PAGE_KEYS = [
   { key: 'deductions', label: 'الخصومات' },
   { key: 'vehicles', label: 'المركبات' },
   { key: 'alerts', label: 'التنبيهات' },
+  { key: 'platform_accounts', label: 'حسابات المنصات' },
+  { key: 'violation_resolver', label: 'استعلام المخالفات' },
+  { key: 'vehicle_assignment', label: 'تسليم العهد' },
+  { key: 'fuel', label: 'الوقود والكيلومترات' },
+  { key: 'employee_tiers', label: 'شرائح الشركة' },
   { key: 'apps', label: 'التطبيقات' },
   { key: 'settings', label: 'الإعدادات' },
 ];

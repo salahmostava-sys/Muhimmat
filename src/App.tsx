@@ -75,11 +75,11 @@ const App = () => (
                                     <Route path="/salaries" element={<PageGuard pageKey="salaries"><Salaries /></PageGuard>} />
                                     <Route path="/advances" element={<PageGuard pageKey="advances"><Advances /></PageGuard>} />
                                     <Route path="/motorcycles" element={<PageGuard pageKey="vehicles"><Motorcycles /></PageGuard>} />
-                                    <Route path="/vehicle-assignment" element={<PageGuard pageKey="vehicles"><VehicleAssignment /></PageGuard>} />
-                                    <Route path="/fuel" element={<PageGuard pageKey="vehicles"><FuelPage /></PageGuard>} />
+                                    <Route path="/vehicle-assignment" element={<PageGuard pageKey="vehicle_assignment"><VehicleAssignment /></PageGuard>} />
+                                    <Route path="/fuel" element={<PageGuard pageKey="fuel"><FuelPage /></PageGuard>} />
                                     <Route path="/apps" element={<PageGuard pageKey="apps"><Apps /></PageGuard>} />
                                     <Route path="/alerts" element={<PageGuard pageKey="alerts"><Alerts /></PageGuard>} />
-                                    <Route path="/employee-tiers" element={<PageGuard pageKey="employees"><EmployeeTiers /></PageGuard>} />
+                                    <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />
                                     <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
 
                                     {/* ── Unified Settings Hub ── */}
@@ -95,7 +95,7 @@ const App = () => (
                                     <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
                                     <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
                                     <Route path="/deductions" element={<Navigate to="/advances" replace />} />
-                                    <Route path="/violation-resolver" element={<PageGuard pageKey="employees"><ViolationResolver /></PageGuard>} />
+                                    <Route path="/violation-resolver" element={<PageGuard pageKey="violation_resolver"><ViolationResolver /></PageGuard>} />
                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
                                 </Suspense>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, X, Check, Target, TrendingUp } from 'lucide-react';
@@ -25,6 +25,12 @@ const dateStr = (y: number, m: number, d: number) =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const monthYear = (y: number, m: number) =>
   `${y}-${String(m).padStart(2, '0')}`;
+const isPastMonth = (y: number, m: number) => {
+  const now = new Date();
+  const currentMonthIndex = now.getFullYear() * 12 + (now.getMonth() + 1);
+  const selectedMonthIndex = y * 12 + m;
+  return selectedMonthIndex < currentMonthIndex;
+};
 
 // ─── Cell Popover ─────────────────────────────────────────────────
 type PopoverState = { empId: string; day: number; x: number; y: number };
@@ -142,6 +148,11 @@ const SpreadsheetGrid = () => {
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
   const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
+  const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [isMonthLocked, setIsMonthLocked] = useState(false);
+  const [lockingMonth, setLockingMonth] = useState(false);
+  const canEditMonth = permissions.can_edit && !isMonthLocked;
 
   useEffect(() => {
     let isMounted = true;
@@ -176,6 +187,23 @@ const SpreadsheetGrid = () => {
     return () => { isMounted = false; };
   }, [year, month]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const my = monthYear(year, month);
+    supabase
+      .from('locked_months' as any)
+      .select('month_year')
+      .eq('month_year', my)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!isMounted) return;
+        setIsMonthLocked(!!data);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [year, month]);
+
   const filteredEmployees = employees.filter(emp => emp.name.includes(search));
   const days = getDaysInMonth(year, month);
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
@@ -186,6 +214,46 @@ const SpreadsheetGrid = () => {
   const empDayTotal = (empId: string, day: number) => apps.reduce((s, a) => s + getVal(empId, a.id, day), 0);
   const empMonthTotal = (empId: string) => dayArr.reduce((s, d) => s + empDayTotal(empId, d), 0);
   const empAppMonthTotal = (empId: string, appId: string) => dayArr.reduce((s, d) => s + getVal(empId, appId, d), 0);
+
+  const sortedEmployees = useMemo(() => {
+    const sorted = [...filteredEmployees].sort((a, b) => {
+      let aVal: number | string = '';
+      let bVal: number | string = '';
+      if (sortField === 'name') {
+        aVal = a.name;
+        bVal = b.name;
+      } else if (sortField === 'total') {
+        aVal = empMonthTotal(a.id);
+        bVal = empMonthTotal(b.id);
+      } else {
+        const appId = sortField.replace('app:', '');
+        aVal = empAppMonthTotal(a.id, appId);
+        bVal = empAppMonthTotal(b.id, appId);
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const cmp = aVal.localeCompare(bVal, 'ar');
+        return sortDir === 'asc' ? cmp : -cmp;
+      }
+      const cmp = Number(aVal) - Number(bVal);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredEmployees, sortField, sortDir, dayArr.length, data]);
+
+  const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
+    if (sortField === field) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'name' | 'total' | `app:${string}` }) => {
+    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
+    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -199,9 +267,10 @@ const SpreadsheetGrid = () => {
   };
 
   const handleCellClick = useCallback((e: React.MouseEvent, empId: string, day: number) => {
+    if (!canEditMonth) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setCellPopover({ empId, day, x: rect.left, y: rect.bottom });
-  }, []);
+  }, [canEditMonth]);
 
   const handlePopoverApply = useCallback((empId: string, day: number, vals: Record<string, number>) => {
     setData(prev => {
@@ -286,6 +355,7 @@ const SpreadsheetGrid = () => {
 
   // ── Save ──
   const handleSave = async () => {
+    if (isMonthLocked) return;
     setSaving(true);
     const rows: { employee_id: string; app_id: string; date: string; orders_count: number }[] = [];
     Object.entries(data).forEach(([key, count]) => {
@@ -301,6 +371,26 @@ const SpreadsheetGrid = () => {
     } else {
       toast({ title: `✅ تم حفظ ${saved} إدخال بنجاح`, description: `بيانات ${monthLabel(year, month)}` });
     }
+  };
+
+  const handleLockMonth = async () => {
+    const my = monthYear(year, month);
+    if (!isPastMonth(year, month) || isMonthLocked) return;
+    setLockingMonth(true);
+    const { data: userRes } = await supabase.auth.getUser();
+    const userId = userRes.user?.id ?? null;
+    const { error } = await supabase.from('locked_months' as any).upsert(
+      { month_year: my, locked_at: new Date().toISOString(), locked_by: userId },
+      { onConflict: 'month_year' }
+    );
+    setLockingMonth(false);
+    if (error) {
+      toast({ title: 'فشل قفل الشهر', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setIsMonthLocked(true);
+    setCellPopover(null);
+    toast({ title: '✅ تم قفل الشهر بنجاح' });
   };
 
   return (
@@ -331,17 +421,47 @@ const SpreadsheetGrid = () => {
               <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {permissions.can_edit && (
+          {permissions.can_edit && !isMonthLocked && (
             <Button size="sm" className="gap-1.5 h-9" onClick={handleSave} disabled={saving}>
               {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
+            </Button>
+          )}
+          {permissions.can_edit && isPastMonth(year, month) && !isMonthLocked && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-9 text-warning border-warning/40 hover:bg-warning/10"
+              onClick={handleLockMonth}
+              disabled={lockingMonth}
+            >
+              {lockingMonth ? <><Loader2 size={14} className="animate-spin" /> جاري القفل...</> : <>قفل الشهر</>}
             </Button>
           )}
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground flex-shrink-0">
-        💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات
+        {isMonthLocked
+          ? '🔒 هذا الشهر مقفول: كل الخلايا للقراءة فقط'
+          : '💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات'}
       </p>
+      <div className="flex items-center gap-1.5 flex-wrap text-xs">
+        <button onClick={() => handleSort('name')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
+          اسم المندوب <SortIcon field="name" />
+        </button>
+        <button onClick={() => handleSort('total')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
+          إجمالي الطلبات <SortIcon field="total" />
+        </button>
+        {apps.map(app => (
+          <button
+            key={app.id}
+            onClick={() => handleSort(`app:${app.id}`)}
+            className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30"
+          >
+            {app.name} <SortIcon field={`app:${app.id}`} />
+          </button>
+        ))}
+      </div>
 
       {/* Grid — flex-1 fills remaining space, internal scroll only */}
       <div
@@ -356,9 +476,11 @@ const SpreadsheetGrid = () => {
           <table ref={tableRef} className="border-collapse text-xs" style={{ minWidth: `${220 + days * 44 + 80}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted/90 border-b-2 border-border">
-                <th className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border"
+                <th
+                  onClick={() => handleSort('name')}
+                  className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
                   style={{ minWidth: 220 }}>
-                  المندوب / المنصة
+                  المندوب / المنصة <SortIcon field="name" />
                 </th>
                 {dayArr.map(d => {
                   const dow = new Date(year, month - 1, d).getDay();
@@ -374,17 +496,19 @@ const SpreadsheetGrid = () => {
                     </th>
                   );
                 })}
-                <th className="sticky left-0 z-30 text-center py-2.5 font-bold text-primary bg-primary/15 border-r-2 border-border"
+                <th
+                  onClick={() => handleSort('total')}
+                  className="sticky left-0 z-30 text-center py-2.5 font-bold text-primary bg-primary/15 border-r-2 border-border cursor-pointer"
                   style={{ minWidth: 72 }}>
-                  المجموع
+                  المجموع <SortIcon field="total" />
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredEmployees.length === 0 ? (
+              {sortedEmployees.length === 0 ? (
                 <tr><td colSpan={days + 2} className="text-center py-12 text-muted-foreground">لا يوجد مناديب</td></tr>
-              ) : filteredEmployees.map((emp, idx) => {
+              ) : sortedEmployees.map((emp, idx) => {
                 const activeApps = getActiveApps(emp.id);
                 const isExpanded = expandedEmp.has(emp.id);
                 const total = empMonthTotal(emp.id);
@@ -435,7 +559,7 @@ const SpreadsheetGrid = () => {
                             className={`text-center p-0 border-l border-border/30 transition-colors
                               ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : isThursday ? 'bg-muted/10' : ''}
                               ${isOpen ? 'ring-2 ring-inset ring-primary' : ''}
-                              ${permissions.can_edit ? 'cursor-pointer hover:bg-primary/5' : ''}`}
+                              ${canEditMonth ? 'cursor-pointer hover:bg-primary/5' : ''}`}
                             style={{ minWidth: 42 }}
                             onClick={e => handleCellClick(e, emp.id, d)}
                           >
@@ -512,7 +636,7 @@ const SpreadsheetGrid = () => {
                   الإجمالي
                 </td>
                 {dayArr.map(d => {
-                  const dayTotal = filteredEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
+                  const dayTotal = sortedEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
                   const isToday = d === today;
                   return (
                     <td key={d} className={`text-center px-1 py-2.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
@@ -523,7 +647,7 @@ const SpreadsheetGrid = () => {
                 })}
                 <td className="sticky left-0 z-10 text-center px-2 py-2.5 font-bold text-sm text-primary border-r-2 border-border"
                   style={{ backgroundColor: 'hsl(var(--primary) / 0.2)', minWidth: 72 }}>
-                  {filteredEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
+                  {sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
                 </td>
               </tr>
             </tbody>
@@ -534,7 +658,7 @@ const SpreadsheetGrid = () => {
       {cellPopover && (
         <CellPopover
           state={cellPopover} apps={apps} data={data} appColorsList={appColorsList}
-          canEdit={permissions.can_edit} onApply={handlePopoverApply} onClose={() => setCellPopover(null)}
+          canEdit={canEditMonth} onApply={handlePopoverApply} onClose={() => setCellPopover(null)}
         />
       )}
     </div>
@@ -545,6 +669,7 @@ const SpreadsheetGrid = () => {
 const MonthSummary = () => {
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
+  const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -554,6 +679,9 @@ const MonthSummary = () => {
   const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
+  const [isMonthLocked, setIsMonthLocked] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     let isMounted = true;
@@ -573,16 +701,32 @@ const MonthSummary = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
+    setTargets({});
     supabase.from('app_targets' as any).select('app_id, target_orders').eq('month_year', my)
       .then(({ data: rows }) => {
         if (!isMounted) return;
-        if (rows) {
-          const t: Record<string, string> = {};
-          (rows as any[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
-          setTargets(t);
-        }
+        const t: Record<string, string> = {};
+        if (rows) (rows as any[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
+        setTargets(t);
       });
     return () => { isMounted = false; };
+  }, [year, month]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const my = monthYear(year, month);
+    supabase
+      .from('locked_months' as any)
+      .select('month_year')
+      .eq('month_year', my)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!isMounted) return;
+        setIsMonthLocked(!!data);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [year, month]);
 
   useEffect(() => {
@@ -606,6 +750,7 @@ const MonthSummary = () => {
   }, [year, month]);
 
   const saveTarget = async (appId: string, value: string) => {
+    if (isMonthLocked) return;
     const targetOrders = parseInt(value) || 0;
     const my = monthYear(year, month);
     setSavingTarget(appId);
@@ -628,6 +773,43 @@ const MonthSummary = () => {
     employees.reduce((s, e) => s + dayArr.reduce((ss, d) => ss + (data[`${e.id}::${appId}::${d}`] ?? 0), 0), 0);
 
   const grandTotal = employees.reduce((s, e) => s + empTotal(e.id), 0);
+  const sortedEmployees = useMemo(() => {
+    const sorted = [...employees].sort((a, b) => {
+      let aVal: number | string = '';
+      let bVal: number | string = '';
+      if (sortField === 'name') {
+        aVal = a.name;
+        bVal = b.name;
+      } else if (sortField === 'total') {
+        aVal = empTotal(a.id);
+        bVal = empTotal(b.id);
+      } else {
+        const appId = sortField.replace('app:', '');
+        aVal = dayArr.reduce((s, d) => s + (data[`${a.id}::${appId}::${d}`] ?? 0), 0);
+        bVal = dayArr.reduce((s, d) => s + (data[`${b.id}::${appId}::${d}`] ?? 0), 0);
+      }
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const cmp = aVal.localeCompare(bVal, 'ar');
+        return sortDir === 'asc' ? cmp : -cmp;
+      }
+      const cmp = Number(aVal) - Number(bVal);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [employees, sortField, sortDir, data, dayArr.length]);
+
+  const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
+    if (sortField === field) setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'name' | 'total' | `app:${string}` }) => {
+    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
+    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -692,6 +874,7 @@ const MonthSummary = () => {
                       onChange={e => setTargets(prev => ({ ...prev, [app.id]: e.target.value }))}
                       onBlur={e => saveTarget(app.id, e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveTarget(app.id, targets[app.id] || '0'); }}
+                      disabled={!permissions.can_edit || isMonthLocked}
                       className="w-full h-6 text-xs rounded border border-border bg-muted/30 px-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-center"
                     />
                     {isSaving && <Loader2 size={10} className="animate-spin text-muted-foreground flex-shrink-0" />}
@@ -719,17 +902,24 @@ const MonthSummary = () => {
             <thead>
               <tr className="border-b-2 border-border bg-muted/40">
                 <th className="text-center p-3 font-semibold text-muted-foreground w-10">#</th>
-                <th className="text-right p-3 font-semibold text-foreground min-w-[160px]">المندوب</th>
+                <th className="text-right p-3 font-semibold text-foreground min-w-[160px] cursor-pointer" onClick={() => handleSort('name')}>
+                  المندوب <SortIcon field="name" />
+                </th>
                 {apps.map(app => {
                   const c = getAppColor(appColorsList, app.name);
                   return (
-                    <th key={app.id} className="text-center p-3 font-semibold min-w-[90px] border-l border-border/50"
+                    <th
+                      key={app.id}
+                      onClick={() => handleSort(`app:${app.id}`)}
+                      className="text-center p-3 font-semibold min-w-[90px] border-l border-border/50 cursor-pointer"
                       style={{ backgroundColor: `${c.bg}22`, color: c.val }}>
-                      {app.name}
+                      {app.name} <SortIcon field={`app:${app.id}`} />
                     </th>
                   );
                 })}
-                <th className="text-center p-3 font-semibold text-primary min-w-[80px] border-l border-border">الإجمالي</th>
+                <th className="text-center p-3 font-semibold text-primary min-w-[80px] border-l border-border cursor-pointer" onClick={() => handleSort('total')}>
+                  الإجمالي <SortIcon field="total" />
+                </th>
                 <th className="text-center p-3 font-semibold text-muted-foreground min-w-[80px]">متوسط يومي</th>
               </tr>
             </thead>
@@ -742,7 +932,7 @@ const MonthSummary = () => {
                     ))}
                   </tr>
                 ))
-              ) : employees.map((emp, idx) => {
+              ) : sortedEmployees.map((emp, idx) => {
                 const total = empTotal(emp.id);
                 const avg = total > 0 ? Math.round(total / days) : 0;
                 return (

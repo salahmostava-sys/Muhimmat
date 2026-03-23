@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus, Edit, Search, UserPlus, Loader2, X,
   ShieldCheck, History, ChevronDown, ChevronRight,
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -49,6 +50,7 @@ interface Assignment {
 interface PlatformAccount {
   id: string;
   app_id: string;
+  employee_id?: string | null;
   app_name?: string;
   app_color?: string;
   app_text_color?: string;
@@ -92,8 +94,12 @@ const PlatformAccounts = () => {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
-  const [filterApp, setFilterApp] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [groupAppTab, setGroupAppTab] = useState<string>('all');
+
+  type SortKey = 'account_username' | 'account_id_on_platform' | 'iqama_number' | 'iqama_expiry_date' | 'current_employee' | 'status';
+  const [sortKey, setSortKey] = useState<SortKey>('iqama_expiry_date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Account dialog
   const [accountDialog, setAccountDialog] = useState(false);
@@ -155,7 +161,7 @@ const PlatformAccounts = () => {
 
   const openAddAccount = () => {
     setEditingAccount(null);
-    setAccountForm({ app_id: '', account_username: '', account_id_on_platform: '', iqama_number: '', iqama_expiry_date: '', status: 'active', notes: '' });
+    setAccountForm({ employee_id: null, app_id: '', account_username: '', account_id_on_platform: '', iqama_number: '', iqama_expiry_date: '', status: 'active', notes: '' });
     setAccountDialog(true);
   };
 
@@ -163,6 +169,45 @@ const PlatformAccounts = () => {
     setEditingAccount(a);
     setAccountForm({ ...a });
     setAccountDialog(true);
+  };
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortAccounts = (list: PlatformAccount[]) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const getVal = (x: PlatformAccount) => {
+        switch (sortKey) {
+          case 'account_username':
+            return x.account_username ?? '';
+          case 'account_id_on_platform':
+            return x.account_id_on_platform ?? '';
+          case 'iqama_number':
+            return x.iqama_number ?? '';
+          case 'iqama_expiry_date':
+            return x.iqama_expiry_date ? new Date(x.iqama_expiry_date).getTime() : null;
+          case 'current_employee':
+            return x.current_employee?.name ?? '';
+          case 'status':
+            return x.status ?? '';
+          default:
+            return '';
+        }
+      };
+      const va = getVal(a);
+      const vb = getVal(b);
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1 * dir;
+      if (vb === null) return -1 * dir;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'ar') * dir;
+    });
   };
 
   const saveAccount = async () => {
@@ -175,6 +220,7 @@ const PlatformAccounts = () => {
     const payload: any = {
       app_id: accountForm.app_id,
       account_username: accountForm.account_username!.trim(),
+      employee_id: accountForm.employee_id || null,
       account_id_on_platform: accountForm.account_id_on_platform?.trim() || null,
       iqama_number: accountForm.iqama_number?.trim() || null,
       iqama_expiry_date: accountForm.iqama_expiry_date || null,
@@ -239,8 +285,25 @@ const PlatformAccounts = () => {
       created_by: user?.id ?? null,
     });
 
+    if (error) {
+      setSavingAssign(false);
+      toast({ title: 'خطأ', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    // Keep `platform_accounts.employee_id` in sync for alert automation
+    const { error: linkErr } = await (supabase as any)
+      .from('platform_accounts')
+      .update({ employee_id: assignForm.employee_id })
+      .eq('id', assignTarget!.id);
+
+    if (linkErr) {
+      setSavingAssign(false);
+      toast({ title: 'خطأ', description: linkErr.message, variant: 'destructive' });
+      return;
+    }
+
     setSavingAssign(false);
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'تم التعيين', description: 'تم تعيين المندوب بنجاح' });
     setAssignDialog(false);
     fetchData();
@@ -278,9 +341,8 @@ const PlatformAccounts = () => {
       || (a.account_id_on_platform ?? '').toLowerCase().includes(q)
       || (a.iqama_number ?? '').includes(search)
       || (a.current_employee?.name ?? '').includes(q);
-    const matchApp = filterApp === 'all' || a.app_id === filterApp;
     const matchStatus = filterStatus === 'all' || a.status === filterStatus;
-    return matchSearch && matchApp && matchStatus;
+    return matchSearch && matchStatus;
   });
 
   const activeCount = accounts.filter(a => a.status === 'active').length;
@@ -350,15 +412,6 @@ const PlatformAccounts = () => {
             className="pr-9 h-9 text-sm"
           />
         </div>
-        <Select value={filterApp} onValueChange={setFilterApp}>
-          <SelectTrigger className="h-9 w-40 text-sm">
-            <SelectValue placeholder="كل المنصات" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل المنصات</SelectItem>
-            {apps.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-9 w-36 text-sm">
             <SelectValue placeholder="الحالة" />
@@ -369,9 +422,9 @@ const PlatformAccounts = () => {
             <SelectItem value="inactive">غير نشط</SelectItem>
           </SelectContent>
         </Select>
-        {(search || filterApp !== 'all' || filterStatus !== 'all') && (
+        {(search || groupAppTab !== 'all' || filterStatus !== 'all') && (
           <Button variant="ghost" size="sm" className="gap-1 h-9 text-muted-foreground"
-            onClick={() => { setSearch(''); setFilterApp('all'); setFilterStatus('all'); }}>
+            onClick={() => { setSearch(''); setFilterStatus('all'); setGroupAppTab('all'); }}>
             <X size={13} /> مسح
           </Button>
         )}
@@ -390,104 +443,123 @@ const PlatformAccounts = () => {
         </div>
       ) : (
         <div className="ds-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-right font-semibold px-4 py-3">المنصة</th>
-                  <th className="text-right font-semibold px-4 py-3">اسم الحساب</th>
-                  <th className="text-right font-semibold px-4 py-3">رقم الحساب</th>
-                  <th className="text-right font-semibold px-4 py-3">رقم الإقامة</th>
-                  <th className="text-right font-semibold px-4 py-3">انتهاء الإقامة</th>
-                  <th className="text-right font-semibold px-4 py-3">المندوب الحالي</th>
-                  <th className="text-right font-semibold px-4 py-3">الحالة</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map(acc => {
-                  const badge = iqamaBadge(acc.iqama_expiry_date, alertDays);
-                  return (
-                    <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
-                      {/* Platform */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                            style={{ background: acc.app_color, color: acc.app_text_color }}
-                          >
-                            {acc.app_name?.charAt(0)}
-                          </div>
-                          <span className="font-medium text-xs">{acc.app_name}</span>
-                        </div>
-                      </td>
-                      {/* Account username */}
-                      <td className="px-4 py-3 font-semibold">{acc.account_username}</td>
-                      {/* Account ID */}
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        {acc.account_id_on_platform ?? '—'}
-                      </td>
-                      {/* Iqama number */}
-                      <td className="px-4 py-3 font-mono text-xs">{acc.iqama_number ?? '—'}</td>
-                      {/* Iqama expiry */}
-                      <td className="px-4 py-3">
-                        {badge ? (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>
-                            {badge.label}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      {/* Current rider */}
-                      <td className="px-4 py-3">
-                        {acc.current_employee ? (
-                          <span className="text-xs font-medium text-foreground">
-                            {acc.current_employee.name}
-                          </span>
+          <Tabs value={groupAppTab} onValueChange={setGroupAppTab} dir="rtl">
+            <TabsList className="flex flex-wrap h-auto">
+              <TabsTrigger value="all">الكل</TabsTrigger>
+              {apps.map(a => (
+                <TabsTrigger key={a.id} value={a.id}>
+                  {a.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {(['all', ...apps.map(a => a.id)] as string[]).map(tabId => {
+              const list = tabId === 'all' ? filtered : filtered.filter(a => a.app_id === tabId);
+              const sorted = sortAccounts(list);
+              return (
+                <TabsContent key={tabId} value={tabId}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/40">
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_username')}>
+                            اسم الحساب {sortKey === 'account_username' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_id_on_platform')}>
+                            رقم الحساب {sortKey === 'account_id_on_platform' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_number')}>
+                            رقم الإقامة {sortKey === 'iqama_number' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_expiry_date')}>
+                            انتهاء الإقامة {sortKey === 'iqama_expiry_date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('current_employee')}>
+                            المندوب الحالي {sortKey === 'current_employee' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('status')}>
+                            الحالة {sortKey === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
+                          <th className="px-4 py-3" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {sorted.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                              لا توجد نتائج لهذا المنصّة
+                            </td>
+                          </tr>
                         ) : (
-                          <span className="text-xs text-muted-foreground">لا يوجد</span>
+                          sorted.map(acc => {
+                            const badge = iqamaBadge(acc.iqama_expiry_date, alertDays);
+                            return (
+                              <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
+                                <td className="px-4 py-3 font-semibold">{acc.account_username}</td>
+                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{acc.account_id_on_platform ?? '—'}</td>
+                                <td className="px-4 py-3 font-mono text-xs">{acc.iqama_number ?? '—'}</td>
+                                <td className="px-4 py-3">
+                                  {badge ? (
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
+                                  ) : '—'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {acc.current_employee ? (
+                                    <span className="text-xs font-medium text-foreground">{acc.current_employee.name}</span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">لا يوجد</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>
+                                    {acc.status === 'active' ? 'نشط' : 'غير نشط'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-1 justify-end">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 gap-1 text-xs text-primary"
+                                      onClick={() => openHistory(acc)}
+                                      title="السجل التاريخي"
+                                    >
+                                      <History size={13} /> السجل
+                                    </Button>
+                                    {perms.can_edit && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 px-2 gap-1 text-xs"
+                                          onClick={() => openAssign(acc)}
+                                          title="تعيين مندوب"
+                                        >
+                                          <UserPlus size={13} /> تعيين
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 px-2 gap-1 text-xs"
+                                          onClick={() => openEditAccount(acc)}
+                                        >
+                                          <Edit size={13} /> تعديل
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
-                      </td>
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>
-                          {acc.status === 'active' ? 'نشط' : 'غير نشط'}
-                        </span>
-                      </td>
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 justify-end">
-                          <Button
-                            size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs text-primary"
-                            onClick={() => openHistory(acc)}
-                            title="السجل التاريخي"
-                          >
-                            <History size={13} /> السجل
-                          </Button>
-                          {perms.can_edit && (
-                            <>
-                              <Button
-                                size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs"
-                                onClick={() => openAssign(acc)}
-                                title="تعيين مندوب"
-                              >
-                                <UserPlus size={13} /> تعيين
-                              </Button>
-                              <Button
-                                size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs"
-                                onClick={() => openEditAccount(acc)}
-                              >
-                                <Edit size={13} /> تعديل
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </tbody>
+                    </table>
+                  </div>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </div>
       )}
 
@@ -504,6 +576,19 @@ const PlatformAccounts = () => {
                 <SelectTrigger><SelectValue placeholder="اختر المنصة" /></SelectTrigger>
                 <SelectContent>
                   {apps.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>المندوب المرتبط (اختياري)</Label>
+              <Select
+                value={(accountForm.employee_id ?? null) ? String(accountForm.employee_id) : '__none__'}
+                onValueChange={v => setAccountForm(p => ({ ...p, employee_id: v === '__none__' ? null : v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="اختياري" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— بدون ربط —</SelectItem>
+                  {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

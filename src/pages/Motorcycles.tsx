@@ -251,11 +251,65 @@ const VehicleFormModal = ({
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 14 }).map((_, i) => (
+    {Array.from({ length: 17 }).map((_, i) => (
       <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
 );
+
+/** Matches public.vehicles columns (types.ts) for import/export */
+const VEHICLE_TEMPLATE_HEADERS = [
+  'plate_number',
+  'plate_number_en',
+  'type',
+  'brand',
+  'model',
+  'year',
+  'status',
+  'has_fuel_chip',
+  'insurance_expiry',
+  'registration_expiry',
+  'authorization_expiry',
+  'chassis_number',
+  'serial_number',
+  'notes',
+] as const;
+
+const parseBool = (v: unknown): boolean => {
+  if (typeof v === 'boolean') return v;
+  const s = String(v ?? '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes' || s === 'نعم' || s === 'y';
+};
+
+const parseVehicleType = (v: unknown): 'motorcycle' | 'car' => {
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s === 'car' || s === 'سيارة') return 'car';
+  return 'motorcycle';
+};
+
+const parseVehicleStatus = (v: unknown): VehicleStatus => {
+  const raw = String(v ?? '').trim();
+  const s = raw.toLowerCase();
+  const map: Record<string, VehicleStatus> = {
+    active: 'active', نشطة: 'active', نشط: 'active',
+    maintenance: 'maintenance', صيانة: 'maintenance',
+    breakdown: 'breakdown', خربان: 'breakdown',
+    rental: 'rental', إيجار: 'rental',
+    ended: 'ended', منتهي: 'ended',
+    inactive: 'inactive', 'غير نشطة': 'inactive',
+  };
+  if (map[s]) return map[s];
+  if (ALL_STATUSES.includes(raw as VehicleStatus)) return raw as VehicleStatus;
+  return 'active';
+};
+
+const cell = (row: Record<string, unknown>, ...keys: string[]) => {
+  for (const k of keys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return undefined;
+};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Motorcycles = () => {
@@ -279,22 +333,30 @@ const Motorcycles = () => {
     reader.onload = async (ev) => {
       const wb = XLSX.read(ev.target?.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
       if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
       let success = 0;
       for (const row of rows) {
-        const plate = row['رقم اللوحة'] || row['plate_number'];
+        const plate = cell(row, 'plate_number', 'رقم اللوحة');
         if (!plate) continue;
+        const y = cell(row, 'year', 'سنة الصنع');
+        const yearNum = y !== undefined ? parseInt(String(y), 10) : NaN;
+        const plateEn = cell(row, 'plate_number_en', 'رقم اللوحة en');
         await supabase.from('vehicles').upsert({
-          plate_number: String(plate),
-          type: row['النوع'] === 'سيارة' ? 'car' : 'motorcycle',
-          brand: row['الماركة'] || null,
-          model: row['الموديل'] || null,
-          year: row['سنة الصنع'] ? parseInt(row['سنة الصنع']) : null,
-          status: row['status'] || 'active',
-          insurance_expiry: row['انتهاء التأمين'] || null,
-          registration_expiry: row['انتهاء التسجيل'] || null,
-          authorization_expiry: row['انتهاء التفويض'] || null,
+          plate_number: String(plate).trim(),
+          plate_number_en: plateEn !== undefined ? String(plateEn).trim() || null : null,
+          type: parseVehicleType(cell(row, 'type', 'النوع')),
+          brand: cell(row, 'brand', 'الماركة') != null ? String(cell(row, 'brand', 'الماركة')) : null,
+          model: cell(row, 'model', 'الموديل') != null ? String(cell(row, 'model', 'الموديل')) : null,
+          year: Number.isFinite(yearNum) ? yearNum : null,
+          status: parseVehicleStatus(cell(row, 'status', 'الحالة')),
+          has_fuel_chip: parseBool(cell(row, 'has_fuel_chip', 'شريحة البنزين', 'fuel_chip')),
+          insurance_expiry: cell(row, 'insurance_expiry', 'انتهاء التأمين') != null ? String(cell(row, 'insurance_expiry', 'انتهاء التأمين')) : null,
+          registration_expiry: cell(row, 'registration_expiry', 'انتهاء التسجيل') != null ? String(cell(row, 'registration_expiry', 'انتهاء التسجيل')) : null,
+          authorization_expiry: cell(row, 'authorization_expiry', 'انتهاء التفويض') != null ? String(cell(row, 'authorization_expiry', 'انتهاء التفويض')) : null,
+          chassis_number: cell(row, 'chassis_number', 'رقم الهيكل') != null ? String(cell(row, 'chassis_number', 'رقم الهيكل')).trim() || null : null,
+          serial_number: cell(row, 'serial_number', 'الرقم التسلسلي') != null ? String(cell(row, 'serial_number', 'الرقم التسلسلي')).trim() || null : null,
+          notes: cell(row, 'notes', 'ملاحظات') != null ? String(cell(row, 'notes', 'ملاحظات')) : null,
         }, { onConflict: 'plate_number' });
         success++;
       }
@@ -306,16 +368,16 @@ const Motorcycles = () => {
   };
 
   const handleTemplate = () => {
-    const headers = [['رقم اللوحة', 'النوع (موتوسيكل/سيارة)', 'الماركة', 'الموديل', 'سنة الصنع', 'انتهاء التأمين', 'انتهاء التسجيل', 'انتهاء التفويض']];
+    const headers = [VEHICLE_TEMPLATE_HEADERS.slice()];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+    XLSX.utils.book_append_sheet(wb, ws, 'vehicles');
     XLSX.writeFile(wb, 'template_vehicles.xlsx');
   };
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
-    const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number');
+    const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number').limit(1000);
     if (error) { toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' }); setLoading(false); return; }
 
     // Fetch current active vehicle assignments (no end_date = still active)
@@ -359,13 +421,20 @@ const Motorcycles = () => {
   };
 
   const handleExport = () => {
-    const rows = filtered.map(v => ({
+    const rows = filtered.map((v, idx) => ({
+      '#': idx + 1,
       'رقم اللوحة': v.plate_number,
+      'رقم اللوحة en': v.plate_number_en || '',
       'النوع': typeLabels[v.type],
       'الماركة': v.brand || '',
       'الموديل': v.model || '',
-      'سنة الصنع': v.year || '',
-      'الحالة': statusLabels[v.status],
+      'سنة الصنع': v.year ?? '',
+      'الرقم التسلسلي': v.serial_number || '',
+      'رقم الهيكل': v.chassis_number || '',
+      'ملاحظات': v.notes || '',
+      'المندوب الحالي': v.current_rider || '',
+      'الحالة': statusLabels[v.status] ?? v.status,
+      'شريحة البنزين': v.has_fuel_chip ? 'نعم' : 'لا',
       'انتهاء التأمين': v.insurance_expiry || '',
       'انتهاء التسجيل': v.registration_expiry || '',
       'انتهاء التفويض': v.authorization_expiry || '',
@@ -476,16 +545,19 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-           <table ref={tableRef} className="w-full min-w-[1200px]">
+           <table ref={tableRef} className="w-full min-w-[1400px]">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
                 <th className="ta-th">رقم اللوحة ar</th>
                 <th className="ta-th">رقم اللوحة en</th>
                 <th className="ta-th">النوع</th>
-                <th className="ta-th">الماركة / الموديل</th>
+                <th className="ta-th">الماركة</th>
+                <th className="ta-th">الموديل</th>
+                <th className="ta-th">سنة الصنع</th>
                 <th className="ta-th">الرقم التسلسلي</th>
                 <th className="ta-th">رقم الهيكل</th>
+                <th className="ta-th">ملاحظات</th>
                 <th className="ta-th">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">⛽ شريحة البنزين</th>
@@ -500,7 +572,7 @@ const Motorcycles = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="text-center py-16">
+                  <td colSpan={17} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Bike size={40} className="opacity-30" />
                       <p className="font-medium">لا توجد مركبات</p>
@@ -524,13 +596,12 @@ const Motorcycles = () => {
                     <td className="px-3 py-2.5">
                       <span className="text-sm text-muted-foreground whitespace-nowrap">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <div className="text-sm font-medium text-foreground whitespace-nowrap">
-                        {v.brand || '—'}{v.model ? ` — ${v.model}` : ''}{v.year ? ` (${v.year})` : ''}
-                      </div>
-                    </td>
+                    <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.brand || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.model || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{v.year ?? '—'}</td>
                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.serial_number || '—'}</td>
                      <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs text-muted-foreground max-w-[140px] truncate" title={v.notes || ''}>{v.notes || '—'}</td>
                      {/* Current assigned rider */}
                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {v.current_rider ? (

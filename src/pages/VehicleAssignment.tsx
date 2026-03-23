@@ -247,7 +247,7 @@ const SkeletonRow = () => (
 // ─── Main Component ───────────────────────────────────────────────────────────
 const VehicleAssignment = () => {
   const { toast } = useToast();
-  const { permissions } = usePermissions('vehicles');
+  const { permissions } = usePermissions('vehicle_assignment');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
