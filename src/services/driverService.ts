@@ -48,7 +48,7 @@ export const driverService = {
   create: async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase
       .from('employees')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     return { data, error };
@@ -57,7 +57,7 @@ export const driverService = {
   update: async (id: string, payload: Record<string, unknown>) => {
     const { data, error } = await supabase
       .from('employees')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id)
       .select()
       .single();

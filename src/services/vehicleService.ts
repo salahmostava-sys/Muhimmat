@@ -97,7 +97,7 @@ export const vehicleService = {
   createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     return { data, error };
@@ -106,7 +106,7 @@ export const vehicleService = {
   updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id)
       .select()
       .single();

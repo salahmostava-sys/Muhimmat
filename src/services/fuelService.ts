@@ -26,7 +26,7 @@ export const fuelService = {
   createMileageLog: async (payload: MileagePayload) => {
     const { data, error } = await supabase
       .from('vehicle_mileage')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     return { data, error };
@@ -35,7 +35,7 @@ export const fuelService = {
   updateMileageLog: async (id: string, payload: Partial<MileagePayload>) => {
     const { data, error } = await supabase
       .from('vehicle_mileage')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id)
       .select()
       .single();
