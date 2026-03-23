@@ -1,5 +1,6 @@
 import { useState, forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
@@ -23,7 +24,6 @@ import { useAppColors } from '@/hooks/useAppColors';
 import { Button } from '@/components/ui/button';
 import * as XLSX from '@e965/xlsx';
 
-function cn(...classes: (string | undefined | false)[]) { return classes.filter(Boolean).join(' '); }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Sk = ({ h = 'h-16', w = 'w-full' }: { h?: string; w?: string }) => (

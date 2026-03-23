@@ -11,7 +11,7 @@ import { SystemSettingsProvider } from "@/context/SystemSettingsContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageGuard from "@/components/PageGuard";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import DashboardLayout from "@/layouts/DashboardLayout";
+import DashboardLayout from '@/components/AppLayout';
 import AuthLayout from "@/layouts/AuthLayout";
 import { Loader2 } from "lucide-react";
 import "@/i18n";

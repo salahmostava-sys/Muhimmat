@@ -833,7 +833,11 @@ const Advances = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    let isMounted = true;
+    fetchAll();
+    return () => { isMounted = false; };
+  }, []);
 
   // Compute absconded employees with active debt
   const abscondedWithDebt = useMemo(() => {

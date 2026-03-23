@@ -144,6 +144,7 @@ const SpreadsheetGrid = () => {
   const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     Promise.all([
       supabase.from('employees')
         .select('id, name, salary_type, status, sponsorship_status')
@@ -152,14 +153,18 @@ const SpreadsheetGrid = () => {
         .order('name'),
       supabase.from('apps').select('id, name, name_en').eq('is_active', true).order('name'),
     ]).then(([empRes, appRes]) => {
+      if (!isMounted) return;
       if (empRes.data) setEmployees(empRes.data as Employee[]);
       if (appRes.data) setApps(appRes.data as App[]);
     });
+    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     setLoading(true);
     orderService.getMonthRaw(year, month).then(({ data: rows }) => {
+      if (!isMounted) return;
       const d: DailyData = {};
       rows?.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
@@ -168,6 +173,7 @@ const SpreadsheetGrid = () => {
       setData(d);
       setLoading(false);
     });
+    return () => { isMounted = false; };
   }, [year, month]);
 
   const filteredEmployees = employees.filter(emp => emp.name.includes(search));
@@ -550,36 +556,44 @@ const MonthSummary = () => {
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     Promise.all([
       supabase.from('employees').select('id, name, salary_type, status, sponsorship_status')
         .eq('status', 'active').not('sponsorship_status', 'in', '("absconded","terminated")').order('name'),
       supabase.from('apps').select('id, name, name_en').eq('is_active', true).order('name'),
     ]).then(([empRes, appRes]) => {
+      if (!isMounted) return;
       if (empRes.data) setEmployees(empRes.data as Employee[]);
       if (appRes.data) setApps(appRes.data as App[]);
     });
+    return () => { isMounted = false; };
   }, []);
 
   // Load targets when month changes
   useEffect(() => {
+    let isMounted = true;
     const my = monthYear(year, month);
     supabase.from('app_targets' as any).select('app_id, target_orders').eq('month_year', my)
       .then(({ data: rows }) => {
+        if (!isMounted) return;
         if (rows) {
           const t: Record<string, string> = {};
           (rows as any[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
           setTargets(t);
         }
       });
+    return () => { isMounted = false; };
   }, [year, month]);
 
   useEffect(() => {
+    let isMounted = true;
     const days = getDaysInMonth(year, month);
     setLoading(true);
     supabase.from('daily_orders')
       .select('employee_id, app_id, date, orders_count')
       .gte('date', dateStr(year, month, 1)).lte('date', dateStr(year, month, days))
       .then(({ data: rows }) => {
+        if (!isMounted) return;
         const d: DailyData = {};
         rows?.forEach(r => {
           const day = new Date(r.date + 'T00:00:00').getDate();
@@ -588,6 +602,7 @@ const MonthSummary = () => {
         setData(d);
         setLoading(false);
       });
+    return () => { isMounted = false; };
   }, [year, month]);
 
   const saveTarget = async (appId: string, value: string) => {

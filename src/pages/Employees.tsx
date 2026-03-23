@@ -295,7 +295,11 @@ const Employees = () => {
     setLoading(false);
   }, [toast]);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  useEffect(() => {
+    let isMounted = true;
+    fetchEmployees();
+    return () => { isMounted = false; };
+  }, [fetchEmployees]);
 
   // ── Sort handler ──
   const handleSort = (field: string) => {
