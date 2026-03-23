@@ -568,11 +568,11 @@ const Employees = () => {
       <body>
         <h2>بيانات الموظفين</h2>
         <p class="subtitle">المجموع: ${filtered.length} موظف — ${new Date().toLocaleDateString('ar-SA')}</p>
-        ${table.outerHTML}
-        <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
-      </body>
-      </html>
     `);
+    if (!printWindow.document.body) return;
+    // Append the live DOM table node to avoid string-interpolating table HTML.
+    printWindow.document.body.appendChild(table.cloneNode(true));
+    printWindow.document.write(`<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script></body></html>`);
     printWindow.document.close();
   };
 

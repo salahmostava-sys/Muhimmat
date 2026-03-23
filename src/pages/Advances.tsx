@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
+import { escapeHtml } from '@/lib/security';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -435,12 +436,12 @@ const PrintSlip = ({ employeeName, nationalId, totalDebt, totalPaid, remaining, 
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    const content = printRef.current?.innerHTML;
-    if (!content) return;
+    const contentEl = printRef.current;
+    if (!contentEl) return;
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`
-      <html dir="rtl"><head><title>سلف - ${employeeName}</title>
+      <html dir="rtl"><head><title>سلف - ${escapeHtml(employeeName)}</title>
       <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; direction: rtl; }
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -451,7 +452,11 @@ const PrintSlip = ({ employeeName, nationalId, totalDebt, totalPaid, remaining, 
         .stat-val { font-weight: bold; font-size: 16px; }
         .red { color: #dc2626; } .green { color: #16a34a; } .blue { color: #2563eb; }
         @media print { button { display: none; } }
-      </style></head><body>${content}</body></html>`);
+      </style></head><body>`);
+    if (!win.document.body) return;
+    // Append the live DOM node to avoid string-interpolating innerHTML.
+    win.document.body.appendChild(contentEl.cloneNode(true));
+    win.document.write(`</body></html>`);
     win.document.close();
     win.print();
   };
@@ -996,7 +1001,11 @@ const Advances = () => {
     if (!table) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف والأقساط</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف والأقساط</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
+    if (!printWindow.document.body) return;
+    // Append the live DOM table node to avoid string-interpolating table HTML.
+    printWindow.document.body.appendChild(table.cloneNode(true));
+    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
     printWindow.document.close();
   };
 
