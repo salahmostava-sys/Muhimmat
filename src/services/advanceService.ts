@@ -79,7 +79,7 @@ export const advanceService = {
   updateInstallment: async (id: string, payload: InstallmentUpdate) => {
     const { error } = await supabase
       .from('advance_installments')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id);
     return { error };
   },
