@@ -191,7 +191,7 @@ const SpreadsheetGrid = () => {
     let isMounted = true;
     const my = monthYear(year, month);
     supabase
-      .from('locked_months' as any)
+      .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
@@ -383,7 +383,7 @@ const SpreadsheetGrid = () => {
     setLockingMonth(true);
     const { data: userRes } = await supabase.auth.getUser();
     const userId = userRes.user?.id ?? null;
-    const { error } = await supabase.from('locked_months' as any).upsert(
+    const { error } = await supabase.from('locked_months').upsert(
       { month_year: my, locked_at: new Date().toISOString(), locked_by: userId },
       { onConflict: 'month_year' }
     );
@@ -706,7 +706,7 @@ const MonthSummary = () => {
     let isMounted = true;
     const my = monthYear(year, month);
     setTargets({});
-    supabase.from('app_targets' as any).select('app_id, target_orders').eq('month_year', my)
+    supabase.from('app_targets').select('app_id, target_orders').eq('month_year', my)
       .then(({ data: rows }) => {
         if (!isMounted) return;
         const t: Record<string, string> = {};
@@ -720,7 +720,7 @@ const MonthSummary = () => {
     let isMounted = true;
     const my = monthYear(year, month);
     supabase
-      .from('locked_months' as any)
+      .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
@@ -758,7 +758,7 @@ const MonthSummary = () => {
     const targetOrders = parseInt(value) || 0;
     const my = monthYear(year, month);
     setSavingTarget(appId);
-    const { error } = await supabase.from('app_targets' as any).upsert(
+    const { error } = await supabase.from('app_targets').upsert(
       { app_id: appId, month_year: my, target_orders: targetOrders },
       { onConflict: 'app_id,month_year' }
     );

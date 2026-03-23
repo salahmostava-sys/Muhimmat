@@ -126,8 +126,8 @@ const PlatformAccounts = () => {
     const [appsRes, empRes, accRes, assignRes] = await Promise.all([
       supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
       supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
-      (supabase as any).from('platform_accounts').select('*').order('created_at', { ascending: false }),
-      (supabase as any).from('account_assignments').select('*').is('end_date', null),
+      supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
+      supabase.from('account_assignments').select('*').is('end_date', null),
     ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
@@ -230,9 +230,9 @@ const PlatformAccounts = () => {
 
     let error;
     if (editingAccount) {
-      ({ error } = await (supabase as any).from('platform_accounts').update(payload).eq('id', editingAccount.id));
+      ({ error } = await supabase.from('platform_accounts').update(payload).eq('id', editingAccount.id));
     } else {
-      ({ error } = await (supabase as any).from('platform_accounts').insert(payload));
+      ({ error } = await supabase.from('platform_accounts').insert(payload));
     }
 
     setSavingAccount(false);
@@ -275,7 +275,7 @@ const PlatformAccounts = () => {
     }
 
     // 2. Insert new assignment
-    const { error } = await (supabase as any).from('account_assignments').insert({
+    const { error } = await supabase.from('account_assignments').insert({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,

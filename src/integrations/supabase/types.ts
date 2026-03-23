@@ -182,6 +182,27 @@ export type Database = {
           },
         ]
       }
+      locked_months: {
+        Row: {
+          id: string
+          month_year: string
+          locked_at: string
+          locked_by: string | null
+        }
+        Insert: {
+          id?: string
+          month_year: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Update: {
+          id?: string
+          month_year?: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Relationships: []
+      }
       apps: {
         Row: {
           brand_color: string

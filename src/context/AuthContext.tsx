@@ -9,7 +9,7 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -41,7 +41,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const forceSignOut = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const userId = currentUser?.id ?? user?.id ?? null;
     await supabase.auth.signOut();
+    try {
+      await supabase.functions.invoke('admin-update-user', {
+        body: { userId, action: 'revoke_session' },
+      });
+    } catch {
+      // silent fail — local session already cleared
+    }
     setUser(null);
     setSession(null);
     setRole(null);
