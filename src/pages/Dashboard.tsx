@@ -1,4 +1,5 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, forwardRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
@@ -161,62 +162,44 @@ const MONTHS_BACK = 6;
 interface RiderMonthly { id: string; name: string; months: number[]; avg: number; trend: 'up' | 'down' | 'stable'; lastMonth: number; thisMonth: number; }
 
 const AnalyticsTab = () => {
-  const [loading, setLoading] = useState(true);
-  const [monthLabels, setMonthLabels] = useState<string[]>([]);
-  const [monthlyTrend, setMonthlyTrend] = useState<{ month: string; orders: number; riders: number; avg: number }[]>([]);
-  const [riderMetrics, setRiderMetrics] = useState<RiderMonthly[]>([]);
-  const [projectedOrders, setProjectedOrders] = useState(0);
-  const [currentOrders, setCurrentOrders] = useState(0);
-  const [appBreakdown, setAppBreakdown] = useState<{ name: string; brand_color: string; thisMonth: number; lastMonth: number; growth: number }[]>([]);
-
-  const currentMonth = format(new Date(), 'yyyy-MM');
   const daysInMonth = getDaysInMonth(new Date());
   const daysPassed = getDate(new Date());
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['dashboard-analytics'],
+    queryFn: async () => {
       const months = Array.from({ length: MONTHS_BACK }, (_, i) => {
         const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
         return { label: format(d, 'MMM yy'), ym: format(d, 'yyyy-MM'), start: format(startOfMonth(d), 'yyyy-MM-dd'), end: format(endOfMonth(d), 'yyyy-MM-dd') };
       });
-      setMonthLabels(months.map(m => m.label));
+      const monthLabels = months.map(m => m.label);
 
       const { appsRes, empRes, monthOrdersResults } = await dashboardService.fetchHistoricalData(months);
       const apps = appsRes.data || [];
       const appMap = Object.fromEntries(apps.map(a => [a.id, a]));
       const empMap = Object.fromEntries((empRes.data || []).map(e => [e.id, e.name]));
 
-      // Fetch orders for each of the 6 months
       const monthOrderResults = monthOrdersResults;
 
-      // Build trend
       const trendData = months.map((m, i) => {
         const rows = monthOrderResults[i].data || [];
         const total = rows.reduce((s, r) => s + r.orders_count, 0);
         const activeRiders = new Set(rows.map(r => r.employee_id)).size;
         return { month: m.label, orders: total, riders: activeRiders, avg: activeRiders > 0 ? Math.round(total / activeRiders) : 0 };
       });
-      setMonthlyTrend(trendData);
 
-      // Current month orders
       const currOrders = monthOrderResults[MONTHS_BACK - 1].data || [];
       const currTotal = currOrders.reduce((s, r) => s + r.orders_count, 0);
-      setCurrentOrders(currTotal);
-      setProjectedOrders(daysPassed > 0 ? Math.round((currTotal / daysPassed) * daysInMonth) : 0);
+      const projectedOrders = daysPassed > 0 ? Math.round((currTotal / daysPassed) * daysInMonth) : 0;
 
-      // App breakdown (this month vs last month)
       const lastMonthOrders = monthOrderResults[MONTHS_BACK - 2].data || [];
-      const appBreak = apps.map(app => {
+      const appBreakdown = apps.map(app => {
         const thisM = currOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
         const lastM = lastMonthOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
         const growth = lastM > 0 ? Math.round(((thisM - lastM) / lastM) * 100) : 0;
         return { name: app.name, brand_color: app.brand_color, thisMonth: thisM, lastMonth: lastM, growth };
       }).sort((a, b) => b.thisMonth - a.thisMonth);
-      setAppBreakdown(appBreak);
 
-      // Per-rider monthly breakdown (last 4 months for trend)
       const last4 = monthOrderResults.slice(MONTHS_BACK - 4);
       const riderData: Record<string, number[]> = {};
       last4.forEach((res, mi) => {
@@ -226,9 +209,7 @@ const AnalyticsTab = () => {
         });
       });
 
-      const overallAvg = trendData[MONTHS_BACK - 1]?.avg || 0;
-
-      const metrics: RiderMonthly[] = Object.entries(riderData)
+      const riderMetrics: RiderMonthly[] = Object.entries(riderData)
         .filter(([id]) => empMap[id])
         .map(([id, monthlyOrders]) => {
           const avg = Math.round(monthlyOrders.reduce((s, v) => s + v, 0) / 4);
@@ -238,11 +219,19 @@ const AnalyticsTab = () => {
           return { id, name: empMap[id] || '—', months: monthlyOrders, avg, trend, lastMonth, thisMonth };
         });
 
-      setRiderMetrics(metrics);
-      setLoading(false);
-    };
-    load();
-  }, []);
+      return { monthLabels, monthlyTrend: trendData, riderMetrics, projectedOrders, currentOrders: currTotal, appBreakdown };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const {
+    monthLabels = [] as string[],
+    monthlyTrend = [] as { month: string; orders: number; riders: number; avg: number }[],
+    riderMetrics = [] as RiderMonthly[],
+    projectedOrders = 0,
+    currentOrders = 0,
+    appBreakdown = [] as { name: string; brand_color: string; thisMonth: number; lastMonth: number; growth: number }[],
+  } = data ?? {};
 
   const needsImprovement = riderMetrics.filter(r => r.trend === 'down' || (riderMetrics.length > 0 && r.thisMonth < (monthlyTrend[MONTHS_BACK - 1]?.avg || 0) * 0.7)).sort((a, b) => a.thisMonth - b.thisMonth).slice(0, 10);
   const improving = riderMetrics.filter(r => r.trend === 'up').sort((a, b) => b.thisMonth - a.thisMonth).slice(0, 5);
@@ -421,28 +410,12 @@ const Dashboard = () => {
   const [topN, setTopN] = useState(5);
   const [topNInput, setTopNInput] = useState('5');
 
-  // ── State ──
-  const [loading, setLoading] = useState(true);
-  const [kpis, setKpis] = useState({
-    activeEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, lateToday: 0, sickToday: 0,
-    totalOrders: 0, prevMonthOrders: 0,
-    activeVehicles: 0, activeAlerts: 0, activeApps: 0,
-    hasLicense: 0, appliedLicense: 0, noLicense: 0,
-    makkahCount: 0, jeddahCount: 0,
-  });
-  const [empDetails, setEmpDetails] = useState<EmpDetail[]>([]);
-  const [ordersByApp, setOrdersByApp] = useState<{ app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number }[]>([]);
-  const [ordersByCity, setOrdersByCity] = useState<{ city: string; orders: number }[]>([]);
-  const [allRiders, setAllRiders] = useState<{ name: string; orders: number; app: string; appColor: string; appId: string }[]>([]);
-  const [attendanceWeek, setAttendanceWeek] = useState<{ day: string; present: number; absent: number; leave: number; sick: number; late: number }[]>([]);
-  const [recentActivity, setRecentActivity] = useState<{ text: string; time: string; icon: any }[]>([]);
-  const [apps, setApps] = useState<{ id: string; name: string; brand_color: string; text_color: string }[]>([]);
+  const currentMonth = format(new Date(), 'yyyy-MM');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['dashboard-kpis', currentMonth],
+    queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const currentMonth = format(new Date(), 'yyyy-MM');
       const prevMonth = format(subMonths(new Date(), 1), 'yyyy-MM');
       const sixDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
       const prevStart = `${prevMonth}-01`;
@@ -451,8 +424,7 @@ const Dashboard = () => {
       const { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes } =
         await dashboardService.fetchMainData(today, currentMonth, prevStart, prevEnd, sixDaysAgo);
 
-      const appsData = appsRes.data || [];
-      setApps(appsData);
+      const apps = appsRes.data || [];
       const targetMap: Record<string, number> = {};
       (targetsRes.data || []).forEach(t => { targetMap[t.app_id] = t.target_orders; });
 
@@ -465,8 +437,7 @@ const Dashboard = () => {
       const sickToday = todayAtt.filter(a => a.status === 'sick').length;
 
       // ── Employee details ──
-      const details = empDetailsRes.data as EmpDetail[] || [];
-      setEmpDetails(details);
+      const empDetails = empDetailsRes.data as EmpDetail[] || [];
 
       // ── Orders ──
       const appTotals: Record<string, { orders: number; appId: string; riders: Set<string>; brandColor: string; textColor: string }> = {};
@@ -501,23 +472,23 @@ const Dashboard = () => {
       })).sort((a, b) => b.orders - a.orders);
 
       const totalOrders = ordersArr.reduce((s, r) => s + r.orders, 0);
-      setOrdersByApp(ordersArr);
-      setOrdersByCity(Object.entries(cityOrderMap).map(([city, orders]) => ({ city: city === 'makkah' ? 'مكة المكرمة' : 'جدة', orders })));
-      setAllRiders(Object.values(empOrderMap).sort((a, b) => b.orders - a.orders));
+      const ordersByApp = ordersArr;
+      const ordersByCity = Object.entries(cityOrderMap).map(([city, orders]) => ({ city: city === 'makkah' ? 'مكة المكرمة' : 'جدة', orders }));
+      const allRiders = Object.values(empOrderMap).sort((a, b) => b.orders - a.orders);
 
-      setKpis({
+      const kpis = {
         activeEmployees: empRes.count || 0,
         presentToday, absentToday, lateToday, leaveToday, sickToday,
         totalOrders, prevMonthOrders: prevOrdersRes.data?.reduce((s, r) => s + r.orders_count, 0) || 0,
         activeVehicles: vehiclesRes.count || 0,
         activeAlerts: alertsRes.count || 0,
         activeApps: appsRes.count || 0,
-        hasLicense: details.filter(e => e.license_status === 'has_license').length,
-        appliedLicense: details.filter(e => e.license_status === 'applied').length,
-        noLicense: details.filter(e => !e.license_status || e.license_status === 'no_license').length,
-        makkahCount: details.filter(e => e.city === 'makkah').length,
-        jeddahCount: details.filter(e => e.city === 'jeddah').length,
-      });
+        hasLicense: empDetails.filter(e => e.license_status === 'has_license').length,
+        appliedLicense: empDetails.filter(e => e.license_status === 'applied').length,
+        noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
+        makkahCount: empDetails.filter(e => e.city === 'makkah').length,
+        jeddahCount: empDetails.filter(e => e.city === 'jeddah').length,
+      };
 
       // ── Attendance week ──
       const weekMap: Record<string, { present: number; absent: number; leave: number; sick: number; late: number }> = {};
@@ -530,28 +501,35 @@ const Dashboard = () => {
         else if (r.status === 'sick') weekMap[r.date].sick++;
       });
       const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-      setAttendanceWeek(
-        Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b))
-          .map(([date, counts]) => ({ day: dayNames[new Date(date + 'T12:00:00').getDay()], ...counts }))
-      );
+      const attendanceWeek = Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, counts]) => ({ day: dayNames[new Date(date + 'T12:00:00').getDay()], ...counts }));
 
       // ── Recent activity ──
-      if (auditRes.data?.length) {
-        const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
-        const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
-        const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
-        setRecentActivity(auditRes.data.map((a: any) => {
-          const profile = a.profiles as any;
-          const userName = profile?.name || profile?.email?.split('@')[0] || 'مستخدم';
-          return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
-        }));
-      }
+      const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
+      const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
+      const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
+      const recentActivity = (auditRes.data || []).map((a: any) => {
+        const profile = a.profiles as any;
+        const userName = profile?.name || profile?.email?.split('@')[0] || 'مستخدم';
+        return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
+      });
 
-      setLoading(false);
-    };
+      return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-    fetchData();
-  }, []);
+  const defaultKpis = { activeEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, lateToday: 0, sickToday: 0, totalOrders: 0, prevMonthOrders: 0, activeVehicles: 0, activeAlerts: 0, activeApps: 0, hasLicense: 0, appliedLicense: 0, noLicense: 0, makkahCount: 0, jeddahCount: 0 };
+  const {
+    kpis = defaultKpis,
+    empDetails = [] as EmpDetail[],
+    ordersByApp = [] as { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number }[],
+    ordersByCity = [] as { city: string; orders: number }[],
+    allRiders = [] as { name: string; orders: number; app: string; appColor: string; appId: string }[],
+    attendanceWeek = [] as { day: string; present: number; absent: number; leave: number; sick: number; late: number }[],
+    recentActivity = [] as { text: string; time: string; icon: any }[],
+    apps = [] as { id: string; name: string; brand_color: string; text_color: string }[],
+  } = data ?? {};
 
   // ── Derived ──
   const orderGrowth = kpis.prevMonthOrders > 0 ? ((kpis.totalOrders - kpis.prevMonthOrders) / kpis.prevMonthOrders) * 100 : 0;

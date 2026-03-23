@@ -1,0 +1,17 @@
+Explain your plan before making any changes.
+Issue 2 — Remove dead legacy fields from Salaries.tsx
+In src/pages/Salaries.tsx, the following four fields exist in the SalaryRow interface but their values are always zero and are never updated anywhere in the code:
+walletHunger, walletTuyo, walletJahiz, foodDamage
+Do the following in order:
+First, remove these four fields from the SalaryRow interface definition. Second, remove their initialization in the newRows mapping inside fetchAllData — they are all initialized to 0. Third, remove their display blocks in the PayslipModal component — search for the comment Legacy wallet fields and remove everything under it. Fourth, remove them from the totals accumulator object. Fifth, remove them from the approveRow, markAsPaid, and approveAll functions where they appear in the manual_deduction calculation — replace row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage with 0 or remove the addition entirely if it results in just Object.values(row.customDeductions || {}).reduce(...). Sixth, remove them from the Excel export and print functions.
+Do NOT touch any other logic, do NOT restructure the file, and do NOT modify anything outside of these six specific removal steps.
+Issue 3 — Add React Query caching to Dashboard
+In src/pages/Dashboard.tsx, the main useEffect inside the Dashboard component fires 11 parallel Supabase queries on every render with no caching. This means every time the user navigates to the dashboard, all data is re-fetched from scratch.
+Do the following:
+First, confirm that @tanstack/react-query is already installed (it is — it is used in App.tsx). Second, replace the raw useEffect + useState data-fetching pattern in the Dashboard component with a useQuery call. Use a query key of ['dashboard-kpis', currentMonth] so the data re-fetches automatically when the month changes. Set staleTime to 5 minutes (5 * 60 * 1000) so navigating away and back does not trigger unnecessary re-fetches. Third, do the same for AnalyticsTab — replace its useEffect with a useQuery with key ['dashboard-analytics', currentMonth] and the same staleTime. Fourth, keep all existing loading states and error handling — just replace the data source. Do NOT restructure any component, do NOT change any UI, and do NOT modify any other file.
+Hard rules:
+
+Maximum 2 files changed: Salaries.tsx and Dashboard.tsx
+Show only the changed portions
+Do NOT break any existing functionality
+If unsure about any removal, ask before deleting

@@ -59,11 +59,6 @@ interface SalaryRow {
   violations: number;
   // Dynamic deduction columns keyed by "appName___colKey"
   customDeductions: Record<string, number>;
-  // Legacy fields kept for backward compatibility
-  walletHunger: number;
-  walletTuyo: number;
-  walletJahiz: number;
-  foodDamage: number;
   transfer: number;
   advanceDeduction: number;
   advanceInstallmentIds: string[];
@@ -286,31 +281,6 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
                   </div>
                 );
               })}
-              {/* Legacy wallet fields */}
-              {row.walletHunger > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.walletHunger}</span>
-                  <span className="font-semibold text-destructive">-{fmt(row.walletHunger)}</span>
-                </div>
-              )}
-              {row.walletTuyo > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.walletTuyo}</span>
-                  <span className="font-semibold text-destructive">-{fmt(row.walletTuyo)}</span>
-                </div>
-              )}
-              {row.walletJahiz > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.walletJahiz}</span>
-                  <span className="font-semibold text-destructive">-{fmt(row.walletJahiz)}</span>
-                </div>
-              )}
-              {row.foodDamage > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.foodDamage}</span>
-                  <span className="font-semibold text-destructive">-{fmt(row.foodDamage)}</span>
-                </div>
-              )}
             </div>
             <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
               <span className="text-destructive">{t.totalDeductions}</span>
@@ -903,10 +873,6 @@ const Salaries = () => {
           incentives: 0,
           sickAllowance: 0,
           violations: 0,
-          walletHunger: 0,
-          walletTuyo: 0,
-          walletJahiz: 0,
-          foodDamage: 0,
           customDeductions: {},
           transfer: 0,
           advanceDeduction: advDeduction,
@@ -1034,7 +1000,7 @@ const Salaries = () => {
       attendance_deduction: row.violations,
       advance_deduction: row.advanceDeduction,
       external_deduction: row.externalDeduction,
-      manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage + Object.values(row.customDeductions || {}).reduce((s, v) => s + v, 0),
+      manual_deduction: Object.values(row.customDeductions || {}).reduce((s, v) => s + v, 0),
       net_salary: c.netSalary,
       is_approved: true,
       approved_by: user?.id ?? null,
@@ -1065,7 +1031,7 @@ const Salaries = () => {
         attendance_deduction: row.violations,
         advance_deduction: row.advanceDeduction,
         external_deduction: row.externalDeduction,
-        manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage,
+        manual_deduction: 0,
         net_salary: c.netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
@@ -1131,7 +1097,7 @@ const Salaries = () => {
         attendance_deduction: row.violations,
         advance_deduction: row.advanceDeduction,
         external_deduction: row.externalDeduction,
-        manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage,
+        manual_deduction: 0,
         net_salary: c.netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
@@ -1234,10 +1200,6 @@ const Salaries = () => {
       row['قسط سلفة'] = r.advanceDeduction;
       row['خصومات خارجية'] = r.externalDeduction;
       row['المخالفات'] = r.violations;
-      row['محفظة هنقرستيشن'] = r.walletHunger;
-      row['محفظة تويو'] = r.walletTuyo;
-      row['محفظة جاهز'] = r.walletJahiz;
-      row['تلف طعام'] = r.foodDamage;
       row['إجمالي المستقطعات'] = c.totalDeductions;
       row['إجمالي الراتب'] = c.netSalary;
       row['التحويل'] = r.transfer;
@@ -1477,10 +1439,6 @@ const Salaries = () => {
         ${row.advanceRemaining > 0 ? `<tr><td class="label">رصيد السلفة المتبقي (للمعلومية)</td><td class="val-orange">${row.advanceRemaining.toLocaleString()} ر.س</td></tr>` : ''}
         ${row.externalDeduction > 0 ? `<tr><td class="label">خصومات خارجية</td><td class="val-red">- ${row.externalDeduction.toLocaleString()} ر.س</td></tr>` : ''}
         ${row.violations > 0 ? `<tr><td class="label">مخالفات</td><td class="val-red">- ${row.violations.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletHunger > 0 ? `<tr><td class="label">محفظة هنقرستيشن</td><td class="val-red">- ${row.walletHunger.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletTuyo > 0 ? `<tr><td class="label">محفظة تويو</td><td class="val-red">- ${row.walletTuyo.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletJahiz > 0 ? `<tr><td class="label">محفظة جاهز</td><td class="val-red">- ${row.walletJahiz.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.foodDamage > 0 ? `<tr><td class="label">تلف طعام</td><td class="val-red">- ${row.foodDamage.toLocaleString()} ر.س</td></tr>` : ''}
         <tr class="deduction-total"><td class="label">إجمالي المستقطعات</td><td class="val-red">- ${c.totalDeductions.toLocaleString()} ر.س</td></tr>
       </table>` : ''}
 
@@ -1642,10 +1600,6 @@ const Salaries = () => {
           ${row.advanceRemaining > 0 ? `<tr><td class="label">رصيد السلفة المتبقي</td><td class="val-orange">${row.advanceRemaining.toLocaleString()} ر.س</td></tr>` : ''}
           ${row.externalDeduction > 0 ? `<tr><td class="label">خصومات خارجية</td><td class="val-red">- ${row.externalDeduction.toLocaleString()} ر.س</td></tr>` : ''}
           ${row.violations > 0 ? `<tr><td class="label">مخالفات</td><td class="val-red">- ${row.violations.toLocaleString()} ر.س</td></tr>` : ''}
-          ${row.walletHunger > 0 ? `<tr><td class="label">محفظة هنقرستيشن</td><td class="val-red">- ${row.walletHunger.toLocaleString()} ر.س</td></tr>` : ''}
-          ${row.walletTuyo > 0 ? `<tr><td class="label">محفظة تويو</td><td class="val-red">- ${row.walletTuyo.toLocaleString()} ر.س</td></tr>` : ''}
-          ${row.walletJahiz > 0 ? `<tr><td class="label">محفظة جاهز</td><td class="val-red">- ${row.walletJahiz.toLocaleString()} ر.س</td></tr>` : ''}
-          ${row.foodDamage > 0 ? `<tr><td class="label">تلف طعام</td><td class="val-red">- ${row.foodDamage.toLocaleString()} ر.س</td></tr>` : ''}
           <tr class="deduction-total"><td class="label">إجمالي المستقطعات</td><td class="val-red">- ${c.totalDeductions.toLocaleString()} ر.س</td></tr>
         </table>` : ''}
         <h3>الصافي</h3>
@@ -1718,10 +1672,6 @@ const Salaries = () => {
     acc.advance += r.advanceDeduction;
     acc.externalDed += r.externalDeduction;
     acc.violations += r.violations;
-    acc.walletH += r.walletHunger;
-    acc.walletT += r.walletTuyo;
-    acc.walletJ += r.walletJahiz;
-    acc.food += r.foodDamage;
     acc.totalDed += c.totalDeductions;
     acc.net += c.netSalary;
     acc.transfer += r.transfer;
@@ -1731,8 +1681,8 @@ const Salaries = () => {
     platform: {} as Record<string, number>,
     platformSalaries: 0, incentives: 0, sickAllowance: 0,
     totalAdditions: 0, totalWithSalary: 0,
-    advance: 0, externalDed: 0, violations: 0, walletH: 0, walletT: 0, walletJ: 0,
-    food: 0, totalDed: 0, net: 0, transfer: 0, remaining: 0,
+    advance: 0, externalDed: 0, violations: 0,
+    totalDed: 0, net: 0, transfer: 0, remaining: 0,
   });
 
   const ThSort = ({ field, label, className = '' }: { field: string; label: string; className?: string }) => (
@@ -2558,10 +2508,6 @@ const Salaries = () => {
           { key: 'advance', label: t.advanceInstallment, val: row.advanceDeduction },
           { key: 'external', label: t.externalDeductions, val: row.externalDeduction },
           { key: 'violation', label: t.violations, val: row.violations },
-          { key: 'hunger', label: t.walletHunger, val: row.walletHunger },
-          { key: 'tuyo', label: t.walletTuyo, val: row.walletTuyo },
-          { key: 'jahiz', label: t.walletJahiz, val: row.walletJahiz },
-          { key: 'food', label: t.foodDamage, val: row.foodDamage },
         ];
         const deductionItems = allDeductions.filter(d => d.val > 0);
         const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);

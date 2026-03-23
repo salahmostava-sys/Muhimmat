@@ -1,0 +1,41 @@
+Explain your plan before making any changes. Maximum 3 files changed.
+
+Issue 5 — Remove duplicate cn() function in Dashboard.tsx
+In src/pages/Dashboard.tsx at line 23, there is a locally defined cn function:
+tsfunction cn(...classes: (string | undefined | false)[]) {
+  return classes.filter(Boolean).join(' ');
+}
+This duplicates the cn utility already exported from src/lib/utils.ts. Remove the local definition and add the correct import at the top of the file:
+tsimport { cn } from '@/lib/utils';
+Verify that the imported cn from utils is compatible with all existing usages in the file before removing the local one. Do NOT change any other line in Dashboard.tsx.
+
+Issue 6 — Delete empty DashboardLayout wrapper
+src/layouts/DashboardLayout.tsx contains only one line:
+tsexport { default } from '@/components/AppLayout';
+This file adds no value and creates confusion. Do the following:
+First, confirm that DashboardLayout is only imported in src/App.tsx. Second, in App.tsx replace:
+tsimport DashboardLayout from '@/layouts/DashboardLayout';
+with:
+tsimport DashboardLayout from '@/components/AppLayout';
+Third, delete src/layouts/DashboardLayout.tsx. Do NOT touch AuthLayout.tsx or any other file in the layouts folder.
+
+Issue 7 — Add useEffect cleanup to prevent memory leaks
+In the following pages, useEffect hooks perform async Supabase fetches but have no cleanup to cancel the request if the component unmounts before the data returns. This causes "state update on unmounted component" warnings:
+src/pages/Employees.tsx, src/pages/Attendance.tsx, src/pages/Orders.tsx, src/pages/Advances.tsx
+For each file, add an isMounted flag pattern to every useEffect that contains an async fetch:
+tsuseEffect(() => {
+  let isMounted = true;
+  const fetchData = async () => {
+    const { data } = await supabase.from(...).select(...);
+    if (isMounted) setState(data);
+  };
+  fetchData();
+  return () => { isMounted = false; };
+}, [deps]);
+Apply this pattern only to useEffect hooks that set state after an async call. Do NOT restructure any component, do NOT change any business logic, and do NOT modify any other part of each file.
+Hard rules:
+
+Maximum 6 files changed
+Show only the changed portions
+Do NOT touch Salaries.tsx or Dashboard.tsx
+Do NOT modify any UI or business logic
