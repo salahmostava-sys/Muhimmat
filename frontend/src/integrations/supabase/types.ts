@@ -86,6 +86,7 @@ export type Database = {
         Row: {
           advance_id: string
           amount: number
+          company_id: string
           deducted_at: string | null
           id: string
           month_year: string
@@ -95,6 +96,7 @@ export type Database = {
         Insert: {
           advance_id: string
           amount: number
+          company_id?: string
           deducted_at?: string | null
           id?: string
           month_year: string
@@ -104,6 +106,7 @@ export type Database = {
         Update: {
           advance_id?: string
           amount?: number
+          company_id?: string
           deducted_at?: string | null
           id?: string
           month_year?: string
@@ -118,12 +121,20 @@ export type Database = {
             referencedRelation: "advances"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "advance_installments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       advances: {
         Row: {
           amount: number
           approved_by: string | null
+          company_id: string
           created_at: string
           disbursement_date: string
           employee_id: string
@@ -141,6 +152,7 @@ export type Database = {
         Insert: {
           amount: number
           approved_by?: string | null
+          company_id?: string
           created_at?: string
           disbursement_date?: string
           employee_id: string
@@ -158,6 +170,7 @@ export type Database = {
         Update: {
           amount?: number
           approved_by?: string | null
+          company_id?: string
           created_at?: string
           disbursement_date?: string
           employee_id?: string
@@ -173,6 +186,13 @@ export type Database = {
           written_off_reason?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "advances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "advances_employee_id_fkey"
             columns: ["employee_id"]
@@ -301,6 +321,7 @@ export type Database = {
         Row: {
           check_in: string | null
           check_out: string | null
+          company_id: string
           created_at: string
           created_by: string | null
           date: string
@@ -312,6 +333,7 @@ export type Database = {
         Insert: {
           check_in?: string | null
           check_out?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           date: string
@@ -323,6 +345,7 @@ export type Database = {
         Update: {
           check_in?: string | null
           check_out?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           date?: string
@@ -332,6 +355,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["attendance_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_employee_id_fkey"
             columns: ["employee_id"]
@@ -377,6 +407,7 @@ export type Database = {
       daily_orders: {
         Row: {
           app_id: string
+          company_id: string
           created_at: string
           created_by: string | null
           date: string
@@ -387,6 +418,7 @@ export type Database = {
         }
         Insert: {
           app_id: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           date: string
@@ -397,6 +429,7 @@ export type Database = {
         }
         Update: {
           app_id?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           date?: string
@@ -406,6 +439,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "daily_orders_app_id_fkey"
             columns: ["app_id"]
@@ -740,6 +780,7 @@ export type Database = {
           apply_month: string
           approval_status: Database["public"]["Enums"]["approval_status"]
           approved_by: string | null
+          company_id: string
           created_at: string
           employee_id: string
           id: string
@@ -754,6 +795,7 @@ export type Database = {
           apply_month: string
           approval_status?: Database["public"]["Enums"]["approval_status"]
           approved_by?: string | null
+          company_id?: string
           created_at?: string
           employee_id: string
           id?: string
@@ -768,6 +810,7 @@ export type Database = {
           apply_month?: string
           approval_status?: Database["public"]["Enums"]["approval_status"]
           approved_by?: string | null
+          company_id?: string
           created_at?: string
           employee_id?: string
           id?: string
@@ -778,6 +821,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["deduction_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "external_deductions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "external_deductions_employee_id_fkey"
             columns: ["employee_id"]
@@ -1027,6 +1077,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          company_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -1037,6 +1088,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          company_id?: string | null
           created_at?: string
           email?: string | null
           id: string
@@ -1047,6 +1099,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          company_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1055,7 +1108,15 @@ export type Database = {
           name_en?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salary_records: {
         Row: {
@@ -1065,6 +1126,7 @@ export type Database = {
           approved_by: string | null
           attendance_deduction: number
           base_salary: number
+          company_id: string
           created_at: string
           employee_id: string
           external_deduction: number
@@ -1084,6 +1146,7 @@ export type Database = {
           approved_by?: string | null
           attendance_deduction?: number
           base_salary?: number
+          company_id?: string
           created_at?: string
           employee_id: string
           external_deduction?: number
@@ -1103,6 +1166,7 @@ export type Database = {
           approved_by?: string | null
           attendance_deduction?: number
           base_salary?: number
+          company_id?: string
           created_at?: string
           employee_id?: string
           external_deduction?: number
@@ -1116,6 +1180,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salary_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "salary_records_employee_id_fkey"
             columns: ["employee_id"]
