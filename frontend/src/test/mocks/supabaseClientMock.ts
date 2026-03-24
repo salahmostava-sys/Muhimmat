@@ -36,29 +36,51 @@ export type SupabaseMockOptions = {
     updateUser?: () => Promise<{ data: unknown; error: unknown }>;
   };
   storageUpload?: MockQueryResult;
+  functionsInvoke?: MockQueryResult | (() => Promise<MockQueryResult>);
 };
 
 /** Plain mock (no Vitest); wrap `from` with vi.fn in test files if needed. */
 export function createSupabaseMock(options: SupabaseMockOptions) {
   const getTableResult = (table: string) => options.tables[table] ?? { data: null, error: null };
 
+  const defaultAuth = {
+    signInWithPassword: () => Promise.resolve({ data: { session: null, user: null }, error: null }),
+    signOut: () => Promise.resolve({ error: null }),
+    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    getUser:
+      options.auth?.getUser ??
+      (() => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null })),
+    updateUser:
+      options.auth?.updateUser ?? (() => Promise.resolve({ data: { user: null }, error: null })),
+    resetPasswordForEmail: () => Promise.resolve({ data: {}, error: null }),
+    refreshSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    onAuthStateChange: (_cb: unknown) => ({
+      data: { subscription: { unsubscribe: () => {} } },
+    }),
+  };
+
   return {
     from(table: string) {
       return createQueryBuilder(getTableResult(table));
     },
-    auth: {
-      getUser:
-        options.auth?.getUser ??
-        (() => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null })),
-      updateUser:
-        options.auth?.updateUser ?? (() => Promise.resolve({ data: {}, error: null })),
-    },
+    auth: defaultAuth,
     storage: {
       from() {
         return {
           upload: async () => options.storageUpload ?? { data: { path: 'mock' }, error: null },
           getPublicUrl: () => ({ data: { publicUrl: 'https://cdn.test/avatar.png' } }),
         };
+      },
+    },
+    channel: () => ({
+      on: () => ({ subscribe: () => ({}) }),
+    }),
+    removeChannel: () => {},
+    functions: {
+      invoke: async () => {
+        const r = options.functionsInvoke;
+        if (typeof r === 'function') return r();
+        return r ?? { data: null, error: null };
       },
     },
   };
