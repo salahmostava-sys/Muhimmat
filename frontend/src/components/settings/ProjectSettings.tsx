@@ -14,6 +14,7 @@ import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/context/AuthContext';
+import { validateUploadFile } from '@/lib/validation';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
@@ -50,8 +51,11 @@ export default function ProjectSettings() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: isRTL ? 'الملف كبير جداً' : 'File too large', description: isRTL ? 'الحد الأقصى 2 ميغابايت' : 'Max 2MB', variant: 'destructive' });
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
+    });
+    if (!validation.valid) {
+      toast({ title: isRTL ? 'خطأ في الملف' : 'Invalid file', description: validation.error, variant: 'destructive' });
       return;
     }
     setLogoFile(file);

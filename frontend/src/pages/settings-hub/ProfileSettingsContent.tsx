@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { settingsHubService } from '@/services/settingsHubService';
+import { validateUploadFile } from '@/lib/validation';
 
 const getStrength = (pw: string) => {
   if (!pw) return 0;
@@ -71,8 +72,11 @@ export default function ProfileSettingsContent() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: isRTL ? 'الحجم الأقصى 2MB' : 'Max size is 2MB', variant: 'destructive' });
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    });
+    if (!validation.valid) {
+      toast({ title: validation.error, variant: 'destructive' });
       return;
     }
     setAvatarFile(file);

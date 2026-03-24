@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { settingsHubService } from '@/services/settingsHubService';
+import { validateUploadFile } from '@/lib/validation';
 
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
   <div className="flex items-center gap-3 pb-4 mb-5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
@@ -59,8 +60,11 @@ export default function CompanySettingsContent() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: isRTL ? 'الملف كبير جداً — الحد الأقصى 2 ميغابايت' : 'File too large — Max 2MB', variant: 'destructive' });
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
+    });
+    if (!validation.valid) {
+      toast({ title: validation.error, variant: 'destructive' });
       return;
     }
     setLogoFile(file);

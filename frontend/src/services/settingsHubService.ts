@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { validateUploadFile } from '@/lib/validation';
 
 export const settingsHubService = {
   getAuditLogs: async (from: number, to: number, filterAction: string, filterTable: string, search: string) => {
@@ -23,16 +24,26 @@ export const settingsHubService = {
 
   getProfileByUserId: async (userId: string) =>
     supabase.from('profiles').select('name, avatar_url').eq('id', userId).single(),
-  uploadAvatar: async (path: string, file: File) =>
-    supabase.storage.from('avatars').upload(path, file, { upsert: true }),
+  uploadAvatar: async (path: string, file: File) => {
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    });
+    if (!validation.valid) throw new Error(validation.error);
+    return supabase.storage.from('avatars').upload(path, file, { upsert: true });
+  },
   getAvatarPublicUrl: (path: string) => supabase.storage.from('avatars').getPublicUrl(path),
   updateProfileByUserId: async (userId: string, payload: Record<string, unknown>) =>
     supabase.from('profiles').update(payload).eq('id', userId),
   updatePassword: async (password: string) => supabase.auth.updateUser({ password }),
 
   getTradeRegister: async () => supabase.from('trade_registers').select('*').order('created_at').limit(1).maybeSingle(),
-  uploadCompanyLogo: async (path: string, file: File) =>
-    supabase.storage.from('avatars').upload(path, file, { upsert: true }),
+  uploadCompanyLogo: async (path: string, file: File) => {
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
+    });
+    if (!validation.valid) throw new Error(validation.error);
+    return supabase.storage.from('avatars').upload(path, file, { upsert: true });
+  },
   getCompanyLogoPublicUrl: (path: string) => supabase.storage.from('avatars').getPublicUrl(path),
   updateSystemLogo: async (settingsId: string, logoUrl: string | null) =>
     supabase.from('system_settings').update({ logo_url: logoUrl }).eq('id', settingsId),

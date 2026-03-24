@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { validateUploadFile } from '@/lib/validation';
 
 // ─── Password strength ────────────────────────────────────────────────────────
 const getStrength = (pw: string) => {
@@ -68,8 +69,11 @@ const UserProfileModal = ({ onClose }: Props) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: isRtl ? 'الحجم الأقصى 2MB' : 'Max size is 2MB', variant: 'destructive' });
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    });
+    if (!validation.valid) {
+      toast({ title: validation.error, variant: 'destructive' });
       return;
     }
     setAvatarFile(file);

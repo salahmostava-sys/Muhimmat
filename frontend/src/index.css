@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -20,11 +20,11 @@
     --popover-foreground: 210 6% 11%;
 
     /* Primary: #2642e6 → HSL 232 77% 52% */
-    --primary: 232 77% 52%;
+    --primary: 220 83% 53%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary: #3549db */
-    --secondary: 235 64% 54%;
+    --secondary: 215 28% 17%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 240 7% 94%;              /* surface-container #edeef0 */
@@ -162,7 +162,7 @@
   html {
     direction: rtl;
     scrollbar-gutter: stable both-edges;
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
   }
 
   * {
@@ -173,7 +173,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     overflow-y: scroll;
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
   }
 
   /* Global table alignment: center all cells */
@@ -410,7 +410,7 @@
     white-space: nowrap;
     transition: opacity 150ms ease, transform 100ms ease, box-shadow 150ms ease;
     text-decoration: none;
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
   }
 
   .ds-btn:focus-visible {
@@ -464,7 +464,7 @@
     background: linear-gradient(135deg, var(--ds-primary), var(--ds-primary-container));
     color: #ffffff;
     box-shadow: var(--shadow-brand);
-    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
   }
   .ds-btn-primary:hover:not(:disabled) { opacity: 0.90; }
   .ds-btn-primary:active:not(:disabled) { transform: scale(0.97); }

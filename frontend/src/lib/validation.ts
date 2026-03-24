@@ -1,27 +1,43 @@
-// validation.ts
+export type FileValidationOptions = {
+  allowedTypes?: string[];
+  maxSizeBytes?: number;
+};
 
-// Function to validate file uploads
-function validateFileUpload(file) {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    return allowedTypes.includes(file.type) && file.size <= 10485760; // 10 MB
+export const DEFAULT_ALLOWED_UPLOAD_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'application/pdf',
+];
+
+export const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+
+export function validateUploadFile(
+  file: File,
+  options: FileValidationOptions = {}
+): { valid: true } | { valid: false; error: string } {
+  const allowedTypes = options.allowedTypes ?? DEFAULT_ALLOWED_UPLOAD_TYPES;
+  const maxSizeBytes = options.maxSizeBytes ?? DEFAULT_MAX_UPLOAD_BYTES;
+
+  if (!allowedTypes.includes(file.type)) {
+    return { valid: false, error: 'غير مسموح بهذا النوع' };
+  }
+  if (file.size > maxSizeBytes) {
+    return { valid: false, error: 'الملف كبير جدًا' };
+  }
+  return { valid: true };
 }
 
-// Function to validate phone numbers (US format)
-function validatePhoneNumber(phoneNumber) {
-    const regex = /^\(\d{3}\) \d{3}-\d{4}$/;
-    return regex.test(phoneNumber);
+export function validatePhoneNumber(phoneNumber: string) {
+  const regex = /^\(\d{3}\) \d{3}-\d{4}$/;
+  return regex.test(phoneNumber);
 }
 
-// Function to validate emails
-function validateEmail(email) {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+export function validateEmail(email: string) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
 }
 
-// Function to validate national IDs
-function validateNationalID(nationalID) {
-    const regex = /^[0-9]{4}-[0-9]{4}$/; // Example format: 1234-5678
-    return regex.test(nationalID);
+export function validateNationalID(nationalID: string) {
+  const regex = /^[0-9]{4}-[0-9]{4}$/;
+  return regex.test(nationalID);
 }
-
-export { validateFileUpload, validatePhoneNumber, validateEmail, validateNationalID };
