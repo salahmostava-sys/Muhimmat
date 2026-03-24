@@ -395,20 +395,31 @@ const FuelPage = () => {
       aggMap[r.employee_id].count += 1;
     });
 
-    const rows: MonthlyRow[] = Object.entries(aggMap).map(([emp_id, agg]) => ({
-      employee_id: emp_id,
-      employee_name: agg.name,
-      personal_photo_url: agg.photo,
-      km_total: agg.km,
-      fuel_cost: agg.fuel,
-      orders_count: orderMap[emp_id] || 0,
-      vehicle: vehicleMap[emp_id] || null,
-      daily_count: agg.count,
-    })).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
+    const empById: Record<string, Employee> = {};
+    employees.forEach((e) => { empById[e.id] = e; });
+    const allEmployeeIds = new Set<string>([
+      ...Object.keys(aggMap),
+      ...Object.keys(orderMap).filter((id) => (orderMap[id] || 0) > 0),
+    ]);
+
+    const rows: MonthlyRow[] = Array.from(allEmployeeIds).map((emp_id) => {
+      const agg = aggMap[emp_id];
+      const emp = empById[emp_id];
+      return {
+        employee_id: emp_id,
+        employee_name: agg?.name || emp?.name || '—',
+        personal_photo_url: agg?.photo || emp?.personal_photo_url || null,
+        km_total: agg?.km || 0,
+        fuel_cost: agg?.fuel || 0,
+        orders_count: orderMap[emp_id] || 0,
+        vehicle: vehicleMap[emp_id] || null,
+        daily_count: agg?.count || 0,
+      };
+    }).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
 
     setMonthlyRows(rows);
     setLoading(false);
-  }, [monthYear, employeeIdsOnPlatform]);
+  }, [monthYear, employeeIdsOnPlatform, employees]);
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, AlertTriangle, XCircle, FileWarning, CheckCircle, RefreshCw, CheckCircle2, Pencil, Trash2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +116,9 @@ const ViolationResolver = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
+  const [vSortField, setVSortField] = useState<'employee_name' | 'incident_date' | 'amount' | 'status'>('incident_date');
+  const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
 
   const fetchViolations = useCallback(async () => {
     setViolationsLoading(true);
@@ -427,6 +430,39 @@ const ViolationResolver = () => {
     toast({ title: 'تم التحويل إلى سلفة ✅' });
   };
 
+  const sortedViolations = useMemo(() => {
+    const rows = [...violations];
+    rows.sort((a, b) => {
+      let va: string | number = '';
+      let vb: string | number = '';
+      if (vSortField === 'amount') {
+        va = a.amount || 0;
+        vb = b.amount || 0;
+      } else if (vSortField === 'incident_date') {
+        va = a.incident_date || '';
+        vb = b.incident_date || '';
+      } else if (vSortField === 'status') {
+        va = a.status || '';
+        vb = b.status || '';
+      } else {
+        va = a.employee_name || '';
+        vb = b.employee_name || '';
+      }
+      if (va < vb) return vSortDir === 'asc' ? -1 : 1;
+      if (va > vb) return vSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }, [violations, vSortDir, vSortField]);
+
+  const toggleVSort = (field: 'employee_name' | 'incident_date' | 'amount' | 'status') => {
+    if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setVSortField(field);
+      setVSortDir('asc');
+    }
+  };
+
   const handleReset = () => {
     setForm({ plate_number: '', selected_vehicle_id: null, violation_datetime: '', violation_date_only: '', amount: '', note: '', place: '', use_time: true });
     setResults(null); setNoVehicle(false); setAssigningEmployeeId(null); setSuggestions([]);
@@ -454,6 +490,17 @@ const ViolationResolver = () => {
       </div>
 
       <div className="max-w-5xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Button variant={activeTab === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTab('search')}>
+            الاستعلام
+          </Button>
+          <Button variant={activeTab === 'saved' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTab('saved')}>
+            المخالفات المرحلة
+          </Button>
+        </div>
+
+        {activeTab === 'search' && (
+          <>
         {/* ── Search Card ── */}
         <div className="bg-card border border-border rounded-2xl p-4 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -663,8 +710,11 @@ const ViolationResolver = () => {
             </div>
           </div>
         )}
+          </>
+        )}
 
         {/* ── Violations Management ── */}
+        {activeTab === 'saved' && (
         <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-border/50 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">
@@ -686,16 +736,16 @@ const ViolationResolver = () => {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">اسم الموظف</th>
+                    <th onClick={() => toggleVSort('employee_name')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">اسم الموظف</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">التاريخ</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">المبلغ</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">الحالة</th>
+                    <th onClick={() => toggleVSort('incident_date')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">التاريخ</th>
+                    <th onClick={() => toggleVSort('amount')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">المبلغ</th>
+                    <th onClick={() => toggleVSort('status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">الحالة</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {violations.map(v => {
+                  {sortedViolations.map(v => {
                     const statusBadge =
                       v.status === 'approved'
                         ? 'bg-success/10 text-success border-success/20'
@@ -743,7 +793,7 @@ const ViolationResolver = () => {
                               onClick={() => handleConvertToAdvance(v)}
                             >
                               <CreditCard size={14} />
-                              {convertingId === v.id ? '...' : 'Convert to Advance'}
+                              {convertingId === v.id ? '...' : 'تحويل لسلفة'}
                             </Button>
                           </div>
                         </td>
@@ -755,6 +805,7 @@ const ViolationResolver = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Edit Modal ── */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

@@ -23,6 +23,11 @@ const monthLabel = (y: number, m: number) =>
   new Date(y, m - 1, 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
 const dateStr = (y: number, m: number, d: number) =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const shortName = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[1]}`;
+};
 const monthYear = (y: number, m: number) =>
   `${y}-${String(m).padStart(2, '0')}`;
 const isPastMonth = (y: number, m: number) => {
@@ -150,6 +155,7 @@ const SpreadsheetGrid = () => {
   const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
   const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [platformFilter, setPlatformFilter] = useState<'all' | string>('all');
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [lockingMonth, setLockingMonth] = useState(false);
   const canEditMonth = permissions.can_edit && !isMonthLocked;
@@ -174,6 +180,7 @@ const SpreadsheetGrid = () => {
       if (!isMounted) return;
       const d: DailyData = {};
       rows?.forEach(r => {
+        if (platformFilter !== 'all' && r.app_id !== platformFilter) return;
         const day = new Date(r.date + 'T00:00:00').getDate();
         d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
       });
@@ -181,7 +188,7 @@ const SpreadsheetGrid = () => {
       setLoading(false);
     });
     return () => { isMounted = false; };
-  }, [year, month]);
+  }, [year, month, platformFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -196,13 +203,14 @@ const SpreadsheetGrid = () => {
   }, [year, month]);
 
   const filteredEmployees = employees.filter(emp => emp.name.includes(search));
+  const visibleApps = platformFilter === 'all' ? apps : apps.filter(a => a.id === platformFilter);
   const days = getDaysInMonth(year, month);
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
   const today = now.getFullYear() === year && (now.getMonth() + 1) === month ? now.getDate() : -1;
 
   const getVal = useCallback((empId: string, appId: string, day: number) => data[`${empId}::${appId}::${day}`] ?? 0, [data]);
-  const getActiveApps = useCallback((empId: string) => apps.filter(app => dayArr.some(d => getVal(empId, app.id, d) > 0)), [apps, dayArr, getVal]);
-  const empDayTotal = useCallback((empId: string, day: number) => apps.reduce((s, a) => s + getVal(empId, a.id, day), 0), [apps, getVal]);
+  const getActiveApps = useCallback((empId: string) => visibleApps.filter(app => dayArr.some(d => getVal(empId, app.id, d) > 0)), [visibleApps, dayArr, getVal]);
+  const empDayTotal = useCallback((empId: string, day: number) => visibleApps.reduce((s, a) => s + getVal(empId, a.id, day), 0), [visibleApps, getVal]);
   const empMonthTotal = useCallback((empId: string) => dayArr.reduce((s, d) => s + empDayTotal(empId, d), 0), [dayArr, empDayTotal]);
   const empAppMonthTotal = useCallback((empId: string, appId: string) => dayArr.reduce((s, d) => s + getVal(empId, appId, d), 0), [dayArr, getVal]);
 
@@ -436,13 +444,28 @@ const SpreadsheetGrid = () => {
           : '💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات'}
       </p>
       <div className="flex items-center gap-1.5 flex-wrap text-xs">
+        <button
+          onClick={() => setPlatformFilter('all')}
+          className={`px-2 py-1 rounded border ${platformFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60 hover:bg-muted/30'}`}
+        >
+          كل المنصات
+        </button>
+        {apps.map(app => (
+          <button
+            key={`filter-${app.id}`}
+            onClick={() => setPlatformFilter(app.id)}
+            className={`px-2 py-1 rounded border ${platformFilter === app.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60 hover:bg-muted/30'}`}
+          >
+            {app.name}
+          </button>
+        ))}
         <button onClick={() => handleSort('name')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
           اسم المندوب <SortIcon field="name" />
         </button>
         <button onClick={() => handleSort('total')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
           إجمالي الطلبات <SortIcon field="total" />
         </button>
-        {apps.map(app => (
+        {visibleApps.map(app => (
           <button
             key={app.id}
             onClick={() => handleSort(`app:${app.id}`)}
@@ -469,7 +492,7 @@ const SpreadsheetGrid = () => {
                 <th
                   onClick={() => handleSort('name')}
                   className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
-                  style={{ minWidth: 220 }}>
+                  style={{ minWidth: 170 }}>
                   المندوب / المنصة <SortIcon field="name" />
                 </th>
                 {dayArr.map(d => {
@@ -509,7 +532,7 @@ const SpreadsheetGrid = () => {
                     <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
                       <td
                         className="sticky right-0 z-10 px-3 py-2 border-l-2 border-border cursor-pointer hover:bg-muted/30 transition-colors"
-                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 220 }}
+                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 170 }}
                         onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
                       >
                         <div className="flex items-center gap-1.5">
@@ -518,7 +541,7 @@ const SpreadsheetGrid = () => {
                               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                             </span>
                           )}
-                          <span className="font-medium text-foreground truncate max-w-[140px]">{emp.name}</span>
+                          <span className="font-medium text-foreground truncate max-w-[120px]" title={emp.name}>{shortName(emp.name)}</span>
                         </div>
                         {activeApps.length > 0 && (
                           <div className="flex gap-0.5 flex-wrap mt-0.5 pr-7">
@@ -526,7 +549,7 @@ const SpreadsheetGrid = () => {
                               const c = getAppColor(appColorsList, a.name);
                               return (
                                 <span key={a.id} className="text-[9px] px-1 rounded font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
-                                  {a.name.slice(0, 3)}
+                                  {a.name.slice(0, 4)}
                                 </span>
                               );
                             })}
@@ -542,7 +565,7 @@ const SpreadsheetGrid = () => {
                         const isThursday = dow === 4;
                         const isToday = d === today;
                         const isOpen = cellPopover?.empId === emp.id && cellPopover?.day === d;
-                        const dayApps = apps.filter(a => getVal(emp.id, a.id, d) > 0);
+                        const dayApps = visibleApps.filter(a => getVal(emp.id, a.id, d) > 0);
 
                         return (
                           <td key={d}
@@ -588,7 +611,7 @@ const SpreadsheetGrid = () => {
                       const appTotal = empAppMonthTotal(emp.id, app.id);
                       return (
                         <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-10 px-3 py-1.5 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 220 }}>
+                          <td className="sticky right-0 z-10 px-3 py-1.5 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 170 }}>
                             <div className="flex items-center gap-2 pr-8">
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
                                 {app.name}
@@ -622,7 +645,7 @@ const SpreadsheetGrid = () => {
               {/* Footer totals */}
               <tr className="border-t-2 border-border font-semibold">
                 <td className="sticky right-0 z-10 px-3 py-2.5 text-sm font-bold border-l-2 border-border text-foreground"
-                  style={{ backgroundColor: 'hsl(var(--muted) / 0.8)', minWidth: 220 }}>
+                  style={{ backgroundColor: 'hsl(var(--muted))', minWidth: 170 }}>
                   الإجمالي
                 </td>
                 {dayArr.map(d => {

@@ -24,7 +24,6 @@ interface Tab {
 
 const TABS: Tab[] = [
   { key: 'general',  labelAr: 'إعدادات النظام',          labelEn: 'System Settings',    icon: Settings2  },
-  { key: 'company',  labelAr: 'بيانات المنشأة',           labelEn: 'Organization Info',  icon: Building2  },
   { key: 'users',    labelAr: 'المستخدمون والصلاحيات',   labelEn: 'Users & Permissions', icon: Users      },
   { key: 'schemes',  labelAr: 'مخططات الرواتب',           labelEn: 'Salary Schemes',     icon: Wallet     },
   { key: 'activity', labelAr: 'سجل النشاطات',             labelEn: 'Activity Log',       icon: History    },

@@ -40,7 +40,7 @@ const STATUS_DELIVERED   = 'delivered';
 const STATUS_NOT_DELIVERED = 'not_delivered';
 
 const statusLabel = (s: string) =>
-  s === STATUS_DELIVERED ? 'مسلّمة' : 'غير مسلّمة';
+  s === STATUS_DELIVERED ? 'مسلّمة' : 'غير مسلم';
 
 const statusCls = (s: string) =>
   s === STATUS_DELIVERED
@@ -291,13 +291,12 @@ const EmployeeTiers = () => {
       return;
     }
     if (!newRow.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
-    if (!newRow.renewal_date) { toast({ title: 'خطأ', description: 'أدخل تاريخ التجديد', variant: 'destructive' }); return; }
     setSavingNew(true);
     const { error } = await employeeTierService.createTier({
       sim_number: newRow.sim_number || null,
       employee_id: newRow.employee_id,
       package_type: newRow.package_type || '',
-      renewal_date: newRow.renewal_date,
+      renewal_date: newRow.renewal_date || new Date().toISOString().slice(0, 10),
       delivery_status: newRow.delivery_status || STATUS_DELIVERED,
       app_ids: newRow.app_ids || [],
       start_date: new Date().toISOString().slice(0, 10),
@@ -444,7 +443,6 @@ const EmployeeTiers = () => {
                   <ThSort field="sim_number" label="رقم الشريحة" />
                   <ThSort field="employee_name" label="المندوب" />
                   <ThSort field="package_type" label="نوع الباقة" />
-                  <ThSort field="renewal_date" label="تاريخ التجديد" />
                   <ThSort field="delivery_status" label="الحالة" />
                   <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">المنصات</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">إجراءات</th>
@@ -477,15 +475,6 @@ const EmployeeTiers = () => {
                         className="h-8 text-xs w-32"
                       />
                     </td>
-                    {/* renewal_date */}
-                    <td className="px-2 py-2">
-                      <Input
-                        type="date"
-                        value={newRow.renewal_date || ''}
-                        onChange={e => setNewRow(p => ({ ...p, renewal_date: e.target.value }))}
-                        className="h-8 text-xs w-36"
-                      />
-                    </td>
                     {/* status */}
                     <td className="px-2 py-2">
                       <select
@@ -494,7 +483,7 @@ const EmployeeTiers = () => {
                         className="h-8 text-xs rounded-lg border border-border/50 bg-background px-2 w-28"
                       >
                         <option value={STATUS_DELIVERED}>مسلّمة</option>
-                        <option value={STATUS_NOT_DELIVERED}>غير مسلّمة</option>
+                          <option value={STATUS_NOT_DELIVERED}>غير مسلم</option>
                       </select>
                     </td>
                     {/* apps */}
@@ -519,7 +508,7 @@ const EmployeeTiers = () => {
                 {/* ── Data rows ── */}
                 {filtered.length === 0 && !addingRow ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={6} className="py-16 text-center">
                       <Layers size={32} className="mx-auto opacity-20 mb-2" />
                       <p className="text-sm text-muted-foreground">لا توجد شرائح — أضف شريحة جديدة</p>
                     </td>
@@ -567,28 +556,16 @@ const EmployeeTiers = () => {
                           />
                         </td>
 
-                        {/* renewal_date */}
-                        <td className="px-2 py-2">
-                          <div className="flex flex-col gap-0.5">
-                            <Input
-                              type="date"
-                              value={row.renewal_date || ''}
-                              onChange={e => patchRow(tier.id, { renewal_date: e.target.value })}
-                              className="h-8 text-xs w-36"
-                            />
-                            {row.renewal_date && <RenewalBadge date={row.renewal_date} />}
-                          </div>
-                        </td>
 
                         {/* status */}
                         <td className="px-2 py-2">
                           <select
                             value={row.delivery_status}
                             onChange={e => patchRow(tier.id, { delivery_status: e.target.value })}
-                            className={`h-8 text-xs rounded-lg border px-2 w-28 font-medium ${row.delivery_status === STATUS_DELIVERED ? 'border-success/30 bg-success/5 text-success' : 'border-border bg-muted text-muted-foreground'}`}
+                            className={`h-8 text-xs rounded-lg border px-2 w-28 font-medium ${row.delivery_status === STATUS_DELIVERED ? 'border-success/30 bg-success/5 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}
                           >
                             <option value={STATUS_DELIVERED}>مسلّمة</option>
-                            <option value={STATUS_NOT_DELIVERED}>غير مسلّمة</option>
+                            <option value={STATUS_NOT_DELIVERED}>غير مسلم</option>
                           </select>
                         </td>
 

@@ -527,7 +527,7 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-           <table ref={tableRef} className="w-full min-w-[1400px]">
+           <table ref={tableRef} className="w-full min-w-[1400px] table-fixed">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
@@ -581,14 +581,14 @@ const Motorcycles = () => {
                     <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.brand || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.model || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{v.year ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.serial_number || '—'}</td>
-                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
-                     <td className="px-3 py-2.5 text-xs text-muted-foreground max-w-[140px] truncate" title={v.notes || ''}>{v.notes || '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-normal break-all" dir="ltr">{v.serial_number || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-normal break-all" dir="ltr">{v.chassis_number || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-normal break-words">{v.notes || '—'}</td>
                      {/* Current assigned rider */}
                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {v.current_rider ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium text-foreground">{v.current_rider}</span>
+                            <span className="text-sm font-medium text-foreground whitespace-normal break-words">{v.current_rider}</span>
                          </div>
                        ) : (
                          <span className="text-muted-foreground/40 text-xs">—</span>
