@@ -105,10 +105,14 @@ export const usePermissions = (pageKey: string) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !role) {
-      // No authenticated user — grant full admin access (bypass / dev mode)
-      const defaults = DEFAULT_PERMISSIONS['admin'];
-      setPermissions(defaults[pageKey] || { can_view: true, can_edit: true, can_delete: true });
+    if (!user) {
+      setPermissions({ can_view: false, can_edit: false, can_delete: false });
+      setLoading(false);
+      return;
+    }
+    if (!role) {
+      // Authenticated but no role assigned yet — deny until admin grants a role (matches RLS).
+      setPermissions({ can_view: false, can_edit: false, can_delete: false });
       setLoading(false);
       return;
     }
@@ -135,7 +139,7 @@ export const usePermissions = (pageKey: string) => {
     fetchPermissions();
   }, [user, role, pageKey]);
 
-  return { permissions, loading, isAdmin: role === 'admin' || !user };
+  return { permissions, loading, isAdmin: role === 'admin' };
 };
 
 export { DEFAULT_PERMISSIONS };

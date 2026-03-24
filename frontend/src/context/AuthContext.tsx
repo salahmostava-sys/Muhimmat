@@ -140,6 +140,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Re-check profile.is_active while logged in (narrows window where JWT still works after deactivation).
+  useEffect(() => {
+    if (!user?.id) return;
+    const tick = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const active = await fetchIsActive(user.id);
+      if (!active) await forceSignOut();
+    };
+    const id = setInterval(tick, 120_000);
+    return () => clearInterval(id);
+  }, [user?.id]);
+
   const signIn = async (email: string, password: string) => {
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });
 
