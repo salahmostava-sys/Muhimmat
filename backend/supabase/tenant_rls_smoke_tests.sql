@@ -306,3 +306,19 @@ WHERE pronamespace = 'public'::regnamespace
     'advance_in_my_company'
   )
 ORDER BY proname;
+
+-- E2) Salary RPC execution should be edge-only (service_role).
+SELECT
+  p.proname,
+  r.rolname AS grantee,
+  has_function_privilege(
+    r.rolname,
+    p.oid,
+    'EXECUTE'
+  ) AS can_execute
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+JOIN pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+WHERE n.nspname = 'public'
+  AND p.proname IN ('calculate_salary_for_employee_month', 'calculate_salary_for_month')
+ORDER BY p.proname, r.rolname;
