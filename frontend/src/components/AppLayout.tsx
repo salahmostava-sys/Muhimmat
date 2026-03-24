@@ -43,6 +43,7 @@ const routeTitles: Record<string, string> = {
   '/settings/schemes': 'schemes',
   '/settings/users': 'users',
   '/settings/general': 'generalSettings',
+  '/profile': 'myProfile',
 };
 
 const roleLabelsMap: Record<string, string> = {
@@ -203,7 +204,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                     </div>
                   </div>
                 </div>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => globalThis.location.assign('/settings?tab=profile')}>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => globalThis.location.assign('/profile')}>
                   <User size={14} />
                   <span>الملف الشخصي</span>
                 </DropdownMenuItem>

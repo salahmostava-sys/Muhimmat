@@ -43,7 +43,12 @@ const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title
   </div>
 );
 
-export default function ProfileSettingsContent() {
+interface ProfileSettingsContentProps {
+  /** إخفاء عنوان القسم العلوي (عند عرض الصفحة المستقلة التي تحتوي على h1) */
+  omitPageHeading?: boolean;
+}
+
+export default function ProfileSettingsContent({ omitPageHeading = false }: ProfileSettingsContentProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isRTL } = useLanguage();
@@ -63,10 +68,23 @@ export default function ProfileSettingsContent() {
 
   useEffect(() => {
     if (!user) return;
-    settingsHubService.getProfileByUserId(user.id)
-      .then(({ data }) => {
-        if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
-      });
+    let cancelled = false;
+    settingsHubService.getProfileByUserId(user.id).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        toast({
+          title: isRTL ? 'تعذر تحميل الملف' : 'Could not load profile',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- جلب مرة عند تسجيل الدخول؛ toast مستقر عملياً
   }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,8 +119,9 @@ export default function ProfileSettingsContent() {
       setProfile(p => ({ ...p, avatar_url }));
       setAvatarFile(null);
       toast({ title: isRTL ? 'تم حفظ التغييرات ✓' : 'Changes saved ✓' });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ في الحفظ' : 'Save failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: isRTL ? 'خطأ في الحفظ' : 'Save failed', description: message, variant: 'destructive' });
     } finally {
       setSavingProfile(false);
     }
@@ -152,11 +171,13 @@ export default function ProfileSettingsContent() {
 
   return (
     <div className="space-y-8 max-w-xl" dir={isRTL ? 'rtl' : 'ltr'}>
-      <SectionHeader
-        icon={<User size={20} />}
-        title={isRTL ? 'الملف الشخصي' : 'Profile Settings'}
-        subtitle={isRTL ? 'تعديل بياناتك الشخصية وكلمة المرور' : 'Edit your personal info and password'}
-      />
+      {!omitPageHeading && (
+        <SectionHeader
+          icon={<User size={20} />}
+          title={isRTL ? 'الملف الشخصي' : 'Profile Settings'}
+          subtitle={isRTL ? 'تعديل بياناتك الشخصية وكلمة المرور' : 'Edit your personal info and password'}
+        />
+      )}
 
       {/* Avatar */}
       <div className="bg-card rounded-xl border border-border/50 p-5 space-y-4">

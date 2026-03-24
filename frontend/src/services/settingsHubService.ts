@@ -23,7 +23,7 @@ export const settingsHubService = {
     supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(1000),
 
   getProfileByUserId: async (userId: string) =>
-    supabase.from('profiles').select('name, avatar_url').eq('id', userId).single(),
+    supabase.from('profiles').select('name, avatar_url').eq('id', userId).maybeSingle(),
   uploadAvatar: async (path: string, file: File) => {
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],

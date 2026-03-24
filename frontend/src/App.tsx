@@ -34,6 +34,7 @@ const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
 const PlatformAccounts = lazy(() => import("./pages/PlatformAccounts"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -93,6 +94,7 @@ const App = () => (
                                     <Route path="/alerts" element={<PageGuard pageKey="alerts"><Alerts /></PageGuard>} />
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />
                                     <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
+                                    <Route path="/profile" element={<ProfilePage />} />
 
                                     {/* ── Unified Settings Hub ── */}
                                     <Route path="/settings" element={<PageGuard pageKey="settings"><SettingsHub /></PageGuard>} />
@@ -100,6 +102,7 @@ const App = () => (
                                     <Route path="/settings/schemes" element={<Navigate to="/settings?tab=schemes" replace />} />
                                     <Route path="/settings/users" element={<Navigate to="/settings?tab=users" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings?tab=users" replace />} />
+                                    <Route path="/settings/profile" element={<Navigate to="/profile" replace />} />
 
                                     <Route path="/activity-log" element={<Navigate to="/settings?tab=activity" replace />} />
                                     <Route path="/reports" element={<Navigate to="/settings?tab=activity" replace />} />
