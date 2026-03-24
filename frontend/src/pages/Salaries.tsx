@@ -533,6 +533,7 @@ const Salaries = () => {
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
+  const [appsWithoutPricingRules, setAppsWithoutPricingRules] = useState<string[]>([]);
   const [appIdByName, setAppIdByName] = useState<Record<string, string>>({});
   const [pricingRulesByAppId, setPricingRulesByAppId] = useState<Record<string, PricingRule[]>>({});
   // appCustomColumns: appName → CustomColumn[]
@@ -693,6 +694,11 @@ const Salaries = () => {
         rulesMap[appId] = rules;
       });
       setPricingRulesByAppId(rulesMap);
+
+      const missingPricing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
+        .filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0)
+        .map((a) => a.name);
+      setAppsWithoutPricingRules(missingPricing);
 
       // Track which active platforms have no scheme
       const missing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
@@ -1779,6 +1785,28 @@ const Salaries = () => {
             onClick={() => navigate('/settings/schemes')}
           >
             <Settings2 size={13} /> إعداد الآن
+          </Button>
+        </div>
+      )}
+
+      {/* Setup Required Banner — platforms without pricing rules */}
+      {appsWithoutPricingRules.length > 0 && (
+        <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3">
+          <AlertTriangle size={18} className="text-destructive flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">إعداد مطلوب — منصات بدون قواعد Pricing Rules</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              المنصات التالية لا تملك قواعد تسعير، وسيتم استخدام الـ scheme كحل مؤقت:
+              <span className="font-semibold text-destructive mr-1">{appsWithoutPricingRules.join(' · ')}</span>
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 flex-shrink-0"
+            onClick={() => navigate('/settings/schemes')}
+          >
+            <Settings2 size={13} /> إكمال الإعداد
           </Button>
         </div>
       )}
