@@ -4,7 +4,7 @@ import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { employeeService } from '@/services/employeeService';
 import * as XLSX from '@e965/xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
     const total = validRows.length;
     const BATCH = 20;
 
-    const { data: appsData } = await supabase.from('apps').select('id, name').eq('is_active', true);
+    const { data: appsData } = await employeeService.getActiveApps();
     const appsMap: Record<string, string> = {};
     (appsData || []).forEach(a => { appsMap[a.name] = a.id; });
 
@@ -297,45 +297,30 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
           let empId: string | null = null;
 
           if (emp.employee_code) {
-            const { data: existing } = await supabase
-              .from('employees')
-              .select('id')
-              .eq('employee_code', emp.employee_code)
-              .maybeSingle();
+            const { data: existing } = await employeeService.findByEmployeeCode(emp.employee_code);
             if (existing) {
-              await supabase.from('employees').update(payload).eq('id', existing.id);
+              await employeeService.updateEmployee(existing.id, payload);
               empId = existing.id;
             }
           }
 
           if (!empId && emp.national_id) {
-            const { data: existing } = await supabase
-              .from('employees')
-              .select('id')
-              .eq('national_id', emp.national_id)
-              .maybeSingle();
+            const { data: existing } = await employeeService.findByNationalId(emp.national_id);
             if (existing) {
-              await supabase.from('employees').update(payload).eq('id', existing.id);
+              await employeeService.updateEmployee(existing.id, payload);
               empId = existing.id;
             }
           }
 
           if (!empId) {
             payload.status = payload.status || 'active';
-            const { data: newEmp, error: insErr } = await supabase
-              .from('employees')
-              .insert([payload] as Record<string, unknown>[])
-              .select('id')
-              .single();
-            if (insErr) throw insErr;
+            const { data: newEmp } = await employeeService.createEmployee(payload);
             empId = (newEmp as { id: string } | null)?.id;
           }
 
           if (empId && emp.platform && appsMap[emp.platform]) {
             const appId = appsMap[emp.platform];
-            await supabase
-              .from('employee_apps')
-              .upsert({ employee_id: empId, app_id: appId, status: 'active' }, { onConflict: 'employee_id,app_id' });
+            await employeeService.upsertEmployeeApp(empId, appId);
           }
         } catch (err: any) {
           importErrors.push({ name: emp.name, error: err.message });

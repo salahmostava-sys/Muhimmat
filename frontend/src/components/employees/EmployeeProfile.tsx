@@ -3,7 +3,6 @@ import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, D
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

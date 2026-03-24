@@ -15,7 +15,7 @@ import { Sun, Moon, Menu, ChevronLeft, ChevronRight, LogOut, Settings, User, Che
 import NotificationCenter from '@/components/NotificationCenter';
 import GlobalSearch from '@/components/GlobalSearch';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { profileService } from '@/services/profileService';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -88,8 +88,9 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
-      .then(({ data }) => { if (data?.name) setProfileName(data.name); });
+    profileService.getProfileName(user.id)
+      .then(({ data }) => { if (data?.name) setProfileName(data.name); })
+      .catch(() => {});
   }, [user?.id]);
 
   const Sep = isRTL ? ChevronLeft : ChevronRight;

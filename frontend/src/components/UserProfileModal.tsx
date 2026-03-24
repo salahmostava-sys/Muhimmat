@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { profileService } from '@/services/profileService';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { validateUploadFile } from '@/lib/validation';
@@ -60,10 +60,11 @@ const UserProfileModal = ({ onClose }: Props) => {
   // Load current profile
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('name, avatar_url').eq('id', user.id).single()
+    profileService.getProfile(user.id)
       .then(({ data }) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
-      });
+      })
+      .catch(() => {});
   }, [user]);
 
   // Handle file pick
@@ -89,20 +90,14 @@ const UserProfileModal = ({ onClose }: Props) => {
       let avatar_url = profile.avatar_url;
 
       if (avatarFile) {
-        const ext = avatarFile.name.split('.').pop();
-        const path = `${user.id}/avatar.${ext}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(path, avatarFile, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path);
-        avatar_url = urlData.publicUrl;
+        const { data: uploadData } = await profileService.uploadAvatar(user.id, avatarFile);
+        avatar_url = profileService.getAvatarPublicUrl(uploadData.path);
       }
 
-      const { error } = await supabase.from('profiles').update({
+      const { error } = await profileService.updateProfile(user.id, {
         name: profile.name.trim(),
         avatar_url,
-      }).eq('id', user.id);
+      });
       if (error) throw error;
 
       setProfile(p => ({ ...p, avatar_url }));
@@ -127,7 +122,7 @@ const UserProfileModal = ({ onClose }: Props) => {
       return;
     }
     setSavingPw(true);
-    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    const { error } = await profileService.updatePassword(pw.next);
     setSavingPw(false);
     if (error) {
       setPwError(error.message);

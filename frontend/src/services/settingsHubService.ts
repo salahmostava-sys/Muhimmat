@@ -51,4 +51,7 @@ export const settingsHubService = {
     supabase.from('trade_registers').update(payload).eq('id', recordId),
   createTradeRegister: async (payload: Record<string, unknown>) =>
     supabase.from('trade_registers').insert(payload).select().single(),
+
+  exportTableRows: async (table: string) =>
+    supabase.from(table).select('*'),
 };

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { advanceService } from '@/services/advanceService';
 
 interface Props {
   onClose: () => void;
@@ -36,12 +36,12 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supabase.from('employees').select('id, name').eq('status', 'active').order('name').then(({ data }) => {
+    advanceService.getEmployees().then(({ data }) => {
       if (data) setEmployees(data);
     });
 
     if (editId) {
-      supabase.from('advances').select('*').eq('id', editId).maybeSingle().then(({ data }) => {
+      advanceService.getById(editId).then(({ data }) => {
         if (data) {
           setForm({
             employeeId: data.employee_id,
@@ -83,18 +83,18 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     setSaving(true);
     try {
       if (editId) {
-        const { error } = await supabase.from('advances').update({
+        const { error } = await advanceService.update(editId, {
           amount: parseFloat(form.amount),
           monthly_amount: parseFloat(form.monthlyAmount),
           total_installments: parseInt(form.totalInstallments),
           disbursement_date: form.disbursementDate,
           note: form.note || null,
           status: form.status as 'active' | 'paused' | 'completed',
-        }).eq('id', editId);
+        });
         if (error) throw error;
         toast({ title: 'تم تعديل السلفة ✅' });
       } else {
-        const { error } = await supabase.from('advances').insert({
+        const { error } = await advanceService.create({
           employee_id: form.employeeId,
           amount: parseFloat(form.amount),
           monthly_amount: parseFloat(form.monthlyAmount),
@@ -102,7 +102,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
           disbursement_date: form.disbursementDate,
           first_deduction_month: form.firstDeductionMonth,
           note: form.note || null,
-          status: 'active',
+          status: 'active' as const,
         });
         if (error) throw error;
         toast({ title: 'تم إضافة السلفة ✅' });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { alertsService } from '@/services/alertsService';
 import { cn } from '@/lib/utils';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
@@ -91,18 +91,7 @@ export default function NotificationCenter() {
     const today = new Date();
     const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
-    const [empRes, vehRes] = await Promise.all([
-      supabase
-        .from('employees')
-        .select('id, name, residency_expiry, probation_end_date')
-        .eq('status', 'active')
-        .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
-      supabase
-        .from('vehicles')
-        .select('id, plate_number, insurance_expiry, authorization_expiry')
-        .in('status', ['active', 'maintenance', 'rental'])
-        .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
-    ]);
+    const [empRes, vehRes] = await alertsService.fetchNotificationAlertsData(threshold);
 
     const generated: AlertItem[] = [];
 

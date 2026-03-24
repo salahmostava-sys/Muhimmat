@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import attendanceService from '@/services/attendanceService';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, Cell
@@ -68,8 +68,8 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
       const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(daysInMonth)}`;
 
       const [attRes, empRes] = await Promise.all([
-        supabase.from('attendance').select('date, status').gte('date', from).lte('date', to),
-        supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        attendanceService.getAttendanceStatusRange(from, to),
+        attendanceService.getActiveEmployeesCount(),
       ]);
 
       setTotalEmployees(empRes.count || 0);

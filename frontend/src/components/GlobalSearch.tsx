@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Users, Car, CreditCard, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { searchService } from '@/services/searchService';
 import { cn } from '@/lib/utils';
 
 interface SearchResult {
@@ -27,25 +27,11 @@ export default function GlobalSearch() {
     if (!q.trim() || q.length < 2) { setResults([]); return; }
     setLoading(true);
 
-    const term = `%${q}%`;
-
-    const [empRes, vehRes] = await Promise.all([
-      supabase
-        .from('employees')
-        .select('id, name, name_en, phone, status')
-        .or(`name.ilike.${term},name_en.ilike.${term},phone.ilike.${term},national_id.ilike.${term}`)
-        .eq('status', 'active')
-        .limit(5),
-      supabase
-        .from('vehicles')
-        .select('id, plate_number, brand, model, status')
-        .ilike('plate_number', term)
-        .limit(3),
-    ]);
+    const { employees, vehicles } = await searchService.searchEmployeesAndVehicles(q);
 
     const out: SearchResult[] = [];
 
-    (empRes.data ?? []).forEach(e => {
+    employees.forEach(e => {
       out.push({
         id: e.id,
         label: e.name,
@@ -55,7 +41,7 @@ export default function GlobalSearch() {
       });
     });
 
-    (vehRes.data ?? []).forEach(v => {
+    vehicles.forEach(v => {
       out.push({
         id: v.id,
         label: v.plate_number,

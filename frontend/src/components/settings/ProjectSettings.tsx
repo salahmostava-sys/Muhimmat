@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +15,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { validateUploadFile } from '@/lib/validation';
+import { settingsHubService } from '@/services/settingsHubService';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
@@ -71,9 +71,7 @@ export default function ProjectSettings() {
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const path = `${user?.id}/project-logo.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('avatars')
-          .upload(path, logoFile, { upsert: true });
+        const { error: upErr } = await settingsHubService.uploadCompanyLogo(path, logoFile);
         if (upErr) {
           setSaving(false);
           toast({
@@ -83,7 +81,7 @@ export default function ProjectSettings() {
           });
           return;
         }
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+        const { data: { publicUrl } } = settingsHubService.getCompanyLogoPublicUrl(path);
         logo_url = publicUrl;
       }
 
@@ -144,7 +142,7 @@ export default function ProjectSettings() {
 
       await Promise.all(
         tables.map(async (table) => {
-          const { data } = await supabase.from(table).select('*');
+          const { data } = await settingsHubService.exportTableRows(table);
           results[table] = data || [];
         })
       );

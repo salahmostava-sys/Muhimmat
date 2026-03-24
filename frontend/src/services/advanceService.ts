@@ -31,6 +31,15 @@ export const advanceService = {
     return { data, error };
   },
 
+  getById: async (id: string) => {
+    const { data, error } = await supabase
+      .from('advances')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return { data, error };
+  },
+
   create: async (payload: AdvancePayload) => {
     const { data, error } = await supabase
       .from('advances')

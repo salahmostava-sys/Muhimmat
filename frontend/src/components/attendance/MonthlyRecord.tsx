@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/context/LanguageContext";
+import attendanceService from "@/services/attendanceService";
 
 const MONTHS_AR = [
   "يناير",
@@ -55,15 +55,8 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const [empRes, attRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, name, national_id, salary_type, base_salary")
-          .eq("status", "active")
-          .not("sponsorship_status", "in", '("absconded","terminated")')
-          .order("name"),
-        supabase.from("attendance").select("employee_id, status").gte("date", startDate).lte("date", endDate),
-      ]);
+      const { employeesRes: empRes, attendanceRes: attRes } =
+        await attendanceService.getMonthlyEmployeesAndAttendance(startDate, endDate);
 
       if (empRes.data) setEmployees(empRes.data as Employee[]);
       if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);

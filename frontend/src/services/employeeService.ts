@@ -39,6 +39,26 @@ export const employeeService = {
     return { data, error };
   },
 
+  async findByEmployeeCode(employeeCode: string) {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('employee_code', employeeCode)
+      .maybeSingle();
+    throwIfError(error, 'employeeService.findByEmployeeCode');
+    return { data, error };
+  },
+
+  async findByNationalId(nationalId: string) {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('national_id', nationalId)
+      .maybeSingle();
+    throwIfError(error, 'employeeService.findByNationalId');
+    return { data, error };
+  },
+
   async deleteById(employeeId: string) {
     const { error } = await supabase
       .from('employees')
@@ -146,6 +166,14 @@ export const employeeService = {
       .insert(rows);
     throwIfError(insertError, 'employeeService.replaceEmployeeApps.insert');
     return { error: null };
+  },
+
+  async upsertEmployeeApp(employeeId: string, appId: string) {
+    const { error } = await supabase
+      .from('employee_apps')
+      .upsert({ employee_id: employeeId, app_id: appId, status: 'active' }, { onConflict: 'employee_id,app_id' });
+    throwIfError(error, 'employeeService.upsertEmployeeApp');
+    return { error };
   },
 };
 

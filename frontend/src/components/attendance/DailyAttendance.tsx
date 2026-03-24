@@ -9,9 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import attendanceService from "@/services/attendanceService";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "sick" | "late";
 
@@ -221,9 +221,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
         check_out:   r.checkOut || null,
         note:        noteText,
       };
-      const { error } = await supabase.from("attendance").upsert([payload], {
-        onConflict: "employee_id,date",
-      });
+      const { error } = await attendanceService.upsertDailyAttendance(payload);
       if (!error) saved++;
     }
 

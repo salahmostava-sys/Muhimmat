@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hooks/useRealtimePostgresChanges';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { alertsService } from '@/services/alertsService';
 import { differenceInDays, parseISO, format } from 'date-fns';
 
 const typeLabels: Record<string, string> = {
@@ -47,21 +47,7 @@ const AlertsList = () => {
       // Alert threshold = end of current month
       const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
-      const [empRes, vehicleRes] = await Promise.all([
-        supabase
-          .from('employees')
-          .select('id, name, residency_expiry')
-          .eq('status', 'active')
-          .not('residency_expiry', 'is', null)
-          .lte('residency_expiry', threshold)
-          .limit(5),
-        supabase
-          .from('vehicles')
-          .select('id, plate_number, insurance_expiry, registration_expiry')
-          .in('status', ['active', 'maintenance'])
-          .or(`insurance_expiry.lte.${threshold},registration_expiry.lte.${threshold}`)
-          .limit(5),
-      ]);
+      const [empRes, vehicleRes] = await alertsService.fetchNotificationAlertsData(threshold);
 
       const generated: AlertItem[] = [];
 
