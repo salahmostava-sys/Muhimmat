@@ -527,7 +527,7 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-           <table ref={tableRef} className="w-full min-w-[1400px] table-fixed">
+           <table ref={tableRef} className="w-full min-w-[1500px] table-auto">
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
@@ -568,43 +568,43 @@ const Motorcycles = () => {
                 const regDays = getDaysLeft(v.registration_expiry);
                 return (
                   <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2.5 text-xs text-muted-foreground">{idx + 1}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="font-bold text-foreground font-mono whitespace-nowrap">{v.plate_number}</span>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground align-top whitespace-normal break-words">{idx + 1}</td>
+                    <td className="px-3 py-2.5 align-top whitespace-normal break-words">
+                      <span className="font-bold text-foreground font-mono whitespace-normal break-all leading-tight">{v.plate_number}</span>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{v.plate_number_en || '—'}</span>
+                    <td className="px-3 py-2.5 align-top whitespace-normal break-words">
+                      <span className="text-sm text-muted-foreground font-mono whitespace-normal break-all leading-tight" dir="ltr">{v.plate_number_en || '—'}</span>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
+                    <td className="px-3 py-2.5 align-top whitespace-normal break-words">
+                      <span className="text-sm text-muted-foreground whitespace-normal break-words leading-tight">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.brand || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-foreground whitespace-nowrap">{v.model || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{v.year ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-normal break-all" dir="ltr">{v.serial_number || '—'}</td>
-                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-normal break-all" dir="ltr">{v.chassis_number || '—'}</td>
-                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-normal break-words">{v.notes || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-foreground align-top whitespace-normal break-words leading-tight">{v.brand || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-foreground align-top whitespace-normal break-words leading-tight">{v.model || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground align-top whitespace-normal break-words">{v.year ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground align-top whitespace-normal break-all leading-tight" dir="ltr">{v.serial_number || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground align-top whitespace-normal break-all leading-tight" dir="ltr">{v.chassis_number || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs text-muted-foreground align-top whitespace-normal break-words leading-tight">{v.notes || '—'}</td>
                      {/* Current assigned rider */}
-                     <td className="px-3 py-2.5 whitespace-nowrap">
+                     <td className="px-3 py-2.5 align-top whitespace-normal break-words">
                         {v.current_rider ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium text-foreground whitespace-normal break-words">{v.current_rider}</span>
+                            <span className="text-sm font-medium text-foreground whitespace-normal break-words leading-tight">{v.current_rider}</span>
                          </div>
                        ) : (
                          <span className="text-muted-foreground/40 text-xs">—</span>
                        )}
                      </td>
-                     <td className="px-3 py-2.5">
+                     <td className="px-3 py-2.5 align-top whitespace-normal break-words">
                        <SmartStatusBadge status={v.status} rider={v.current_rider} />
                      </td>
                      {/* Fuel chip */}
-                     <td className="px-3 py-2.5 text-center">
+                     <td className="px-3 py-2.5 text-center align-top whitespace-normal break-words">
                        {v.has_fuel_chip
                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">⛽ يوجد</span>
                          : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">لا يوجد</span>
                        }
                      </td>
-                    <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(insDays)}`}>
+                    <td className={`px-3 py-2.5 text-xs align-top whitespace-normal break-words ${daysStyle(insDays)}`}>
                       {v.insurance_expiry ? (
                         <div>
                           <div>{format(parseISO(v.insurance_expiry), 'yyyy/MM/dd')}</div>
@@ -612,7 +612,7 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(regDays)}`}>
+                    <td className={`px-3 py-2.5 text-xs align-top whitespace-normal break-words ${daysStyle(regDays)}`}>
                       {v.registration_expiry ? (
                         <div>
                           <div>{format(parseISO(v.registration_expiry), 'yyyy/MM/dd')}</div>
@@ -620,7 +620,7 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(authDays)}`}>
+                    <td className={`px-3 py-2.5 text-xs align-top whitespace-normal break-words ${daysStyle(authDays)}`}>
                       {v.authorization_expiry ? (
                         <div>
                           <div>{format(parseISO(v.authorization_expiry), 'yyyy/MM/dd')}</div>
@@ -628,7 +628,7 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 align-top">
                       <div className="flex gap-1">
                         {permissions.can_edit && (
                           <button
