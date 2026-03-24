@@ -141,7 +141,7 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     const targetInstallment = pendingInst.find(i => i.amount === paymentAmount) || pendingInst[0];
     const { error } = await supabase.from('advance_installments').update({
       status: 'deducted' as const, deducted_at: new Date().toISOString(), notes: noteText,
-    }}).eq('id', targetInstallment.id);
+    }).eq('id', targetInstallment.id);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
     toast({ title: `✅ تم تسجيل السداد — ${payAmount} ر.س` });
