@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react';
 import {
   Plus, FolderOpen, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
@@ -66,6 +66,11 @@ type Employee = {
 
 type SortField = keyof Employee | 'days_residency' | 'residency_status';
 type SortDir = 'asc' | 'desc' | null;
+type EmployeeProfileProps = ComponentProps<typeof EmployeeProfile>;
+
+const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
+  return (employee as Record<string, unknown>)[field];
+};
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 const ALL_COLUMNS = [
@@ -359,12 +364,12 @@ const Employees = () => {
   };
 
   // ── Inline save ──
-  const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, any>) => {
+  const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, unknown>) => {
     const prev = data.find(e => e.id === id);
     setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
     const { error } = await driverService.update(id, { [field]: value, ...(extraFields || {}) });
     if (error) {
-      setData(d => d.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
+      setData(d => d.map(e => e.id === id ? { ...e, [field]: prev ? getEmployeeFieldValue(prev, field) : undefined } : e));
       toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
     }
   }, [data, toast]);
@@ -481,13 +486,16 @@ const Employees = () => {
 
     if (sortField && sortDir) {
       rows = [...rows].sort((a, b) => {
-        let va: any, vb: any;
+        let va: string | number = '';
+        let vb: string | number = '';
         if (sortField === 'days_residency') {
           va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
           vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
         } else {
-          va = (a as any)[sortField] ?? '';
-          vb = (b as any)[sortField] ?? '';
+          const aVal = getEmployeeFieldValue(a, sortField);
+          const bVal = getEmployeeFieldValue(b, sortField);
+          va = typeof aVal === 'number' ? aVal : String(aVal ?? '');
+          vb = typeof bVal === 'number' ? bVal : String(bVal ?? '');
         }
         if (va < vb) return sortDir === 'asc' ? -1 : 1;
         if (va > vb) return sortDir === 'asc' ? 1  : -1;
@@ -603,7 +611,14 @@ const Employees = () => {
   // ── profile view ──
   if (selectedEmployee) {
     const emp = data.find(e => e.id === selectedEmployee);
-    if (emp) return <EmployeeProfile employee={emp as any} onBack={() => setSelectedEmployee(null)} />;
+    if (emp) {
+      return (
+        <EmployeeProfile
+          employee={emp as EmployeeProfileProps['employee']}
+          onBack={() => setSelectedEmployee(null)}
+        />
+      );
+    }
   }
 
   return (
@@ -1071,7 +1086,7 @@ const Employees = () => {
                           );
 
                         default:
-                          return <td key={(col as any).key} className="px-3 py-2.5">—</td>;
+                          return <td key={col.key} className="px-3 py-2.5">—</td>;
                       }
                     })}
                   </tr>

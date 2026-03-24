@@ -20,6 +20,29 @@ type VehicleSuggestion = {
   brand: string | null;
   type: string;
 };
+type AssignmentJoinRow = {
+  id: string;
+  employee_id: string;
+  vehicles?: { plate_number?: string | null } | null;
+  employees?: { name?: string | null; national_id?: string | null } | null;
+};
+
+type DeductionRow = {
+  id: string;
+  employee_id: string;
+  amount: number | string | null;
+};
+
+type ViolationDataRow = {
+  id: string;
+  employee_id: string;
+  note: string | null;
+  incident_date: string | null;
+  amount: number | string | null;
+  apply_month: string;
+  approval_status: string;
+  employees?: { name?: string | null; national_id?: string | null } | null;
+};
 
 type ResultRow = {
   employee_name: string;
@@ -104,7 +127,7 @@ const ViolationResolver = () => {
     }
 
     setViolations(
-      (data || []).map((v: any) => ({
+      (data as ViolationDataRow[] | null || []).map((v) => ({
         id: v.id,
         employee_id: v.employee_id,
         employee_name: v.employees?.name || '—',
@@ -228,15 +251,15 @@ const ViolationResolver = () => {
     const { data: existingDeduction } = await violationService.getExistingFineDeductions(empIds, violationDate, applyMonth);
 
     const recordedByEmployee = new Map<string, { id: string; amount: number }>();
-    (existingDeduction || []).forEach((d: any) => {
+    (existingDeduction as DeductionRow[] | null || []).forEach((d) => {
       const amt = Number(d.amount) || 0;
       if (amt === enteredAmount && !recordedByEmployee.has(d.employee_id)) {
         recordedByEmployee.set(d.employee_id, { id: d.id, amount: amt });
       }
     });
 
-    const rows: ResultRow[] = matched.map(a => {
-      const vehiclePlate = (a.vehicles as any)?.plate_number || plate;
+    const rows: ResultRow[] = (matched as AssignmentJoinRow[]).map((a) => {
+      const vehiclePlate = a.vehicles?.plate_number || plate;
       const violationDetails = [
         vehiclePlate ? `لوحة: ${vehiclePlate}` : null,
         form.place ? `مكان: ${form.place}` : null,
@@ -246,8 +269,8 @@ const ViolationResolver = () => {
       return {
       assignment_id: a.id,
       employee_id: a.employee_id,
-      employee_name: (a.employees as any)?.name || '—',
-      national_id: (a.employees as any)?.national_id || null,
+      employee_name: a.employees?.name || '—',
+      national_id: a.employees?.national_id || null,
       violation_details: violationDetails || '—',
       violation_date: violationDate,
       amount: enteredAmount,
@@ -383,7 +406,7 @@ const ViolationResolver = () => {
 
     if (advErr || !advInserted?.id) {
       setConvertingId(null);
-      toast({ title: 'حدث خطأ', description: (advErr as any)?.message || 'تعذر إنشاء السلفة', variant: 'destructive' });
+      toast({ title: 'حدث خطأ', description: advErr?.message || 'تعذر إنشاء السلفة', variant: 'destructive' });
       return;
     }
 

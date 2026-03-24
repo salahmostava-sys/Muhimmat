@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { advanceService } from '@/services/advanceService';
+import type { AdvancePayload } from '@/services/advanceService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
@@ -109,12 +110,13 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     if (!form.amount || !form.monthly_amount || !form.disbursement_date || !form.first_deduction_month)
       return toast({ title: 'أكمل الحقول المطلوبة', variant: 'destructive' });
     setSaving(true);
-    const { data: adv, error } = await advanceService.create({
+    const payload: AdvancePayload = {
       employee_id: employeeId, amount: parseFloat(form.amount),
       monthly_amount: parseFloat(form.monthly_amount), total_installments: projectedInstallments,
       disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
       note: form.note || null, status: 'active',
-    } as any);
+    };
+    const { data: adv, error } = await advanceService.create(payload);
     if (error || !adv) { setSaving(false); return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' }); }
     const installments = buildInstallmentsPayload(
       adv.id,
@@ -339,7 +341,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await advanceService.update(advance.id, {
+    const payload: Partial<AdvancePayload> = {
       amount: parseFloat(form.amount),
       disbursement_date: form.disbursement_date,
       monthly_amount: parseFloat(form.monthly_amount),
@@ -347,7 +349,8 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       first_deduction_month: form.first_deduction_month,
       status: form.status,
       note: form.note || null,
-    } as any);
+    };
+    const { error } = await advanceService.update(advance.id, payload);
     if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
     await advanceService.deletePendingInstallments(advance.id);
     const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');

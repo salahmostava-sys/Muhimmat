@@ -27,6 +27,11 @@ type TierRow  = {
   notes: string | null;
   created_at: string;
 };
+type TierSortField = keyof TierRow | 'employee_name';
+
+const getTierFieldValue = (tier: TierRow, field: TierSortField): unknown => {
+  return (tier as Record<string, unknown>)[field];
+};
 
 type SortDir = 'asc' | 'desc' | null;
 
@@ -189,7 +194,7 @@ const EmployeeTiers = () => {
     setEmployees((empsData || []) as Employee[]);
     setApps((appsData || []) as AppRow[]);
     if (tiersData) {
-      setTiers((tiersData as any[]).map(t => ({
+      setTiers((tiersData as TierRow[]).map(t => ({
         ...t,
         app_ids: Array.isArray(t.app_ids) ? t.app_ids : (t.app_ids ? JSON.parse(t.app_ids) : []),
       })));
@@ -225,7 +230,8 @@ const EmployeeTiers = () => {
           const emp = employees.find(e => e.id === tier.employee_id);
           const { data: assignments } = await employeeTierService.getActiveAssignmentWithVehicleByEmployee(tier.employee_id);
 
-          const plate = (assignments?.[0] as any)?.vehicles?.plate_number || 'غير مسجلة';
+          const firstAssignment = assignments?.[0] as { vehicles?: { plate_number?: string | null } } | undefined;
+          const plate = firstAssignment?.vehicles?.plate_number || 'غير مسجلة';
           setAbscondedAlert({
             name: emp?.name || '—',
             simNumber: tier.sim_number || '—',
@@ -344,8 +350,9 @@ const EmployeeTiers = () => {
     });
     if (sortField && sortDir) {
       list = [...list].sort((a, b) => {
-        let va = sortField === 'employee_name' ? (empMap[a.employee_id]?.name || '') : (a as any)[sortField] || '';
-        let vb = sortField === 'employee_name' ? (empMap[b.employee_id]?.name || '') : (b as any)[sortField] || '';
+        const typedSortField = sortField as TierSortField;
+        let va = sortField === 'employee_name' ? (empMap[a.employee_id]?.name || '') : String(getTierFieldValue(a, typedSortField) ?? '');
+        let vb = sortField === 'employee_name' ? (empMap[b.employee_id]?.name || '') : String(getTierFieldValue(b, typedSortField) ?? '');
         if (va < vb) return sortDir === 'asc' ? -1 : 1;
         if (va > vb) return sortDir === 'asc' ? 1 : -1;
         return 0;
