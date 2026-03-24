@@ -49,4 +49,7 @@ export const salarySchemeService = {
     supabase
       .from('scheme_month_snapshots')
       .upsert({ scheme_id: schemeId, month_year: monthYear, snapshot }, { onConflict: 'scheme_id,month_year' }),
+
+  deleteSnapshot: async (schemeId: string, monthYear: string) =>
+    supabase.from('scheme_month_snapshots').delete().eq('scheme_id', schemeId).eq('month_year', monthYear),
 };

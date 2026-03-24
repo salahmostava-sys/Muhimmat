@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { appService } from '@/services/appService';
 import { salarySchemeService } from '@/services/salarySchemeService';
+import { cn } from '@/lib/utils';
 
 type TierType = 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
 
@@ -57,6 +58,19 @@ const monthLabel = (my: string) => {
   return `${arabicMonths[mo] || mo} ${yr}`;
 };
 
+const monthNameOnly = (my: string) => {
+  const mo = my.split('-')[1];
+  return arabicMonths[mo] || my;
+};
+
+const buildMonthsOfYear = (year: number) =>
+  Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+
+const snapshotYearOptions = () => {
+  const y = new Date().getFullYear();
+  return [y - 1, y, y + 1, y + 2, y + 3];
+};
+
 const tierTypeLabels: Record<TierType, string> = {
   total_multiplier: 'إجمالي × سعر',
   fixed_amount: 'مبلغ ثابت',
@@ -64,11 +78,6 @@ const tierTypeLabels: Record<TierType, string> = {
 };
 
 const currentMonth = format(new Date(), 'yyyy-MM');
-const snapshotMonthOptions = Array.from({ length: 12 }, (_, i) => {
-  const d = new Date();
-  d.setMonth(d.getMonth() - i);
-  return format(d, 'yyyy-MM');
-});
 
 interface SalarySchemesProps {
   embedded?: boolean;
@@ -82,7 +91,10 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [snapshotLoading, setSnapshotLoading] = useState<string | null>(null);
-  const [snapshotMonthsByScheme, setSnapshotMonthsByScheme] = useState<Record<string, string[]>>({});
+  /** سنة عرض شبكة الأشهر لكل سكيمة */
+  const [snapshotYearByScheme, setSnapshotYearByScheme] = useState<Record<string, number>>({});
+  /** أشهر محددة للتثبيت (غير المثبتة بعد) ضمن السنة المعروضة */
+  const [pinSelectionByScheme, setPinSelectionByScheme] = useState<Record<string, string[]>>({});
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
@@ -274,6 +286,10 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
           ...months.map((m) => ({ month_year: m })),
         ],
       }));
+      setPinSelectionByScheme(prev => ({
+        ...prev,
+        [schemeId]: (prev[schemeId] || []).filter(m => !months.includes(m)),
+      }));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ', description: message, variant: 'destructive' });
@@ -281,7 +297,39 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     setSnapshotLoading(null);
   };
 
-  const isSnapped = (schemeId: string) => snapshots[schemeId]?.some(s => s.month_year === currentMonth);
+  const handleUnpinSnapshot = async (schemeId: string, monthYear: string) => {
+    setSnapshotLoading(schemeId);
+    try {
+      const { error } = await salarySchemeService.deleteSnapshot(schemeId, monthYear);
+      if (error) throw error;
+      setSnapshots(prev => ({
+        ...prev,
+        [schemeId]: (prev[schemeId] || []).filter(s => s.month_year !== monthYear),
+      }));
+      toast({ title: 'تم إلغاء التثبيت', description: monthLabel(monthYear) });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+    }
+    setSnapshotLoading(null);
+  };
+
+  const togglePinMonthSelect = (schemeId: string, monthYear: string) => {
+    setPinSelectionByScheme(prev => {
+      const cur = prev[schemeId] || [];
+      const next = cur.includes(monthYear) ? cur.filter(m => m !== monthYear) : [...cur, monthYear];
+      return { ...prev, [schemeId]: next };
+    });
+  };
+
+  const setSchemeSnapshotYear = (schemeId: string, year: number) => {
+    setSnapshotYearByScheme(prev => ({ ...prev, [schemeId]: year }));
+    setPinSelectionByScheme(prev => {
+      const next = { ...prev };
+      delete next[schemeId];
+      return next;
+    });
+  };
 
   const availableApps = (schemeId: string) => apps.filter(a => !a.scheme_id || a.scheme_id === schemeId);
 
@@ -401,44 +449,111 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
                   </>
                 )}
 
-                {/* Snapshot section */}
-                <div className="border-t border-border/30 pt-3 mt-2 flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex flex-wrap gap-1">
-                    {(snapshots[s.id] || []).sort((a, b) => a.month_year.localeCompare(b.month_year)).slice(-6).map(sn => (
-                      <span key={sn.month_year} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
-                        <Lock size={9} /> {monthLabel(sn.month_year)} ✓
-                      </span>
-                    ))}
-                    {(snapshots[s.id] || []).length === 0 && (
-                      <span className="text-xs text-muted-foreground">لا توجد لقطات شهرية</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      multiple
-                      className="text-xs rounded border border-border/50 bg-background p-1.5 min-w-[130px] h-20"
-                      value={snapshotMonthsByScheme[s.id] || [currentMonth]}
-                      onChange={(e) => {
-                        const values = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
-                        setSnapshotMonthsByScheme((prev) => ({ ...prev, [s.id]: values }));
-                      }}
-                    >
-                      {snapshotMonthOptions.map((m) => (
-                        <option key={`${s.id}-${m}`} value={m}>{monthLabel(m)}</option>
-                      ))}
-                    </select>
-                  <Button
-                    size="sm"
-                    variant={isSnapped(s.id) ? 'secondary' : 'outline'}
-                    className="gap-1 h-7 text-xs"
-                    onClick={() => handleSnapshot(s.id, snapshotMonthsByScheme[s.id])}
-                    disabled={snapshotLoading === s.id}
-                  >
-                    {snapshotLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : <Pin size={12} />}
-                    تثبيت الشهور المحددة
-                  </Button>
-                  </div>
-                </div>
+                {/* Snapshot section — شبكة أشهر أفقية + سنة + تثبيت / إلغاء تثبيت */}
+                {(() => {
+                  const y = snapshotYearByScheme[s.id] ?? new Date().getFullYear();
+                  const yearMonths = buildMonthsOfYear(y);
+                  const sel = pinSelectionByScheme[s.id] || [];
+                  const pinnedSet = new Set((snapshots[s.id] || []).map(sn => sn.month_year));
+                  const busy = snapshotLoading === s.id;
+                  return (
+                    <div className="border-t border-border/30 pt-3 mt-2 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          تثبيت شرائح الراتب للشهور (للرواتب حسب الطلبات)
+                        </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">السنة</span>
+                          <Select
+                            value={String(y)}
+                            onValueChange={v => setSchemeSnapshotYear(s.id, parseInt(v, 10))}
+                          >
+                            <SelectTrigger className="h-8 w-[88px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {snapshotYearOptions().map(yr => (
+                                <SelectItem key={yr} value={String(yr)}>{yr}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {yearMonths.map(my => {
+                          const pinned = pinnedSet.has(my);
+                          const selected = sel.includes(my);
+                          return (
+                            <button
+                              key={my}
+                              type="button"
+                              disabled={busy}
+                              title={
+                                pinned
+                                  ? 'مثبت — انقر لإزالة التثبيت'
+                                  : selected
+                                    ? 'محدد للتثبيت — انقر لإلغاء التحديد'
+                                    : 'انقر لتحديده ثم اضغط «تثبيت المحدد»'
+                              }
+                              onClick={() => {
+                                if (pinned) handleUnpinSnapshot(s.id, my);
+                                else togglePinMonthSelect(s.id, my);
+                              }}
+                              className={cn(
+                                'inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium border transition-colors min-w-[4.25rem]',
+                                pinned &&
+                                  'bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary/90',
+                                !pinned &&
+                                  selected &&
+                                  'bg-primary/15 text-primary border-primary/40 ring-1 ring-primary/30',
+                                !pinned &&
+                                  !selected &&
+                                  'bg-background text-muted-foreground border-border/70 hover:border-primary/40 hover:text-foreground'
+                              )}
+                            >
+                              {pinned ? <Lock size={11} className="shrink-0" /> : selected ? <Pin size={11} className="shrink-0" /> : null}
+                              <span className="whitespace-nowrap">{monthNameOnly(my)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-1 h-8 text-xs"
+                          onClick={() => handleSnapshot(s.id, sel)}
+                          disabled={busy || sel.length === 0}
+                        >
+                          {busy ? <Loader2 size={12} className="animate-spin" /> : <Pin size={12} />}
+                          تثبيت المحدد{sel.length > 0 ? ` (${sel.length})` : ''}
+                        </Button>
+                        {sel.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50"
+                            disabled={busy}
+                            onClick={() =>
+                              setPinSelectionByScheme(prev => {
+                                const next = { ...prev };
+                                delete next[s.id];
+                                return next;
+                              })
+                            }
+                          >
+                            مسح التحديد
+                          </button>
+                        )}
+                        {(snapshots[s.id] || []).length > 0 && (
+                          <span className="text-[10px] text-muted-foreground mr-auto">
+                            إجمالي {snapshots[s.id]!.length} شهر مثبت عبر السنوات
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
