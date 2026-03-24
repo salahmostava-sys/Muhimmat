@@ -596,6 +596,7 @@ const Salaries = () => {
 
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
     const fetchAllData = async () => {
       setLoadingData(true);
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
@@ -606,14 +607,17 @@ const Salaries = () => {
       try {
         monthlyContext = await Promise.race([monthlyContextPromise, timeoutPromise]);
       } catch (error) {
-        setLoadingData(false);
-        toast({
-          title: 'تعذر تحميل البيانات',
-          description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
-          variant: 'destructive',
-        });
+        if (!cancelled) {
+          setLoadingData(false);
+          toast({
+            title: 'تعذر تحميل البيانات',
+            description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
+            variant: 'destructive',
+          });
+        }
         return;
       }
+      if (cancelled) return;
       const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
@@ -665,6 +669,7 @@ const Salaries = () => {
           }
         });
       }
+      if (cancelled) return;
 
       const employees = empRes.data || [];
 
@@ -699,6 +704,8 @@ const Salaries = () => {
         appSchemeMap[a.name] = a.salary_schemes ? (a.salary_schemes as SchemeData) : null;
         appNameToId[a.name] = a.id;
       });
+      const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
+      const platformNames = appsFromApi.map(a => a.name);
       setAppIdByName(appNameToId);
 
       // ── Fetch pricing rules for active apps (fallbacks keep legacy scheme behavior) ──
@@ -713,6 +720,7 @@ const Salaries = () => {
       rulesByApp.forEach(({ appId, rules }) => {
         rulesMap[appId] = rules;
       });
+      if (cancelled) return;
       setPricingRulesByAppId(rulesMap);
 
       const missingPricing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
@@ -730,7 +738,7 @@ const Salaries = () => {
       const builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>> = {};
       employees.forEach(emp => {
         builtEmpPlatformScheme[emp.id] = {};
-        platforms.forEach(p => {
+        platformNames.forEach(p => {
           builtEmpPlatformScheme[emp.id][p] = appSchemeMap[p] ?? null;
         });
       });
@@ -744,7 +752,7 @@ const Salaries = () => {
         const platformOrders: Record<string, number> = {};
         const platformSalaries: Record<string, number> = {};
 
-        platforms.forEach(p => {
+        platformNames.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
           const appId = appNameToId[p];
@@ -761,7 +769,7 @@ const Salaries = () => {
           if (scheme.scheme_type === 'fixed_monthly') {
             // Fixed monthly: calculate once per employee, assign to first platform that has this scheme
             // Only calculate if this is the first platform using this scheme for the employee
-            const alreadyCalcForScheme = platforms.some(prev => prev !== p && appSchemeMap[prev]?.id === scheme.id && platformSalaries[prev] !== undefined);
+            const alreadyCalcForScheme = platformNames.some(prev => prev !== p && appSchemeMap[prev]?.id === scheme.id && platformSalaries[prev] !== undefined);
             if (alreadyCalcForScheme) {
               platformSalaries[p] = 0; // already counted
             } else {
@@ -851,12 +859,16 @@ const Salaries = () => {
         // Ignore malformed draft payloads safely.
       }
 
+      if (cancelled) return;
       setRows(hydratedRows);
       setLoadingData(false);
     };
 
     void fetchAllData();
-  }, [selectedMonth, platforms, salariesDraftKey, toast]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMonth, salariesDraftKey, toast]);
 
   // Auto-save editable salary draft per month/user.
   useEffect(() => {
@@ -905,44 +917,49 @@ const Salaries = () => {
   // ── City filter for salaries table
   const [cityFilter, setCityFilter] = useState('all');
 
-  const filteredBase = rows.filter(r => {
-    const matchSearch = r.employeeName.includes(search);
-    const matchStatus = statusFilter === 'all' || r.status === statusFilter;
-    const matchCity = cityFilter === 'all' || r.city === (cityFilter === 'makkah' ? 'مكة' : 'جدة');
-    return matchSearch && matchStatus && matchCity;
-  });
+  const filteredBase = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter(r => {
+      const matchSearch = q === '' || r.employeeName.toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'all' || r.status === statusFilter;
+      const matchCity = cityFilter === 'all' || r.city === (cityFilter === 'makkah' ? 'مكة' : 'جدة');
+      return matchSearch && matchStatus && matchCity;
+    });
+  }, [rows, search, statusFilter, cityFilter]);
 
-  const filtered = [...filteredBase].sort((a, b) => {
-    if (!sortField || !sortDir) return 0;
-    let va: string | number;
-    let vb: string | number;
-    const ca = computeRow(a), cb = computeRow(b);
-    switch (sortField) {
-      case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
-      case 'jobTitle': va = a.jobTitle; vb = b.jobTitle; break;
-      case 'nationalId': va = a.nationalId; vb = b.nationalId; break;
-      case 'platformSalaries': va = ca.totalPlatformSalary; vb = cb.totalPlatformSalary; break;
-      case 'incentives': va = a.incentives; vb = b.incentives; break;
-      case 'totalAdditions': va = ca.totalAdditions; vb = cb.totalAdditions; break;
-      case 'advanceDeduction': va = a.advanceDeduction; vb = b.advanceDeduction; break;
-      case 'totalDeductions': va = ca.totalDeductions; vb = cb.totalDeductions; break;
-      case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
-      case 'status': va = a.status; vb = b.status; break;
-      default:
-        if (platforms.includes(sortField)) {
-          va = a.platformOrders[sortField] || 0;
-          vb = b.platformOrders[sortField] || 0;
-        } else {
-          const ra = (a as unknown as Record<string, unknown>)[sortField];
-          const rb = (b as unknown as Record<string, unknown>)[sortField];
-          va = typeof ra === 'number' || typeof ra === 'string' ? ra : Number(ra) || 0;
-          vb = typeof rb === 'number' || typeof rb === 'string' ? rb : Number(rb) || 0;
-        }
-    }
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
+  const filtered = useMemo(() => {
+    if (!sortField || !sortDir) return filteredBase;
+    return [...filteredBase].sort((a, b) => {
+      let va: string | number;
+      let vb: string | number;
+      const ca = computeRow(a), cb = computeRow(b);
+      switch (sortField) {
+        case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
+        case 'jobTitle': va = a.jobTitle; vb = b.jobTitle; break;
+        case 'nationalId': va = a.nationalId; vb = b.nationalId; break;
+        case 'platformSalaries': va = ca.totalPlatformSalary; vb = cb.totalPlatformSalary; break;
+        case 'incentives': va = a.incentives; vb = b.incentives; break;
+        case 'totalAdditions': va = ca.totalAdditions; vb = cb.totalAdditions; break;
+        case 'advanceDeduction': va = a.advanceDeduction; vb = b.advanceDeduction; break;
+        case 'totalDeductions': va = ca.totalDeductions; vb = cb.totalDeductions; break;
+        case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
+        case 'status': va = a.status; vb = b.status; break;
+        default:
+          if (platforms.includes(sortField)) {
+            va = a.platformOrders[sortField] || 0;
+            vb = b.platformOrders[sortField] || 0;
+          } else {
+            const ra = (a as unknown as Record<string, unknown>)[sortField];
+            const rb = (b as unknown as Record<string, unknown>)[sortField];
+            va = typeof ra === 'number' || typeof ra === 'string' ? ra : Number(ra) || 0;
+            vb = typeof rb === 'number' || typeof rb === 'string' ? rb : Number(rb) || 0;
+          }
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredBase, sortField, sortDir, computeRow, platforms]);
 
   const updateRow = useCallback((id: string, patch: Partial<SalaryRow>) => {
     setRows(prev => prev.map(r => {
@@ -956,6 +973,20 @@ const Salaries = () => {
     }));
     if (payslipRow?.id === id) setPayslipRow(prev => prev ? { ...prev, ...patch } : prev);
   }, [payslipRow]);
+
+  const updateSalaryCityFromMenu = useCallback(async (
+    row: SalaryRow,
+    cityLabel: 'مكة' | 'جدة',
+    cityVal: 'makkah' | 'jeddah',
+  ) => {
+    const prev = row.city;
+    updateRow(row.id, { city: cityLabel });
+    const { error } = await employeeService.updateCity(row.employeeId, cityVal);
+    if (error) {
+      updateRow(row.id, { city: prev });
+      toast({ title: 'تعذّر حفظ المدينة', description: error.message, variant: 'destructive' });
+    }
+  }, [updateRow, toast]);
 
   const updatePlatformOrders = (id: string, platform: string, value: number) => {
     setRows(prev => prev.map(r => {
@@ -987,8 +1018,7 @@ const Salaries = () => {
     const row = rows.find(r => r.id === id);
     if (!row) return;
     const c = computeRow(row);
-    // Save to salary_records
-    await salaryDataService.upsertSalaryRecord({
+    const { error } = await salaryDataService.upsertSalaryRecord({
       employee_id: row.employeeId,
       month_year: selectedMonth,
       base_salary: c.totalPlatformSalary,
@@ -1002,6 +1032,10 @@ const Salaries = () => {
       approved_by: user?.id ?? null,
       approved_at: new Date().toISOString(),
     });
+    if (error) {
+      toast({ title: 'تعذّر حفظ الاعتماد', description: error.message, variant: 'destructive' });
+      return;
+    }
     updateRow(id, { status: 'approved', isDirty: false });
     toast({ title: '✅ تم اعتماد الراتب' });
     if (row.phone) {
@@ -2238,20 +2272,10 @@ const Salaries = () => {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuLabel className="text-xs text-muted-foreground">المدينة (بيانات الموظف)</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  updateRow(r.id, { city: 'مكة' });
-                                  await employeeService.updateCity(r.employeeId, 'makkah');
-                                }}
-                              >
+                              <DropdownMenuItem onClick={() => void updateSalaryCityFromMenu(r, 'مكة', 'makkah')}>
                                 مكة
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  updateRow(r.id, { city: 'جدة' });
-                                  await employeeService.updateCity(r.employeeId, 'jeddah');
-                                }}
-                              >
+                              <DropdownMenuItem onClick={() => void updateSalaryCityFromMenu(r, 'جدة', 'jeddah')}>
                                 جدة
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
