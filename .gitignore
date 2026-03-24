@@ -28,3 +28,11 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# AI tool metadata / prompts
+.lovable
+.claude
+.cursor
+.ai
+prompt.md
+*.prompt
