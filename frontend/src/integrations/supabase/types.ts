@@ -17,7 +17,7 @@ export type Database = {
       account_assignments: {
         Row: {
           account_id: string
-          company_id: string | null
+          company_id: string
           created_at: string
           created_by: string | null
           employee_id: string
@@ -29,7 +29,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           employee_id: string
@@ -41,7 +41,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           employee_id?: string
@@ -590,7 +590,7 @@ export type Database = {
           base_salary: number
           birth_date: string | null
           city: Database["public"]["Enums"]["city_enum"] | null
-          company_id: string | null
+          company_id: string
           created_at: string
           department_id: string | null
           dob: string | null
@@ -632,7 +632,7 @@ export type Database = {
           base_salary?: number
           birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           department_id?: string | null
           dob?: string | null
@@ -674,7 +674,7 @@ export type Database = {
           base_salary?: number
           birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           department_id?: string | null
           dob?: string | null
@@ -924,7 +924,7 @@ export type Database = {
           account_id_on_platform: string | null
           account_username: string
           app_id: string
-          company_id: string | null
+          company_id: string
           created_at: string
           employee_id: string | null
           id: string
@@ -938,7 +938,7 @@ export type Database = {
           account_id_on_platform?: string | null
           account_username: string
           app_id: string
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           employee_id?: string | null
           id?: string
@@ -952,7 +952,7 @@ export type Database = {
           account_id_on_platform?: string | null
           account_username?: string
           app_id?: string
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           employee_id?: string | null
           id?: string
