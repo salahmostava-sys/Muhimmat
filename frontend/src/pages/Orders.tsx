@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMe
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, X, Check, Target, TrendingUp } from 'lucide-react';
+import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, Loader2, X, Check, Target, TrendingUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
+import { OrdersGridTable } from '@/components/orders/OrdersGridTable';
+import { OrdersSummaryTable } from '@/components/orders/OrdersSummaryTable';
 import { cn } from '@/lib/utils';
 
 
@@ -575,216 +577,31 @@ const SpreadsheetGrid = () => {
           : '💡 انقر على خلية اليوم لإدخال الطلبات — السهم بجانب المندوب لعرض تفاصيل المنصات — اختر المنصة من الشريط أعلاه'}
       </p>
 
-      {/* جدول: تمرير أفقي فقط؛ التمرير العمودي للصفحة بالكامل */}
-      <div className="bg-card rounded-xl shadow-card overflow-x-auto w-full">
-        {loading ? (
-          <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin" /> جاري التحميل...
-          </div>
-        ) : (
-          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${seqColMin + repColMin + days * 36 + 64}px`, width: '100%' }}>
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-muted border-b-2 border-border">
-                <th
-                  className="sticky right-0 z-[32] bg-muted text-center px-0.5 py-1.5 font-semibold text-muted-foreground border-l border-border"
-                  style={{ minWidth: seqColMin, width: seqColMin }}>
-                  #
-                </th>
-                <th
-                  className="sticky z-[31] bg-muted text-right px-1.5 py-1.5 font-semibold text-foreground border-l-2 border-border"
-                  style={{ right: seqColMin, minWidth: repColMin }}>
-                  المندوب / المنصة
-                </th>
-                {dayArr.map(d => {
-                  const dow = new Date(year, month - 1, d).getDay();
-                  const isWeekend = dow === 5 || dow === 6;
-                  const isThursday = dow === 4;
-                  const isToday = d === today;
-                  return (
-                    <th key={d}
-                      className={`text-center px-0.5 py-1.5 font-medium border-l border-border/50
-                        ${isToday ? 'bg-primary/20 text-primary font-bold' : isWeekend ? 'text-muted-foreground/50 bg-muted/40' : isThursday ? 'text-muted-foreground/70 bg-muted/20' : 'text-muted-foreground'}`}
-                      style={{ minWidth: 36 }}>
-                      {d}
-                    </th>
-                  );
-                })}
-                <th
-                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-muted border-r-2 border-border"
-                  style={{ minWidth: 64 }}>
-                  المجموع
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredEmployees.length === 0 ? (
-                <tr><td colSpan={days + 3} className="text-center py-12 text-muted-foreground">لا يوجد مناديب</td></tr>
-              ) : filteredEmployees.map((emp, idx) => {
-                const activeApps = getActiveApps(emp.id);
-                const isExpanded = expandedEmp.has(emp.id);
-                const total = empMonthTotal(emp.id);
-                const rowBg = idx % 2 === 0 ? 'hsl(var(--card))' : 'hsl(var(--muted))';
-
-                return (
-                  <React.Fragment key={emp.id}>
-                    <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
-                      <td
-                        className="sticky right-0 z-[12] text-center px-0.5 py-1 border-l border-border tabular-nums text-muted-foreground font-medium"
-                        style={{
-                          backgroundColor: isExpanded ? 'hsl(var(--muted))' : rowBg,
-                          minWidth: seqColMin,
-                          width: seqColMin,
-                        }}
-                      >
-                        {idx + 1}
-                      </td>
-                      <td
-                        className="sticky z-[11] px-1.5 py-1 border-l-2 border-border cursor-pointer hover:brightness-[0.98] transition-[filter] dark:hover:brightness-110"
-                        style={{
-                          backgroundColor: isExpanded ? 'hsl(var(--muted))' : rowBg,
-                          right: seqColMin,
-                          minWidth: repColMin,
-                        }}
-                        onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
-                      >
-                        <div className="flex items-center gap-1">
-                          {activeApps.length > 0 && (
-                            <span className="text-muted-foreground flex-shrink-0">
-                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                            </span>
-                          )}
-                          <span className="font-medium text-foreground truncate max-w-[7.5rem]" title={emp.name}>{shortName(emp.name)}</span>
-                        </div>
-                        {activeApps.length > 0 && (
-                          <div className="flex gap-0.5 flex-wrap mt-0.5 pr-7">
-                            {activeApps.slice(0, 3).map(a => {
-                              const c = getAppColor(appColorsList, a.name);
-                              return (
-                                <span key={a.id} className="text-[9px] px-1 rounded font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
-                                  {a.name.slice(0, 4)}
-                                </span>
-                              );
-                            })}
-                            {activeApps.length > 3 && <span className="text-[9px] text-muted-foreground">+{activeApps.length - 3}</span>}
-                          </div>
-                        )}
-                      </td>
-
-                      {dayArr.map(d => {
-                        const val = empDayTotal(emp.id, d);
-                        const dow = new Date(year, month - 1, d).getDay();
-                        const isWeekend = dow === 5 || dow === 6;
-                        const isThursday = dow === 4;
-                        const isToday = d === today;
-                        const isOpen = cellPopover?.empId === emp.id && cellPopover?.day === d;
-                        const dayApps = visibleApps.filter(a => getVal(emp.id, a.id, d) > 0);
-
-                        return (
-                          <td key={d}
-                            className={`text-center p-0 border-l border-border/30 transition-colors
-                              ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : isThursday ? 'bg-muted/10' : ''}
-                              ${isOpen ? 'ring-2 ring-inset ring-primary' : ''}
-                              ${canEditMonth ? 'cursor-pointer hover:bg-primary/5' : ''}`}
-                            style={{ minWidth: 36 }}
-                            onClick={e => handleCellClick(e, emp.id, d)}
-                          >
-                            <div className="h-7 flex flex-col items-center justify-center gap-0">
-                              {val > 0 ? (
-                                <>
-                                  <span className="font-semibold text-foreground leading-none">{val}</span>
-                                  {dayApps.length > 0 && (
-                                    <div className="flex gap-0.5 mt-0.5">
-                                      {dayApps.slice(0, 3).map(a => {
-                                        const c = getAppColor(appColorsList, a.name);
-                                        return <span key={a.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.bg }} />;
-                                      })}
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-muted-foreground/20">·</span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-
-                      {/* Totals column - sticky left, solid background to prevent bleed */}
-                      <td
-                        className="sticky left-0 z-10 text-center px-1 py-1 font-bold text-primary border-r-2 border-border bg-muted"
-                        style={{ minWidth: 64 }}
-                      >
-                        {total > 0 ? total : <span className="text-muted-foreground/30">0</span>}
-                      </td>
-                    </tr>
-
-                    {isExpanded && activeApps.map(app => {
-                      const c = getAppColor(appColorsList, app.name);
-                      const appTotal = empAppMonthTotal(emp.id, app.id);
-                      return (
-                        <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-[12] border-l border-border" style={{ backgroundColor: c.cellBg, minWidth: seqColMin, width: seqColMin }} aria-hidden />
-                          <td className="sticky z-[11] px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, right: seqColMin, minWidth: repColMin }}>
-                            <div className="flex items-center gap-2 pr-8">
-                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
-                                {app.name}
-                              </span>
-                            </div>
-                          </td>
-                          {dayArr.map(d => {
-                            const val = getVal(emp.id, app.id, d);
-                            const dow = new Date(year, month - 1, d).getDay();
-                            const isWeekend = dow === 5 || dow === 6;
-                            const isThursday = dow === 4;
-                            const isToday = d === today;
-                            return (
-                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-muted/20 opacity-70' : isThursday ? 'bg-muted/10' : ''}`} style={{ minWidth: 36 }}>
-                                <div className="h-6 flex items-center justify-center font-medium text-[10px]" style={{ color: val > 0 ? c.val : undefined }}>
-                                  {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
-                                </div>
-                              </td>
-                            );
-                          })}
-                          <td className="sticky left-0 z-10 text-center px-1 py-1 font-bold border-r-2 border-border text-[10px] bg-muted" style={{ color: c.val, minWidth: 64 }}>
-                            {appTotal > 0 ? appTotal : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-
-              {/* Footer totals */}
-              <tr className="border-t-2 border-border font-semibold">
-                <td className="sticky right-0 z-[12] text-center px-0.5 py-1.5 border-l border-border text-muted-foreground bg-muted"
-                  style={{ minWidth: seqColMin, width: seqColMin }}>
-                  —
-                </td>
-                <td className="sticky z-[11] px-1.5 py-1.5 text-xs font-bold border-l-2 border-border text-foreground bg-muted"
-                  style={{ right: seqColMin, minWidth: repColMin }}>
-                  الإجمالي
-                </td>
-                {dayArr.map(d => {
-                  const dayTotal = filteredEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
-                  const isToday = d === today;
-                  return (
-                    <td key={d} className={`text-center px-0.5 py-1.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
-                      style={{ minWidth: 36, backgroundColor: isToday ? undefined : 'hsl(var(--muted) / 0.4)' }}>
-                      {dayTotal > 0 ? dayTotal : <span className="text-muted-foreground/30">—</span>}
-                    </td>
-                  );
-                })}
-                <td className="sticky left-0 z-10 text-center px-1.5 py-1.5 font-bold text-xs text-primary border-r-2 border-border bg-muted"
-                  style={{ minWidth: 64 }}>
-                  {filteredEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        )}
-      </div>
+      <OrdersGridTable
+        loading={loading}
+        tableRef={tableRef}
+        seqColMin={seqColMin}
+        repColMin={repColMin}
+        days={days}
+        year={year}
+        month={month}
+        today={today}
+        filteredEmployees={filteredEmployees}
+        visibleApps={visibleApps}
+        appColorsList={appColorsList}
+        expandedEmp={expandedEmp}
+        cellPopover={cellPopover}
+        canEditMonth={canEditMonth}
+        dayArr={dayArr}
+        getVal={getVal}
+        getActiveApps={getActiveApps}
+        empDayTotal={empDayTotal}
+        empMonthTotal={empMonthTotal}
+        empAppMonthTotal={empAppMonthTotal}
+        shortName={shortName}
+        toggleExpand={toggleExpand}
+        handleCellClick={handleCellClick}
+      />
 
       {cellPopover && (
         <CellPopover
@@ -962,11 +779,6 @@ const MonthSummary = () => {
     }
   };
 
-  const SortIcon = ({ field }: { field: 'name' | 'total' | `app:${string}` }) => {
-    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
-    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
-  };
-
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
@@ -1058,89 +870,23 @@ const MonthSummary = () => {
       {/* Summary table */}
       <div className="bg-card rounded-xl shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b-2 border-border bg-muted/40">
-                <th className="text-center p-3 font-semibold text-muted-foreground w-10">#</th>
-                <th className="text-center p-3 font-semibold text-foreground min-w-[110px] cursor-pointer" onClick={() => handleSort('name')}>
-                  المندوب <SortIcon field="name" />
-                </th>
-                {apps.map(app => {
-                  const c = getAppColor(appColorsList, app.name);
-                  return (
-                    <th
-                      key={app.id}
-                      onClick={() => handleSort(`app:${app.id}`)}
-                      className="text-center p-3 font-semibold min-w-[90px] border-l border-border/50 cursor-pointer"
-                      style={{ backgroundColor: `${c.bg}22`, color: c.val }}>
-                      {app.name} <SortIcon field={`app:${app.id}`} />
-                    </th>
-                  );
-                })}
-                <th className="text-center p-3 font-semibold text-primary min-w-[80px] border-l border-border cursor-pointer" onClick={() => handleSort('total')}>
-                  الإجمالي <SortIcon field="total" />
-                </th>
-                <th className="text-center p-3 font-semibold text-muted-foreground min-w-[80px]">متوسط يومي</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/30">
-                    {Array.from({ length: apps.length + 4 }).map((_, j) => (
-                      <td key={j} className="p-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : sortedEmployees.map((emp, idx) => {
-                const total = empTotal(emp.id);
-                const avg = total > 0 ? Math.round(total / days) : 0;
-                return (
-                  <tr key={emp.id} className={`border-b border-border/30 hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/5' : ''}`}>
-                    <td className="p-3 text-center text-xs text-muted-foreground font-medium">{idx + 1}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground whitespace-nowrap" title={emp.name}>
-                          {shortName(emp.name)}
-                        </span>
-                      </div>
-                    </td>
-                    {apps.map(app => {
-                      const c = getAppColor(appColorsList, app.name);
-                      const appTotal = dayArr.reduce((s, d) => s + (data[`${emp.id}::${app.id}::${d}`] ?? 0), 0);
-                      return (
-                        <td key={app.id} className="text-center p-3 font-semibold border-l border-border/30" style={{ color: appTotal > 0 ? c.val : undefined }}>
-                          {appTotal > 0 ? appTotal : <span className="text-muted-foreground/30">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="p-3 text-center font-bold text-primary border-l border-border">{total > 0 ? total : 0}</td>
-                    <td className="p-3 text-center text-muted-foreground">{avg}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            {!loading && employees.length > 0 && (
-              <tfoot>
-                <tr className="bg-muted/40 font-semibold border-t-2 border-border">
-                  <td colSpan={2} className="p-3">
-                    <span className="text-sm font-bold text-foreground">الإجمالي</span>
-                  </td>
-                  {apps.map(app => {
-                    const c = getAppColor(appColorsList, app.name);
-                    const total = appGrandTotal(app.id);
-                    return (
-                      <td key={app.id} className="text-center p-3 font-bold border-l border-border/40" style={{ color: c.val }}>
-                        {total > 0 ? total : '—'}
-                      </td>
-                    );
-                  })}
-                  <td className="p-3 text-center font-bold text-primary border-l border-border">{grandTotal}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            )}
-          </table>
+          <OrdersSummaryTable
+            loading={loading}
+            apps={apps}
+            appColorsList={appColorsList}
+            sortedEmployees={sortedEmployees}
+            employeesCount={employees.length}
+            data={data}
+            dayArr={dayArr}
+            days={days}
+            empTotal={empTotal}
+            appGrandTotal={appGrandTotal}
+            grandTotal={grandTotal}
+            shortName={shortName}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
         </div>
       </div>
     </div>

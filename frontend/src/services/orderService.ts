@@ -39,6 +39,15 @@ type EmployeeAppRow = {
 };
 
 export const orderService = {
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('*')
+      .order('date', { ascending: false });
+    throwIfError(error, 'orderService.getAll');
+    return { data, error };
+  },
+
   getOrdersByEmployeeMonth: async (employeeId: string, monthYear: string) => {
     const [year, month] = monthYear.split('-');
     const from = `${year}-${month}-01`;
