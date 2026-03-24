@@ -190,12 +190,12 @@ const SpreadsheetGrid = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    supabase
+    (supabase as any)
       .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (!isMounted) return;
         setIsMonthLocked(!!data);
       });

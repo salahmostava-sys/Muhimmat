@@ -425,9 +425,10 @@ const FuelPage = () => {
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);
+    const db = supabase as any;
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    let q = supabase
+    let q = db
       .from('vehicle_mileage_daily')
       .select('*, employees(name, personal_photo_url)')
       .gte('date', ms)
@@ -448,7 +449,7 @@ const FuelPage = () => {
 
     const { data, error } = await q;
     if (error) {
-      toast({ title: 'خطأ في جلب البيانات', description: error.message, variant: 'destructive' });
+      toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
     }
     const mapped = (data || []).map((r: DailyRow & { employees?: Employee }) => ({ ...r, employee: r.employees }));
     setDailyRows(mapped);
@@ -467,8 +468,8 @@ const FuelPage = () => {
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await supabase.from('vehicle_mileage_daily').delete().eq('id', id);
-    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+    const { error } = await (supabase as any).from('vehicle_mileage_daily').delete().eq('id', id);
+    if (error) return toast({ title: 'خطأ في الحذف', description: (error as any).message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
     fetchDaily();
     fetchMonthly();

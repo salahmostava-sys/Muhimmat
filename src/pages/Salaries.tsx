@@ -881,7 +881,7 @@ const Salaries = () => {
           externalDeduction: extDeduction,
           status,
           preferredLanguage: ((emp as Record<string, unknown>).preferred_language as SlipLanguage) || 'ar',
-          phone: (emp as Record<string, unknown>).phone || null,
+          phone: ((emp as Record<string, unknown>).phone as string) || null,
           workDays: attendanceDays,
           fuelCost: fuelCostMap[emp.id] || 0,
           platformIncome: 0,
