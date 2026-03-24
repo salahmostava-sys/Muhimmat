@@ -17,6 +17,7 @@ export type Database = {
       account_assignments: {
         Row: {
           account_id: string
+          company_id: string | null
           created_at: string
           created_by: string | null
           employee_id: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id: string
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id?: string
@@ -54,6 +57,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "platform_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
             referencedColumns: ["id"]
           },
           {
@@ -580,6 +590,7 @@ export type Database = {
           base_salary: number
           birth_date: string | null
           city: Database["public"]["Enums"]["city_enum"] | null
+          company_id: string | null
           created_at: string
           department_id: string | null
           dob: string | null
@@ -613,7 +624,6 @@ export type Database = {
             | Database["public"]["Enums"]["sponsorship_status_enum"]
             | null
           status: Database["public"]["Enums"]["employee_status"]
-          trade_register_id: string | null
           updated_at: string
         }
         Insert: {
@@ -622,6 +632,7 @@ export type Database = {
           base_salary?: number
           birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
+          company_id?: string | null
           created_at?: string
           department_id?: string | null
           dob?: string | null
@@ -655,7 +666,6 @@ export type Database = {
             | Database["public"]["Enums"]["sponsorship_status_enum"]
             | null
           status?: Database["public"]["Enums"]["employee_status"]
-          trade_register_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -664,6 +674,7 @@ export type Database = {
           base_salary?: number
           birth_date?: string | null
           city?: Database["public"]["Enums"]["city_enum"] | null
+          company_id?: string | null
           created_at?: string
           department_id?: string | null
           dob?: string | null
@@ -697,10 +708,16 @@ export type Database = {
             | Database["public"]["Enums"]["sponsorship_status_enum"]
             | null
           status?: Database["public"]["Enums"]["employee_status"]
-          trade_register_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_department_id_fkey"
             columns: ["department_id"]
@@ -713,13 +730,6 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "employees_trade_register_id_fkey"
-            columns: ["trade_register_id"]
-            isOneToOne: false
-            referencedRelation: "trade_registers"
             referencedColumns: ["id"]
           },
         ]
@@ -914,6 +924,7 @@ export type Database = {
           account_id_on_platform: string | null
           account_username: string
           app_id: string
+          company_id: string | null
           created_at: string
           employee_id: string | null
           id: string
@@ -927,6 +938,7 @@ export type Database = {
           account_id_on_platform?: string | null
           account_username: string
           app_id: string
+          company_id?: string | null
           created_at?: string
           employee_id?: string | null
           id?: string
@@ -940,6 +952,7 @@ export type Database = {
           account_id_on_platform?: string | null
           account_username?: string
           app_id?: string
+          company_id?: string | null
           created_at?: string
           employee_id?: string | null
           id?: string
@@ -955,6 +968,13 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "trade_registers"
             referencedColumns: ["id"]
           },
           {
