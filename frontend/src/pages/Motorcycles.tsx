@@ -527,7 +527,26 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-           <table ref={tableRef} className="w-full min-w-[1500px] table-auto">
+           <table ref={tableRef} className="w-full min-w-[2200px] table-fixed">
+            <colgroup>
+              <col style={{ width: 40 }} />
+              <col style={{ width: 108 }} />
+              <col style={{ width: 108 }} />
+              <col style={{ width: 92 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 72 }} />
+              <col style={{ width: 132 }} />
+              <col style={{ width: 140 }} />
+              <col style={{ width: 300 }} />
+              <col style={{ width: 240 }} />
+              <col style={{ width: 168 }} />
+              <col style={{ width: 104 }} />
+              <col style={{ width: 118 }} />
+              <col style={{ width: 118 }} />
+              <col style={{ width: 118 }} />
+              <col style={{ width: 88 }} />
+            </colgroup>
             <thead className="ta-thead">
               <tr>
                 <th className="ta-th">#</th>
@@ -539,8 +558,8 @@ const Motorcycles = () => {
                 <th className="ta-th">سنة الصنع</th>
                 <th className="ta-th">الرقم التسلسلي</th>
                 <th className="ta-th">رقم الهيكل</th>
-                <th className="ta-th">ملاحظات</th>
-                <th className="ta-th">المندوب الحالي</th>
+                <th className="ta-th min-w-[18rem]">ملاحظات</th>
+                <th className="ta-th min-w-[14rem]">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">⛽ شريحة البنزين</th>
                 <th className="ta-th">انتهاء التأمين</th>
@@ -583,9 +602,9 @@ const Motorcycles = () => {
                     <td className="px-3 py-2.5 text-sm text-muted-foreground align-top whitespace-normal break-words">{v.year ?? '—'}</td>
                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground align-top whitespace-normal break-all leading-tight" dir="ltr">{v.serial_number || '—'}</td>
                      <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground align-top whitespace-normal break-all leading-tight" dir="ltr">{v.chassis_number || '—'}</td>
-                     <td className="px-3 py-2.5 text-xs text-muted-foreground align-top whitespace-normal break-words leading-tight">{v.notes || '—'}</td>
+                     <td className="px-3 py-2.5 text-xs text-muted-foreground align-top whitespace-normal break-words leading-tight max-w-[18rem]">{v.notes || '—'}</td>
                      {/* Current assigned rider */}
-                     <td className="px-3 py-2.5 align-top whitespace-normal break-words">
+                     <td className="px-3 py-2.5 align-top whitespace-normal break-words max-w-[15rem]">
                         {v.current_rider ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-medium text-foreground whitespace-normal break-words leading-tight">{v.current_rider}</span>
