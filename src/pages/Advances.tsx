@@ -110,12 +110,12 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     if (!form.amount || !form.monthly_amount || !form.disbursement_date || !form.first_deduction_month)
       return toast({ title: 'أكمل الحقول المطلوبة', variant: 'destructive' });
     setSaving(true);
-    const { data: adv, error } = await supabase.from('advances').insert({
+    const { data: adv, error } = await advanceService.create({
       employee_id: employeeId, amount: parseFloat(form.amount),
       monthly_amount: parseFloat(form.monthly_amount), total_installments: projectedInstallments,
       disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
       note: form.note || null, status: 'active',
-    }).select().single();
+    } as any);
     if (error || !adv) { setSaving(false); return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' }); }
     const installments = buildInstallmentsPayload(
       adv.id,
