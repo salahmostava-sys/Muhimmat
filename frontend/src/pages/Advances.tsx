@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, CreditCard, FolderOpen, Upload, Edit2, FileText, ArrowDownCircle, ArrowUpCircle, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
+import { Search, Plus, CreditCard, FolderOpen, Upload, Edit2, FileText, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -87,21 +87,16 @@ const currentMonth = format(new Date(), 'yyyy-MM');
 // ─── Inline Row Entry ──────────────────────────────────────────────────────────
 interface InlineRowProps {
   employeeId: string;
-  allAdvances: Advance[];
   onSaved: () => void;
   onCancel: () => void;
 }
-const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRowProps) => {
+const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
   const { toast } = useToast();
-  const [type, setType] = useState<'advance' | 'payment'>('advance');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     amount: '', monthly_amount: '', disbursement_date: format(new Date(), 'yyyy-MM-dd'),
     first_deduction_month: format(new Date(), 'yyyy-MM'), note: '',
   });
-  const [payAmount, setPayAmount] = useState('');
-  const [payNote, setPayNote] = useState('');
-  const [payDate, setPayDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const projectedInstallments = form.amount && form.monthly_amount
     ? Math.ceil(parseFloat(form.amount) / parseFloat(form.monthly_amount)) : 0;
@@ -130,95 +125,41 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     onSaved();
   };
 
-  const savePayment = async () => {
-    if (!payAmount) return toast({ title: 'أدخل المبلغ', variant: 'destructive' });
-    const empAdvances = allAdvances.filter(a => a.employee_id === employeeId && a.status === 'active');
-    const pendingInst = empAdvances
-      .flatMap(a => (a.advance_installments || []).filter(i => i.status === 'pending'))
-      .sort((a, b) => a.month_year.localeCompare(b.month_year));
-    if (pendingInst.length === 0) return toast({ title: 'لا توجد أقساط معلّقة', variant: 'destructive' });
-    setSaving(true);
-    const paymentAmount = parseFloat(payAmount);
-    const noteText = payNote || `سداد يدوي بتاريخ ${payDate} — ${payAmount} ر.س`;
-    const targetInstallment = pendingInst.find(i => i.amount === paymentAmount) || pendingInst[0];
-    const { error } = await advanceService.updateInstallment(targetInstallment.id, {
-      status: 'deducted' as const, deducted_at: new Date().toISOString(), notes: noteText,
-    });
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
-    toast({ title: `✅ تم تسجيل السداد — ${payAmount} ر.س` });
-    onSaved();
-  };
-
   return (
-    <tr className="border-b border-border/50 bg-primary/3 animate-in fade-in duration-150">
-      <td colSpan={7} className="px-3 py-3">
-        {/* Type toggle */}
-        <div className="flex gap-2 mb-3">
-          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-medium">
-            <button
-              onClick={() => setType('advance')}
-              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${type === 'advance' ? 'bg-info text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <ArrowDownCircle size={12} /> سلفة
-            </button>
-            <button
-              onClick={() => setType('payment')}
-              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${type === 'payment' ? 'bg-success text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <ArrowUpCircle size={12} /> سداد
-            </button>
-          </div>
-          <div className="mr-auto flex gap-2">
-            <Button size="sm" className="h-7 text-xs gap-1" onClick={type === 'advance' ? saveAdvance : savePayment} disabled={saving}>
-              <Check size={12} /> {saving ? '...' : 'حفظ'}
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onCancel}>
-              <X size={12} /> إلغاء
-            </Button>
-          </div>
+    <div className="border-b border-border/50 bg-primary/5 rounded-lg animate-in fade-in duration-150 px-3 py-3">
+      <p className="text-xs font-medium text-foreground mb-3">إضافة سلفة</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block">المبلغ (ر.س) *</label>
+          <Input type="number" className="h-7 text-xs" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
         </div>
-
-        {type === 'advance' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">المبلغ (ر.س) *</label>
-              <Input type="number" className="h-7 text-xs" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">القسط الشهري (ر.س) *</label>
-              <Input type="number" className="h-7 text-xs" value={form.monthly_amount} onChange={e => setForm(p => ({ ...p, monthly_amount: e.target.value }))} placeholder="0" />
-              {projectedInstallments > 0 && <p className="text-[10px] text-muted-foreground mt-0.5">{projectedInstallments} قسط</p>}
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">تاريخ الصرف *</label>
-              <Input type="date" className="h-7 text-xs" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">أول شهر خصم *</label>
-              <Input type="month" className="h-7 text-xs" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
-            </div>
-            <div className="sm:col-span-4">
-              <label className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
-              <Input className="h-7 text-xs" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="سبب السلفة..." />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">المبلغ المسدّد (ر.س) *</label>
-              <Input type="number" className="h-7 text-xs" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">تاريخ السداد</label>
-              <Input type="date" className="h-7 text-xs" value={payDate} onChange={e => setPayDate(e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
-              <Input className="h-7 text-xs" value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="مثال: سدّد يوم ..." />
-            </div>
-          </div>
-        )}
-      </td>
-    </tr>
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block">القسط الشهري (ر.س) *</label>
+          <Input type="number" className="h-7 text-xs" value={form.monthly_amount} onChange={e => setForm(p => ({ ...p, monthly_amount: e.target.value }))} placeholder="0" />
+          {projectedInstallments > 0 && <p className="text-[10px] text-muted-foreground mt-0.5">{projectedInstallments} قسط</p>}
+        </div>
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block">تاريخ الصرف *</label>
+          <Input type="date" className="h-7 text-xs" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
+        </div>
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block">أول شهر خصم *</label>
+          <Input type="month" className="h-7 text-xs" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
+        </div>
+        <div className="sm:col-span-4">
+          <label className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
+          <Input className="h-7 text-xs" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="سبب السلفة..." />
+        </div>
+      </div>
+      <div className="flex gap-2 mt-3 justify-end">
+        <Button size="sm" className="h-7 text-xs gap-1" onClick={saveAdvance} disabled={saving}>
+          <Check size={12} /> {saving ? '...' : 'حفظ'}
+        </Button>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onCancel}>
+          <X size={12} /> إلغاء
+        </Button>
+      </div>
+    </div>
   );
 };
 
@@ -628,7 +569,6 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
             <div className="border border-border/60 rounded-xl p-4 bg-muted/20">
               <InlineRowEntry
                 employeeId={employeeId}
-                allAdvances={allAdvances}
                 onSaved={() => { setShowInlineAdd(false); onRefresh(); }}
                 onCancel={() => setShowInlineAdd(false)}
               />

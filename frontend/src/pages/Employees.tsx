@@ -74,8 +74,8 @@ const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 const ALL_COLUMNS = [
-  { key: 'seq',                      label: '#',                       sortable: false },
   { key: 'employee_code',            label: 'كود الموظف',              sortable: true  },
+  { key: 'seq',                      label: '#',                       sortable: false },
   { key: 'name',                     label: 'الاسم',                   sortable: true  },
   { key: 'name_en',                  label: 'الاسم (إنجليزي)',         sortable: true  },
   { key: 'national_id',              label: 'رقم الهوية',              sortable: true  },
@@ -519,8 +519,8 @@ const Employees = () => {
       const leExpiry = e.license_expiry;
       const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
       return {
-        '#':                 i + 1,
         'كود الموظف':        e.employee_code || '',
+        '#':                 i + 1,
         'الاسم':             e.name,
         'الاسم (إنجليزي)':  e.name_en || '',
         'رقم الهوية':        e.national_id || '',

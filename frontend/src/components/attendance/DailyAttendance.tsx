@@ -250,15 +250,15 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
 
   return (
     <div className="space-y-4">
-      {/* ── Sub-header: date + platform filter + action buttons ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Date picker */}
+      {/* ── Sub-header: التاريخ اليومي + المندوبين + المنصات + أزرار الحفظ ── */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">التاريخ اليومي</span>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-[210px] justify-start gap-2 font-normal")}>
-                <CalendarIcon size={16} />
-                {format(date, "dd MMMM yyyy", { locale: dateLocale })}
+              <Button variant="outline" className={cn("h-9 min-w-[160px] max-w-[200px] justify-start gap-2 font-normal text-sm px-2")}>
+                <CalendarIcon size={15} className="shrink-0" />
+                <span className="truncate">{format(date, "dd MMMM yyyy", { locale: dateLocale })}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -273,65 +273,70 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
               />
             </PopoverContent>
           </Popover>
-          <span className="text-sm text-muted-foreground">
-            {employees.length} مندوب{selectedAppId ? ' (مصفّى بالمنصة)' : ' نشط'}
+          <span className="text-xs text-muted-foreground shrink-0">
+            · {employees.length} مندوب{selectedAppId ? ' (مصفّى بالمنصة)' : ' نشط'}
           </span>
+          {apps.length > 0 && (
+            <>
+              <span className="hidden sm:inline text-border mx-0.5 select-none">|</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAppId(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors leading-tight",
+                    selectedAppId === null
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                  )}
+                >
+                  الكل ({allEmployees.length})
+                </button>
+                {apps.map(app => {
+                  const count = appEmployeeIds[app.id]
+                    ? allEmployees.filter(e => appEmployeeIds[app.id]?.has(e.id)).length
+                    : 0;
+                  const isSelected = selectedAppId === app.id;
+                  return (
+                    <button
+                      type="button"
+                      key={app.id}
+                      onClick={() => setSelectedAppId(isSelected ? null : app.id)}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors max-w-[140px] leading-tight",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                      )}
+                      title={app.name}
+                    >
+                      {app.logo_url && (
+                        <img src={app.logo_url} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" alt="" />
+                      )}
+                      <span className="truncate">{app.name}</span>
+                      <span className="shrink-0">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           {permissions.can_edit && (
-            <Button variant="outline" onClick={markAllPresent} className="gap-2">
+            <Button variant="outline" onClick={markAllPresent} className="gap-2 h-9 text-sm">
               <UserCheck size={16} />
               تسجيل الكل حاضرين
             </Button>
           )}
           {permissions.can_edit && (
-            <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2">
+            <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2 h-9 text-sm">
               <Save size={16} />
-              {saving ? "جاري الحفظ..." : `حفظ الحضور (${savedCount})`}
+              {saving ? "جاري الحفظ..." : `حفظ (${savedCount})`}
             </Button>
           )}
         </div>
       </div>
-
-      {/* ── Platform filter tabs ── */}
-      {apps.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setSelectedAppId(null)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-              selectedAppId === null
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-            )}
-          >
-            الكل ({allEmployees.length})
-          </button>
-          {apps.map(app => {
-            const count = appEmployeeIds[app.id]
-              ? allEmployees.filter(e => appEmployeeIds[app.id]?.has(e.id)).length
-              : 0;
-            const isSelected = selectedAppId === app.id;
-            return (
-              <button
-                key={app.id}
-                onClick={() => setSelectedAppId(isSelected ? null : app.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-                )}
-              >
-                {app.logo_url && (
-                  <img src={app.logo_url} className="w-4 h-4 rounded-full object-cover" alt="" />
-                )}
-                {app.name} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* ── Summary pills ── */}
       <div className="flex gap-2 flex-wrap">
@@ -356,7 +361,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           <table className="w-full" dir={isRTL ? "rtl" : "ltr"}>
             <thead className="ta-thead">
               <tr>
-                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 min-w-[120px] text-start`}>
+                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 min-w-[88px] max-w-[130px] text-start`}>
                   المندوب
                 </th>
                 <th className="ta-th min-w-[200px]">الحالة</th>
@@ -395,7 +400,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                     return (
                       <tr key={emp.id} className="ta-tr">
                         {/* Name */}
-                        <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card max-w-[170px]`}>
+                        <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card max-w-[130px]`}>
                           <div className="flex items-center gap-2">
                             <div>
                               <p className="text-sm font-medium text-foreground whitespace-nowrap truncate" title={emp.name}>

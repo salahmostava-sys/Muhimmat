@@ -4,7 +4,7 @@ import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
@@ -564,6 +564,12 @@ const Salaries = () => {
     [user?.id, selectedMonth]
   );
 
+  /** منصات بلا Pricing Rules فقط إن لم تكن مدرجة أصلاً كـ «بدون سكيمة» لتفادي تكرار الاسم في الشريط */
+  const appsWithoutPricingRulesDeduped = useMemo(
+    () => appsWithoutPricingRules.filter((n) => !appsWithoutScheme.includes(n)),
+    [appsWithoutPricingRules, appsWithoutScheme]
+  );
+
   // Sync platforms, colors, and custom columns from DB apps
   useEffect(() => {
     if (appColorsList.length === 0) return;
@@ -927,8 +933,10 @@ const Salaries = () => {
           va = a.platformOrders[sortField] || 0;
           vb = b.platformOrders[sortField] || 0;
         } else {
-          va = (a as unknown as Record<string, unknown>)[sortField] || 0;
-          vb = (b as unknown as Record<string, unknown>)[sortField] || 0;
+          const ra = (a as unknown as Record<string, unknown>)[sortField];
+          const rb = (b as unknown as Record<string, unknown>)[sortField];
+          va = typeof ra === 'number' || typeof ra === 'string' ? ra : Number(ra) || 0;
+          vb = typeof rb === 'number' || typeof rb === 'string' ? rb : Number(rb) || 0;
         }
     }
     if (va < vb) return sortDir === 'asc' ? -1 : 1;
@@ -1677,11 +1685,11 @@ const Salaries = () => {
     </th>
   );
 
-  const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/60 bg-muted/60 text-right sticky z-20";
-  const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/60 bg-muted/50 text-center";
-  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border/40 bg-card sticky z-10";
-  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border/40";
-  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/60 bg-muted/60";
+  const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border bg-muted/60 text-right sticky z-20";
+  const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border bg-muted/50 text-center";
+  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border bg-card text-foreground sticky z-10";
+  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border text-foreground";
+  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border bg-muted/60 text-foreground";
   const stickyLeft = (offset: number) => ({ left: offset });
 
   const [detailRow, setDetailRow] = useState<SalaryRow | null>(null);
@@ -1782,7 +1790,7 @@ const Salaries = () => {
       </div>
 
       {/* Setup Required Banner — unified to avoid duplicate alerts */}
-      {(appsWithoutScheme.length > 0 || appsWithoutPricingRules.length > 0) && (
+      {(appsWithoutScheme.length > 0 || appsWithoutPricingRulesDeduped.length > 0) && (
         <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
           <AlertTriangle size={18} className="text-warning flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -1793,10 +1801,10 @@ const Salaries = () => {
                 <span className="font-semibold text-warning mr-1">{appsWithoutScheme.join(' · ')}</span>
               </p>
             )}
-            {appsWithoutPricingRules.length > 0 && (
+            {appsWithoutPricingRulesDeduped.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
                 بدون Pricing Rules:
-                <span className="font-semibold text-warning mr-1">{appsWithoutPricingRules.join(' · ')}</span>
+                <span className="font-semibold text-warning mr-1">{appsWithoutPricingRulesDeduped.join(' · ')}</span>
               </p>
             )}
           </div>
@@ -2082,7 +2090,7 @@ const Salaries = () => {
                   const c = computeRow(r);
                   if (!c) return null;
                   return (
-                    <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <tr key={r.id} className="border-b border-border hover:bg-muted/25 transition-colors">
                       <td className={`${tdClass} sticky text-center text-xs text-muted-foreground font-mono`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>{rowIdx + 1}</td>
                       <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 40, zIndex: 10, background: 'hsl(var(--card))' }}>
                         <div className="flex items-center gap-1.5">
@@ -2150,9 +2158,14 @@ const Salaries = () => {
                                   </span>
                                    {orders > 0 && (
                                      noScheme ? (
-                                       <span className="text-[9px] text-warning font-semibold">⚙️ إعداد مطلوب</span>
+                                       <span
+                                         className="text-[10px] text-warning/90 font-medium"
+                                         title="بدون سكيمة رواتب لهذه المنصة — راجع شريط التنبيه أعلى الصفحة"
+                                       >
+                                         —
+                                       </span>
                                      ) : (
-                                      <span className="text-[10px] text-foreground opacity-75 font-normal">
+                                      <span className="text-[10px] text-foreground font-medium">
                                         {salary.toLocaleString()} ر.س
                                       </span>
                                     )
@@ -2167,11 +2180,11 @@ const Salaries = () => {
                         {Object.values(r.platformOrders).reduce((s, v) => s + v, 0) || <span className="text-muted-foreground/30">—</span>}
                       </td>
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
-                      <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
-                      <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
-                      <td className={`${tdClass} text-foreground font-semibold`}>{c.totalAdditions.toLocaleString()}</td>
-                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalWithSalary.toLocaleString()}</td>
-                      <td className={`${tdClass}`}>
+                      <td className={`${tdClass} bg-success/[0.04] border-l-2 border-success/30`}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} bg-success/[0.04]`}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} text-foreground font-semibold bg-success/[0.04]`}>{c.totalAdditions.toLocaleString()}</td>
+                      <td className={`${tdClass} font-bold text-foreground border-l-2 border-success/35 bg-success/[0.06]`}>{c.totalWithSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} border-l-2 border-destructive/35 bg-destructive/[0.04]`}>
                         <EditableCell value={r.advanceDeduction} onChange={v => updateRow(r.id, { advanceDeduction: v })} className="text-foreground" />
                       </td>
                       <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
@@ -2192,52 +2205,58 @@ const Salaries = () => {
                         <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })} />
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
-                      <td className={`${tdClass} border-l border-border/20`}>
-                        <select
-                          value={r.city === 'مكة' ? 'makkah' : r.city === 'جدة' ? 'jeddah' : ''}
-                          onChange={async e => {
-                            const newCityVal = e.target.value as 'makkah' | 'jeddah';
-                            const newCityLabel = newCityVal === 'makkah' ? 'مكة' : 'جدة';
-                            updateRow(r.id, { city: newCityLabel });
-                            await employeeService.updateCity(r.employeeId, newCityVal);
-                          }}
-                          className="text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-                        >
-                          <option value="">—</option>
-                          <option value="makkah">مكة</option>
-                          <option value="jeddah">جدة</option>
-                        </select>
+                      <td className={`${tdClass} border-l border-border text-sm font-medium`}>
+                        {r.city === 'مكة' || r.city === 'جدة' ? r.city : '—'}
                       </td>
-                      <td className={`${tdClass} border-l border-border/20`}>
-                        <div className="flex items-center justify-center gap-2">
-                          <span className={statusStyles[r.status]}>{statusLabels[r.status]}</span>
+                      <td className={`${tdClass} border-l border-border`}>
+                        <div className="flex items-center justify-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">⋮</Button>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="إجراءات">⋮</Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setPayslipRow(r)}>
-                                <Printer size={13} className="ml-2" /> كشف الراتب
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'cash' })}>
-                                طريقة الصرف: كاش
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'bank' })}>
-                                طريقة الصرف: بنك
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                            <DropdownMenuContent align="end" className="min-w-[14rem]">
+                              <DropdownMenuLabel className="text-xs text-muted-foreground">الحالة الحالية: {statusLabels[r.status]}</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => updateRow(r.id, { status: 'pending' as const })}>
-                                الحالة: معلّق
+                                تعيين الحالة: معلّق
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => approveRow(r.id)}>
-                                الحالة: معتمد
+                                تعيين الحالة: معتمد
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => { if (r.status === 'approved') void markAsPaid(r); }}
                                 disabled={r.status !== 'approved' || markingPaid === r.id}
                               >
-                                الحالة: مصروف
+                                {markingPaid === r.id ? '...' : 'تعيين الحالة: مصروف'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel className="text-xs text-muted-foreground">طريقة الصرف</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'cash' })}>
+                                كاش
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'bank' })}>
+                                تحويل بنكي
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel className="text-xs text-muted-foreground">المدينة (بيانات الموظف)</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  updateRow(r.id, { city: 'مكة' });
+                                  await employeeService.updateCity(r.employeeId, 'makkah');
+                                }}
+                              >
+                                مكة
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  updateRow(r.id, { city: 'جدة' });
+                                  await employeeService.updateCity(r.employeeId, 'jeddah');
+                                }}
+                              >
+                                جدة
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setPayslipRow(r)}>
+                                <Printer size={13} className="ml-2" /> كشف الراتب
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
