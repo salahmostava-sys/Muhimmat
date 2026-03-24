@@ -126,14 +126,14 @@ const PlatformAccounts = () => {
       const [appsRes, empRes, accRes, assignRes] = await Promise.all([
         supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
         supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
-        (supabase as any).from('platform_accounts').select('*').order('created_at', { ascending: false }),
-        (supabase as any).from('account_assignments').select('*').is('end_date', null),
+        supabase.from('platform_accounts' as any).select('*').order('created_at', { ascending: false }),
+        supabase.from('account_assignments' as any).select('*').is('end_date', null),
       ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
     const empData: Employee[] = (empRes.data ?? []) as Employee[];
-    const rawAccounts = (accRes.data ?? []) as any[];
-    const activeAssignments = (assignRes.data ?? []) as any[];
+    const rawAccounts = (accRes.data ?? []) as unknown as PlatformAccount[];
+    const activeAssignments = (assignRes.data ?? []) as unknown as Assignment[];
 
     const appMap = Object.fromEntries(appsData.map(a => [a.id, a]));
     const empMap = Object.fromEntries(empData.map(e => [e.id, e]));
@@ -323,7 +323,7 @@ const PlatformAccounts = () => {
       .order('start_date', { ascending: false });
 
     const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
-    const assignments: Assignment[] = ((data ?? []) as any[]).map(r => ({
+    const assignments: Assignment[] = ((data ?? []) as unknown as Assignment[]).map(r => ({
       ...r,
       employee_name: empMap[r.employee_id] ?? 'مندوب غير معروف',
     }));
