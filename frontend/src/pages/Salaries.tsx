@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
-import { payrollService, type PricingRule } from '@/services/payrollService';
+import { payrollService } from '@/services/payrollService';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { employeeService } from '@/services/employeeService';
+import { salaryService, type PricingRule } from '@/services/salaryService';
 import { salaryDataService } from '@/services/salaryDataService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -682,11 +682,15 @@ const Salaries = () => {
 
       // ── Fetch pricing rules for active apps (fallbacks keep legacy scheme behavior) ──
       const appIds = Object.values(appNameToId);
-      const { data: rulesData } = await payrollService.getPricingRulesForApps(appIds);
+      const rulesByApp = await Promise.all(
+        appIds.map(async (appId) => {
+          const { data } = await salaryService.getPricingRules(appId);
+          return { appId, rules: data || [] };
+        })
+      );
       const rulesMap: Record<string, PricingRule[]> = {};
-      (rulesData || []).forEach((rule) => {
-        if (!rulesMap[rule.app_id]) rulesMap[rule.app_id] = [];
-        rulesMap[rule.app_id].push(rule);
+      rulesByApp.forEach(({ appId, rules }) => {
+        rulesMap[appId] = rules;
       });
       setPricingRulesByAppId(rulesMap);
 
@@ -719,9 +723,9 @@ const Salaries = () => {
           platformOrders[p] = orders;
           const appId = appNameToId[p];
           const appRules = appId ? (rulesMap[appId] || []) : [];
-          const ruleSalary = payrollService.calculateFromPricingRules(orders, appRules);
-          if (ruleSalary !== null) {
-            platformSalaries[p] = ruleSalary;
+          const ruleResult = salaryService.applyPricingRules(appRules, orders);
+          if (ruleResult.matchedRule) {
+            platformSalaries[p] = Math.round(ruleResult.salary);
             return;
           }
 
@@ -931,9 +935,9 @@ const Salaries = () => {
       const newOrders = { ...r.platformOrders, [platform]: value };
       const appId = appIdByName[platform];
       const appRules = appId ? (pricingRulesByAppId[appId] || []) : [];
-      const salaryFromRules = payrollService.calculateFromPricingRules(value, appRules);
-      let salary = salaryFromRules ?? 0;
-      if (salaryFromRules === null) {
+      const ruleResult = salaryService.applyPricingRules(appRules, value);
+      let salary = Math.round(ruleResult.salary || 0);
+      if (!ruleResult.matchedRule) {
         // Fallback to scheme behavior when pricing_rules are not configured.
         const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
         if (scheme && scheme.salary_scheme_tiers) {

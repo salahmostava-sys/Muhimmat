@@ -15,7 +15,94 @@ export interface SalaryRecordPayload {
   notes?: string;
 }
 
+export type PricingCalcType = 'per_order' | 'fixed' | 'hybrid';
+
+export interface PricingRule {
+  id: string;
+  app_id: string;
+  min_orders: number;
+  max_orders: number | null;
+  rule_type: PricingCalcType;
+  rate_per_order: number | null;
+  fixed_salary: number | null;
+  is_active?: boolean;
+  priority?: number;
+}
+
+export interface SalaryCalculationResult {
+  totalOrders: number;
+  matchedRule: PricingRule | null;
+  salary: number;
+}
+
 export const salaryService = {
+  getPricingRules: async (appId: string) => {
+    const { data, error } = await supabase
+      .from('pricing_rules')
+      .select('id, app_id, min_orders, max_orders, rule_type, rate_per_order, fixed_salary, is_active, priority')
+      .eq('app_id', appId)
+      .eq('is_active', true)
+      .order('priority', { ascending: false })
+      .order('min_orders', { ascending: true });
+    return { data: (data || []) as PricingRule[], error };
+  },
+
+  getOrderCount: async (employeeId: string, appId: string, monthYear: string) => {
+    const [year, month] = monthYear.split('-');
+    const from = `${year}-${month}-01`;
+    const to = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('orders_count')
+      .eq('employee_id', employeeId)
+      .eq('app_id', appId)
+      .gte('date', from)
+      .lte('date', to);
+
+    const total = (data || []).reduce((sum, row) => sum + (row.orders_count ?? 0), 0);
+    return { total, error };
+  },
+
+  applyPricingRules: (rules: PricingRule[], orders: number): SalaryCalculationResult => {
+    const matched = rules.find(
+      (rule) => orders >= rule.min_orders && (rule.max_orders === null || orders <= rule.max_orders)
+    ) ?? null;
+
+    if (!matched) {
+      return { totalOrders: orders, matchedRule: null, salary: 0 };
+    }
+
+    if (matched.rule_type === 'fixed') {
+      return { totalOrders: orders, matchedRule: matched, salary: Number(matched.fixed_salary || 0) };
+    }
+    if (matched.rule_type === 'per_order') {
+      return { totalOrders: orders, matchedRule: matched, salary: orders * Number(matched.rate_per_order || 0) };
+    }
+
+    return {
+      totalOrders: orders,
+      matchedRule: matched,
+      salary: Number(matched.fixed_salary || 0) + orders * Number(matched.rate_per_order || 0),
+    };
+  },
+
+  calculateSalaryByRules: async (employeeId: string, appId: string, monthYear: string) => {
+    const [{ data: rules, error: rulesError }, { total, error: ordersError }] = await Promise.all([
+      salaryService.getPricingRules(appId),
+      salaryService.getOrderCount(employeeId, appId, monthYear),
+    ]);
+    if (rulesError) {
+      return { data: null, error: rulesError };
+    }
+    if (ordersError) {
+      return { data: null, error: ordersError };
+    }
+
+    const result = salaryService.applyPricingRules(rules, total);
+    return { data: result, error: null };
+  },
+
   getByMonth: async (monthYear: string) => {
     const { data, error } = await supabase
       .from('salary_records')

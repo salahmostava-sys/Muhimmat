@@ -32,6 +32,22 @@ type ActiveApp = {
 };
 
 export const orderService = {
+  getOrdersByEmployeeMonth: async (employeeId: string, monthYear: string) => {
+    const [year, month] = monthYear.split('-');
+    const from = `${year}-${month}-01`;
+    const to = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .gte('date', from)
+      .lte('date', to)
+      .order('date', { ascending: true });
+
+    return { data, error };
+  },
+
   getByDate: async (date: string, filters: Pick<OrderFilter, 'employeeId' | 'appId'> = {}) => {
     let query = supabase
       .from('daily_orders')
