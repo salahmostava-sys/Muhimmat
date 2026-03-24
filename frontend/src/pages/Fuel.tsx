@@ -310,6 +310,7 @@ const FuelPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
   const [employeeAppLinks, setEmployeeAppLinks] = useState<{ employee_id: string; app_id: string }[]>([]);
+  const [monthOrdersMap, setMonthOrdersMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [expandedRider, setExpandedRider] = useState<string | null>(null);
@@ -333,16 +334,26 @@ const FuelPage = () => {
   }, [platformTab, employeeAppLinks]);
 
   const ridersForTab = useMemo(() => {
-    let list = employees;
-    if (employeeIdsOnPlatform) {
-      list = employees.filter(e => employeeIdsOnPlatform.has(e.id));
-    }
+    const byId = new Map<string, Employee>();
+    employees.forEach((e) => {
+      if (!employeeIdsOnPlatform || employeeIdsOnPlatform.has(e.id)) byId.set(e.id, e);
+    });
+
+    // Ensure riders with monthly orders are visible so fuel/km can be recorded.
+    Object.entries(monthOrdersMap).forEach(([empId, orders]) => {
+      if (orders <= 0) return;
+      if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(empId)) return;
+      const emp = employees.find(e => e.id === empId);
+      if (emp) byId.set(empId, emp);
+    });
+
+    let list = Array.from(byId.values());
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e => e.name.toLowerCase().includes(q));
     }
-    return list;
-  }, [employees, employeeIdsOnPlatform, search]);
+    return list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  }, [employees, employeeIdsOnPlatform, monthOrdersMap, search]);
 
   useEffect(() => {
     Promise.all([
@@ -355,6 +366,21 @@ const FuelPage = () => {
       if (linkRes.data) setEmployeeAppLinks(linkRes.data as { employee_id: string; app_id: string }[]);
     });
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const monthStart = `${monthYear}-01`;
+    const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
+    fuelService.getMonthlyOrders(monthStart, monthEnd).then(({ data }) => {
+      if (!mounted) return;
+      const map: Record<string, number> = {};
+      (data || []).forEach((o: { employee_id: string; orders_count: number }) => {
+        map[o.employee_id] = (map[o.employee_id] || 0) + (Number(o.orders_count) || 0);
+      });
+      setMonthOrdersMap(map);
+    });
+    return () => { mounted = false; };
+  }, [monthYear]);
 
   useEffect(() => {
     setNewEntry(ne => ({ ...ne, date: defaultEntryDate }));
@@ -565,6 +591,7 @@ const FuelPage = () => {
 
   const riderMonthKm = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.km_total) || 0), 0);
   const riderMonthFuel = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.fuel_cost) || 0), 0);
+  const riderMonthOrders = (empId: string) => monthOrdersMap[empId] || 0;
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -829,23 +856,24 @@ const FuelPage = () => {
           {/* Riders + expandable daily + bottom inline add */}
           <div className="bg-card rounded-xl shadow-card overflow-hidden border border-border/50">
             <div className="px-4 py-2 border-b border-border/50 bg-muted/20 text-xs text-muted-foreground">
-              مناديب المنصة المختارة — اضغط السهم لعرض السجلات اليومية وإضافة إدخال من الصف السفلي.
+              مناديب المنصة المختارة (يشمل أي مندوب لديه طلبات هذا الشهر) — اضغط السهم لعرض السجلات اليومية وإضافة إدخال من الصف السفلي.
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[820px] text-sm">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/30">
                     <th className="w-10 px-2 py-2" />
                     <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">المندوب</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الطلبات (الشهر)</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">كم (الشهر)</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">بنزين (الشهر)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={4} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>
+                    <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>
                   ) : ridersForTab.length === 0 ? (
-                    <tr><td colSpan={4} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>
+                    <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>
                   ) : (
                     ridersForTab.map(emp => {
                       const open = expandedRider === emp.id;
@@ -869,12 +897,17 @@ const FuelPage = () => {
                                 <span className="font-medium">{emp.name}</span>
                               </div>
                             </td>
+                            <td className="px-4 py-2 text-center">
+                              {riderMonthOrders(emp.id) > 0
+                                ? <span className="font-semibold text-foreground">{riderMonthOrders(emp.id).toLocaleString()}</span>
+                                : <span className="text-muted-foreground/40">—</span>}
+                            </td>
                             <td className="px-4 py-2 text-center font-medium text-primary">{riderMonthKm(emp.id).toLocaleString()}</td>
                             <td className="px-4 py-2 text-center" style={{ color: 'hsl(var(--warning))' }}>{riderMonthFuel(emp.id).toLocaleString()} ر.س</td>
                           </tr>
                           {open && (
                             <tr className="bg-muted/10">
-                              <td colSpan={4} className="p-0">
+                              <td colSpan={5} className="p-0">
                                 <div className="p-3 space-y-2">
                                   {days.length === 0 ? (
                                     <p className="text-xs text-muted-foreground px-2">لا سجلات يومية لهذا الشهر</p>
@@ -942,7 +975,7 @@ const FuelPage = () => {
                 {permissions.can_edit && (
                   <tfoot>
                     <tr className="bg-primary/5 border-t-2 border-primary/20">
-                      <td colSpan={4} className="p-3">
+                      <td colSpan={5} className="p-3">
                         <div className="flex flex-wrap gap-2 items-end">
                           <div className="min-w-[160px] flex-1">
                             <Label className="text-[10px] text-muted-foreground">مندوب</Label>
