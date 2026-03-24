@@ -141,7 +141,7 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     const targetInstallment = pendingInst.find(i => i.amount === paymentAmount) || pendingInst[0];
     const { error } = await supabase.from('advance_installments').update({
       status: 'deducted' as const, deducted_at: new Date().toISOString(), notes: noteText,
-    } as any).eq('id', targetInstallment.id);
+    }}).eq('id', targetInstallment.id);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
     toast({ title: `✅ تم تسجيل السداد — ${payAmount} ر.س` });
@@ -576,7 +576,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
     setSavingNote(true);
-    const { error } = await supabase.from('advance_installments').update({ notes: noteValue || null } as any).eq('id', instId);
+    const { error } = await supabase.from('advance_installments').update({ notes: noteValue || null }).eq('id', instId);
     setSavingNote(false);
     if (error) return toast({ title: 'خطأ', variant: 'destructive' });
     setEditingNoteId(null);
@@ -950,8 +950,8 @@ const Advances = () => {
     });
     if (sortField) {
       result = [...result].sort((a, b) => {
-        let aVal: any = (a as any)[sortField];
-        let bVal: any = (b as any)[sortField];
+        let aVal: unknown = (a as Record<string, unknown>)[sortField];
+        let bVal: unknown = (b as Record<string, unknown>)[sortField];
         if (typeof aVal === 'string') aVal = aVal.localeCompare(bVal);
         else aVal = aVal - bVal;
         return sortDir === 'asc' ? aVal : -aVal;
