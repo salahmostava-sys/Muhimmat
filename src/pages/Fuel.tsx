@@ -423,10 +423,9 @@ const FuelPage = () => {
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);
-    const db = supabase as any;
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    let q = db
+    let q = supabase
       .from('vehicle_mileage_daily')
       .select('*, employees(name, personal_photo_url)')
       .gte('date', ms)
