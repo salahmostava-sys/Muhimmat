@@ -28,6 +28,28 @@ WHERE table_schema = 'public'
   AND table_name IN (
     'employees',
     'profiles',
+    'user_roles',
+    'user_permissions',
+    'departments',
+    'positions',
+    'apps',
+    'app_targets',
+    'salary_schemes',
+    'salary_scheme_tiers',
+    'scheme_month_snapshots',
+    'employee_scheme',
+    'employee_apps',
+    'employee_tiers',
+    'vehicles',
+    'vehicle_assignments',
+    'maintenance_logs',
+    'vehicle_mileage',
+    'vehicle_mileage_daily',
+    'pl_records',
+    'alerts',
+    'locked_months',
+    'system_settings',
+    'audit_log',
     'platform_accounts',
     'account_assignments',
     'attendance',
@@ -39,6 +61,52 @@ WHERE table_schema = 'public'
   )
   AND column_name = 'company_id'
 ORDER BY table_name;
+
+-- A2b) Any required table still missing company_id?
+WITH required_tables AS (
+  SELECT unnest(ARRAY[
+    'profiles',
+    'user_roles',
+    'user_permissions',
+    'departments',
+    'positions',
+    'apps',
+    'app_targets',
+    'salary_schemes',
+    'salary_scheme_tiers',
+    'scheme_month_snapshots',
+    'employees',
+    'employee_scheme',
+    'employee_apps',
+    'employee_tiers',
+    'vehicles',
+    'vehicle_assignments',
+    'maintenance_logs',
+    'vehicle_mileage',
+    'vehicle_mileage_daily',
+    'platform_accounts',
+    'account_assignments',
+    'attendance',
+    'daily_orders',
+    'advances',
+    'advance_installments',
+    'external_deductions',
+    'salary_records',
+    'pl_records',
+    'alerts',
+    'locked_months',
+    'system_settings',
+    'audit_log'
+  ]) AS table_name
+)
+SELECT rt.table_name AS missing_company_id_column
+FROM required_tables rt
+LEFT JOIN information_schema.columns c
+  ON c.table_schema = 'public'
+ AND c.table_name = rt.table_name
+ AND c.column_name = 'company_id'
+WHERE c.column_name IS NULL
+ORDER BY rt.table_name;
 
 -- A3) company_id must be NOT NULL on canonical operational tables.
 SELECT table_name, is_nullable

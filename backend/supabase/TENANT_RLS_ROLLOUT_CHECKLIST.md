@@ -20,6 +20,7 @@
   5. `20260325170000_tenant_rls_ops_finance_tables.sql`
   6. `20260325173000_tenant_integrity_assertions_and_not_null.sql`
   7. `20260325174500_add_company_id_to_operational_tables.sql`
+  8. `20260325181500_company_id_rollout_remaining_tables.sql`
 
 ## Immediate Post-Deployment Validation (SQL)
 
