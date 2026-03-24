@@ -392,7 +392,7 @@ const SpreadsheetGrid = () => {
   };
 
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0">
+    <div className="flex flex-col gap-2 h-full min-h-0">
       {/* Controls bar */}
       <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
 
@@ -438,7 +438,7 @@ const SpreadsheetGrid = () => {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground flex-shrink-0">
+      <p className="text-[11px] leading-snug text-muted-foreground flex-shrink-0">
         {isMonthLocked
           ? '🔒 هذا الشهر مقفول: كل الخلايا للقراءة فقط'
           : '💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات'}
@@ -486,13 +486,13 @@ const SpreadsheetGrid = () => {
             <Loader2 size={20} className="animate-spin" /> جاري التحميل...
           </div>
         ) : (
-          <table ref={tableRef} className="border-collapse text-xs" style={{ minWidth: `${220 + days * 44 + 80}px`, width: '100%' }}>
+          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${200 + days * 36 + 68}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted/90 border-b-2 border-border">
                 <th
                   onClick={() => handleSort('name')}
-                  className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
-                  style={{ minWidth: 170 }}>
+                  className="sticky right-0 z-30 bg-muted/95 text-right px-2 py-1.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
+                  style={{ minWidth: 158 }}>
                   المندوب / المنصة <SortIcon field="name" />
                 </th>
                 {dayArr.map(d => {
@@ -502,17 +502,17 @@ const SpreadsheetGrid = () => {
                   const isToday = d === today;
                   return (
                     <th key={d}
-                      className={`text-center px-1 py-2.5 font-medium border-l border-border/50
+                      className={`text-center px-0.5 py-1.5 font-medium border-l border-border/50
                         ${isToday ? 'bg-primary/20 text-primary font-bold' : isWeekend ? 'text-muted-foreground/50 bg-muted/40' : isThursday ? 'text-muted-foreground/70 bg-muted/20' : 'text-muted-foreground'}`}
-                      style={{ minWidth: 42 }}>
+                      style={{ minWidth: 36 }}>
                       {d}
                     </th>
                   );
                 })}
                 <th
                   onClick={() => handleSort('total')}
-                  className="sticky left-0 z-30 text-center py-2.5 font-bold text-primary bg-primary/15 border-r-2 border-border cursor-pointer"
-                  style={{ minWidth: 72 }}>
+                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-primary/15 border-r-2 border-border cursor-pointer"
+                  style={{ minWidth: 64 }}>
                   المجموع <SortIcon field="total" />
                 </th>
               </tr>
@@ -531,8 +531,8 @@ const SpreadsheetGrid = () => {
                   <React.Fragment key={emp.id}>
                     <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
                       <td
-                        className="sticky right-0 z-10 px-3 py-2 border-l-2 border-border cursor-pointer hover:bg-muted/30 transition-colors"
-                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 170 }}
+                        className="sticky right-0 z-10 px-2 py-1 border-l-2 border-border cursor-pointer hover:bg-muted/30 transition-colors"
+                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 158 }}
                         onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
                       >
                         <div className="flex items-center gap-1.5">
@@ -573,10 +573,10 @@ const SpreadsheetGrid = () => {
                               ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : isThursday ? 'bg-muted/10' : ''}
                               ${isOpen ? 'ring-2 ring-inset ring-primary' : ''}
                               ${canEditMonth ? 'cursor-pointer hover:bg-primary/5' : ''}`}
-                            style={{ minWidth: 42 }}
+                            style={{ minWidth: 36 }}
                             onClick={e => handleCellClick(e, emp.id, d)}
                           >
-                            <div className="h-9 flex flex-col items-center justify-center gap-0">
+                            <div className="h-7 flex flex-col items-center justify-center gap-0">
                               {val > 0 ? (
                                 <>
                                   <span className="font-semibold text-foreground leading-none">{val}</span>
@@ -599,8 +599,8 @@ const SpreadsheetGrid = () => {
 
                       {/* Totals column - sticky left, solid background to prevent bleed */}
                       <td
-                        className="sticky left-0 z-10 text-center px-2 py-2 font-bold text-primary border-r-2 border-border"
-                        style={{ minWidth: 72, backgroundColor: 'hsl(var(--primary) / 0.12)' }}
+                        className="sticky left-0 z-10 text-center px-1.5 py-1 font-bold text-primary border-r-2 border-border"
+                        style={{ minWidth: 64, backgroundColor: 'hsl(var(--primary) / 0.12)' }}
                       >
                         {total > 0 ? total : <span className="text-muted-foreground/30">0</span>}
                       </td>
@@ -611,7 +611,7 @@ const SpreadsheetGrid = () => {
                       const appTotal = empAppMonthTotal(emp.id, app.id);
                       return (
                         <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-10 px-3 py-1.5 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 170 }}>
+                          <td className="sticky right-0 z-10 px-2 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 158 }}>
                             <div className="flex items-center gap-2 pr-8">
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
                                 {app.name}
@@ -625,14 +625,14 @@ const SpreadsheetGrid = () => {
                             const isThursday = dow === 4;
                             const isToday = d === today;
                             return (
-                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-muted/20 opacity-70' : isThursday ? 'bg-muted/10' : ''}`} style={{ minWidth: 42 }}>
-                                <div className="h-7 flex items-center justify-center font-medium text-xs" style={{ color: val > 0 ? c.val : undefined }}>
+                              <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-muted/20 opacity-70' : isThursday ? 'bg-muted/10' : ''}`} style={{ minWidth: 36 }}>
+                                <div className="h-6 flex items-center justify-center font-medium text-[10px]" style={{ color: val > 0 ? c.val : undefined }}>
                                   {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
                                 </div>
                               </td>
                             );
                           })}
-                          <td className="sticky left-0 z-10 text-center px-2 py-1.5 font-bold border-r-2 border-border text-xs" style={{ backgroundColor: c.cellBg, color: c.val, minWidth: 72 }}>
+                          <td className="sticky left-0 z-10 text-center px-1.5 py-1 font-bold border-r-2 border-border text-[10px]" style={{ backgroundColor: c.cellBg, color: c.val, minWidth: 64 }}>
                             {appTotal > 0 ? appTotal : '—'}
                           </td>
                         </tr>
@@ -644,22 +644,22 @@ const SpreadsheetGrid = () => {
 
               {/* Footer totals */}
               <tr className="border-t-2 border-border font-semibold">
-                <td className="sticky right-0 z-10 px-3 py-2.5 text-sm font-bold border-l-2 border-border text-foreground"
-                  style={{ backgroundColor: 'hsl(var(--muted))', minWidth: 170 }}>
+                <td className="sticky right-0 z-10 px-2 py-1.5 text-xs font-bold border-l-2 border-border text-foreground"
+                  style={{ backgroundColor: 'hsl(var(--muted))', minWidth: 158 }}>
                   الإجمالي
                 </td>
                 {dayArr.map(d => {
                   const dayTotal = sortedEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
                   const isToday = d === today;
                   return (
-                    <td key={d} className={`text-center px-1 py-2.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
-                      style={{ minWidth: 42, backgroundColor: isToday ? undefined : 'hsl(var(--muted) / 0.4)' }}>
+                    <td key={d} className={`text-center px-0.5 py-1.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
+                      style={{ minWidth: 36, backgroundColor: isToday ? undefined : 'hsl(var(--muted) / 0.4)' }}>
                       {dayTotal > 0 ? dayTotal : <span className="text-muted-foreground/30">—</span>}
                     </td>
                   );
                 })}
-                <td className="sticky left-0 z-10 text-center px-2 py-2.5 font-bold text-sm text-primary border-r-2 border-border"
-                  style={{ backgroundColor: 'hsl(var(--primary) / 0.2)', minWidth: 72 }}>
+                <td className="sticky left-0 z-10 text-center px-1.5 py-1.5 font-bold text-xs text-primary border-r-2 border-border"
+                  style={{ backgroundColor: 'hsl(var(--primary) / 0.2)', minWidth: 64 }}>
                   {sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
                 </td>
               </tr>

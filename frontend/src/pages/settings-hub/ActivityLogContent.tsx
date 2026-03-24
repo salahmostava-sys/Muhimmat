@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import {
   Download, Search, RefreshCw, X, Activity,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,44 @@ const tableLabels: Record<string, { ar: string; en: string }> = {
   system_settings:      { ar: 'إعدادات النظام', en: 'System Settings' },
 };
 
+const toShortText = (value: unknown) => {
+  if (value === null || value === undefined) return '—';
+  const str = typeof value === 'string' ? value : JSON.stringify(value);
+  return str.length > 28 ? `${str.slice(0, 28)}...` : str;
+};
+
+const buildChangeSummary = (log: AuditLog) => {
+  const oldV = log.old_value || {};
+  const newV = log.new_value || {};
+  if (log.action === 'INSERT') {
+    return Object.entries(newV).slice(0, 3).map(([k, v]) => `${k}: ${toShortText(v)}`).join(' | ');
+  }
+  if (log.action === 'DELETE') {
+    return Object.entries(oldV).slice(0, 3).map(([k, v]) => `${k}: ${toShortText(v)}`).join(' | ');
+  }
+  const keys = Array.from(new Set([...Object.keys(oldV), ...Object.keys(newV)]));
+  const changed = keys
+    .filter((k) => JSON.stringify(oldV[k]) !== JSON.stringify(newV[k]))
+    .slice(0, 3)
+    .map((k) => `${k}: ${toShortText(oldV[k])} → ${toShortText(newV[k])}`);
+  return changed.join(' | ');
+};
+
+const formatJson = (obj: Record<string, unknown> | null) => {
+  if (!obj || Object.keys(obj).length === 0) return '—';
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return String(obj);
+  }
+};
+
+const hasPayload = (log: AuditLog) =>
+  Boolean(
+    (log.old_value && Object.keys(log.old_value).length > 0) ||
+      (log.new_value && Object.keys(log.new_value).length > 0)
+  );
+
 export default function ActivityLogContent() {
   const { isRTL } = useLanguage();
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -65,6 +103,7 @@ export default function ActivityLogContent() {
   const [filterAction, setFilterAction] = useState('all');
   const [filterTable, setFilterTable] = useState('all');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -103,6 +142,7 @@ export default function ActivityLogContent() {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
   useEffect(() => { setPage(0); }, [filterAction, filterTable, debouncedSearch]);
+  useEffect(() => { setExpandedId(null); }, [page]);
 
   const handleExport = async () => {
     const { data } = await settingsHubService.getAuditLogsForExport();
@@ -246,10 +286,23 @@ export default function ActivityLogContent() {
                     </tr>
                   )
                   : logs.map(log => (
+                    <Fragment key={log.id}>
                     <tr
-                      key={log.id}
-                      style={{ borderBottom: '1px solid var(--ds-surface-container)' }}
-                      className="transition-colors hover:bg-[var(--ds-surface-low)]"
+                      style={{ borderBottom: expandedId === log.id ? 'none' : '1px solid var(--ds-surface-container)' }}
+                      className={`transition-colors hover:bg-[var(--ds-surface-low)] ${expandedId === log.id ? 'bg-[var(--ds-surface-low)]' : ''} ${hasPayload(log) ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (!hasPayload(log)) return;
+                        setExpandedId(expandedId === log.id ? null : log.id);
+                      }}
+                      role={hasPayload(log) ? 'button' : undefined}
+                      tabIndex={hasPayload(log) ? 0 : undefined}
+                      onKeyDown={e => {
+                        if (!hasPayload(log)) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedId(expandedId === log.id ? null : log.id);
+                        }
+                      }}
                     >
                       <td className="p-3 whitespace-nowrap">
                         <p className="text-xs font-medium" style={{ color: 'var(--ds-on-surface)' }} dir="ltr">
@@ -293,22 +346,120 @@ export default function ActivityLogContent() {
                         </p>
                       </td>
                       <td className="p-3 hidden lg:table-cell max-w-xs">
-                        {log.new_value && (
-                          <p
-                            className="text-[10px] font-mono truncate max-w-[200px]"
-                            style={{ color: 'var(--ds-on-surface-variant)' }}
-                            title={JSON.stringify(log.new_value)}
-                          >
-                            {Object.entries(log.new_value).slice(0, 2).map(([k, v]) => `${k}: ${String(v ?? '').slice(0, 20)}`).join(' | ')}
-                          </p>
-                        )}
-                        {log.record_id && (
-                          <p className="text-[9px] font-mono mt-0.5 opacity-50" dir="ltr" style={{ color: 'var(--ds-on-surface-variant)' }}>
-                            {log.record_id.slice(0, 8)}...
-                          </p>
-                        )}
+                        <div className="flex items-start gap-1.5">
+                          {hasPayload(log) && (
+                            <span className="flex-shrink-0 mt-0.5" style={{ color: 'var(--ds-on-surface-variant)' }}>
+                              {expandedId === log.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            {(log.new_value || log.old_value) && (
+                              <p
+                                className="text-[10px] font-mono truncate max-w-[200px]"
+                                style={{ color: 'var(--ds-on-surface-variant)' }}
+                                title={buildChangeSummary(log)}
+                              >
+                                {buildChangeSummary(log) || '—'}
+                              </p>
+                            )}
+                            {log.record_id && (
+                              <p className="text-[9px] font-mono mt-0.5 opacity-50" dir="ltr" style={{ color: 'var(--ds-on-surface-variant)' }}>
+                                {log.record_id.slice(0, 8)}...
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                     </tr>
+                    {expandedId === log.id && (
+                      <tr style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
+                        <td colSpan={5} className="p-0" style={{ background: 'var(--ds-surface-lowest)' }}>
+                          <div className="p-3 border-t" style={{ borderColor: 'var(--ds-surface-container)' }}>
+                            {log.action === 'UPDATE' && (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ds-on-surface)' }}>قبل</p>
+                                  <pre
+                                    className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap break-all"
+                                    style={{
+                                      background: 'var(--ds-surface-low)',
+                                      border: '1px solid var(--ds-surface-container)',
+                                      color: 'var(--ds-on-surface-variant)',
+                                    }}
+                                    dir="ltr"
+                                  >
+                                    {formatJson(log.old_value)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ds-on-surface)' }}>بعد</p>
+                                  <pre
+                                    className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap break-all"
+                                    style={{
+                                      background: 'var(--ds-surface-low)',
+                                      border: '1px solid var(--ds-surface-container)',
+                                      color: 'var(--ds-on-surface-variant)',
+                                    }}
+                                    dir="ltr"
+                                  >
+                                    {formatJson(log.new_value)}
+                                  </pre>
+                                </div>
+                              </div>
+                            )}
+                            {log.action === 'INSERT' && (
+                              <div>
+                                <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ds-on-surface)' }}>البيانات المضافة</p>
+                                <pre
+                                  className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap break-all"
+                                  style={{
+                                    background: 'var(--ds-surface-low)',
+                                    border: '1px solid var(--ds-surface-container)',
+                                    color: 'var(--ds-on-surface-variant)',
+                                  }}
+                                  dir="ltr"
+                                >
+                                  {formatJson(log.new_value)}
+                                </pre>
+                              </div>
+                            )}
+                            {log.action === 'DELETE' && (
+                              <div>
+                                <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ds-on-surface)' }}>البيانات المحذوفة</p>
+                                <pre
+                                  className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap break-all"
+                                  style={{
+                                    background: 'var(--ds-surface-low)',
+                                    border: '1px solid var(--ds-surface-container)',
+                                    color: 'var(--ds-on-surface-variant)',
+                                  }}
+                                  dir="ltr"
+                                >
+                                  {formatJson(log.old_value)}
+                                </pre>
+                              </div>
+                            )}
+                            {!['INSERT', 'UPDATE', 'DELETE'].includes(log.action) && (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-[10px] font-semibold mb-1.5">قبل</p>
+                                  <pre className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-48" dir="ltr" style={{ background: 'var(--ds-surface-low)', border: '1px solid var(--ds-surface-container)' }}>
+                                    {formatJson(log.old_value)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-semibold mb-1.5">بعد</p>
+                                  <pre className="text-[10px] font-mono p-2 rounded-lg overflow-x-auto max-h-48" dir="ltr" style={{ background: 'var(--ds-surface-low)', border: '1px solid var(--ds-surface-container)' }}>
+                                    {formatJson(log.new_value)}
+                                  </pre>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))
               }
             </tbody>

@@ -64,6 +64,11 @@ const tierTypeLabels: Record<TierType, string> = {
 };
 
 const currentMonth = format(new Date(), 'yyyy-MM');
+const snapshotMonthOptions = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - i);
+  return format(d, 'yyyy-MM');
+});
 
 interface SalarySchemesProps {
   embedded?: boolean;
@@ -77,6 +82,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [snapshotLoading, setSnapshotLoading] = useState<string | null>(null);
+  const [snapshotMonthsByScheme, setSnapshotMonthsByScheme] = useState<Record<string, string[]>>({});
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
@@ -247,22 +253,25 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     toast({ title: 'تم التحديث' });
   };
 
-  const handleSnapshot = async (schemeId: string) => {
+  const handleSnapshot = async (schemeId: string, monthsToPin?: string[]) => {
     setSnapshotLoading(schemeId);
     try {
       const schemeTiers = tiers[schemeId] || [];
-      const { error } = await salarySchemeService.upsertSnapshot(
-        schemeId,
-        currentMonth,
-        schemeTiers as unknown as import('@/integrations/supabase/types').Json
-      );
-      if (error) throw error;
-      toast({ title: '📌 تم التثبيت', description: `تم تثبيت السكيمة لشهر ${monthLabel(currentMonth)}` });
+      const months = monthsToPin && monthsToPin.length > 0 ? monthsToPin : [currentMonth];
+      for (const m of months) {
+        const { error } = await salarySchemeService.upsertSnapshot(
+          schemeId,
+          m,
+          schemeTiers as unknown as import('@/integrations/supabase/types').Json
+        );
+        if (error) throw error;
+      }
+      toast({ title: '📌 تم التثبيت', description: `تم تثبيت السكيمة لعدد ${months.length} شهر` });
       setSnapshots(prev => ({
         ...prev,
         [schemeId]: [
-          ...(prev[schemeId] || []).filter(s => s.month_year !== currentMonth),
-          { month_year: currentMonth },
+          ...(prev[schemeId] || []).filter(s => !months.includes(s.month_year)),
+          ...months.map((m) => ({ month_year: m })),
         ],
       }));
     } catch (err: unknown) {
@@ -404,16 +413,31 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
                       <span className="text-xs text-muted-foreground">لا توجد لقطات شهرية</span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      multiple
+                      className="text-xs rounded border border-border/50 bg-background p-1.5 min-w-[130px] h-20"
+                      value={snapshotMonthsByScheme[s.id] || [currentMonth]}
+                      onChange={(e) => {
+                        const values = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
+                        setSnapshotMonthsByScheme((prev) => ({ ...prev, [s.id]: values }));
+                      }}
+                    >
+                      {snapshotMonthOptions.map((m) => (
+                        <option key={`${s.id}-${m}`} value={m}>{monthLabel(m)}</option>
+                      ))}
+                    </select>
                   <Button
                     size="sm"
                     variant={isSnapped(s.id) ? 'secondary' : 'outline'}
                     className="gap-1 h-7 text-xs"
-                    onClick={() => handleSnapshot(s.id)}
+                    onClick={() => handleSnapshot(s.id, snapshotMonthsByScheme[s.id])}
                     disabled={snapshotLoading === s.id}
                   >
                     {snapshotLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : <Pin size={12} />}
-                    {isSnapped(s.id) ? `مثبّت: ${monthLabel(currentMonth)} ✓` : `📌 تثبيت لـ${monthLabel(currentMonth)}`}
+                    تثبيت الشهور المحددة
                   </Button>
+                  </div>
                 </div>
               </div>
             );

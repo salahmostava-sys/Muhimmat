@@ -124,46 +124,9 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
           }}
         >
 
-          {/* Start: hamburger + breadcrumb */}
+          {/* Start: profile + hamburger + breadcrumb */}
           <div className="flex items-center gap-2 lg:gap-4">
-            <button
-              onClick={toggle}
-              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
-              aria-label="Toggle sidebar"
-            >
-              <Menu size={18} />
-            </button>
-
-            <div className="hidden md:flex items-center gap-1.5 text-xs" style={{ color: 'var(--ds-on-surface-variant)' }}>
-              <span className="font-medium" style={{ color: 'var(--ds-on-surface-variant)' }}>{projectName}</span>
-              <Sep size={12} className="opacity-40" />
-              <span className="font-semibold" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
-            </div>
-          </div>
-
-          {/* End: tools + user profile */}
-          <div className="flex items-center gap-1 lg:gap-1.5">
-            <div className="hidden sm:block">
-              <GlobalSearch />
-            </div>
-
-            <NotificationCenter />
-
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
-              title={isDark ? 'Light mode' : 'Dark mode'}
-            >
-              {isDark
-                ? <Sun size={15} className="text-warning" />
-                : <Moon size={15} />
-              }
-            </button>
-
-            {/* ── User profile chip ─────────────────────── */}
+            {/* ── User profile chip (top-left) ─────────────────────── */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -218,6 +181,43 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <button
+              onClick={toggle}
+              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+              aria-label="Toggle sidebar"
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="hidden md:flex items-center gap-1.5 text-xs" style={{ color: 'var(--ds-on-surface-variant)' }}>
+              <span className="font-medium" style={{ color: 'var(--ds-on-surface-variant)' }}>{projectName}</span>
+              <Sep size={12} className="opacity-40" />
+              <span className="font-semibold" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
+            </div>
+          </div>
+
+          {/* End: tools + user profile */}
+          <div className="flex items-center gap-1 lg:gap-1.5">
+            <div className="hidden sm:block">
+              <GlobalSearch />
+            </div>
+
+            <NotificationCenter />
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+            >
+              {isDark
+                ? <Sun size={15} className="text-warning" />
+                : <Moon size={15} />
+              }
+            </button>
+
           </div>
         </header>
 
