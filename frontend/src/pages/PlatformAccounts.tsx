@@ -436,22 +436,22 @@ const PlatformAccounts = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-muted/40">
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_username')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_username')}>
                             اسم الحساب {sortKey === 'account_username' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_id_on_platform')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_id_on_platform')}>
                             رقم الحساب {sortKey === 'account_id_on_platform' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_number')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_number')}>
                             رقم الإقامة {sortKey === 'iqama_number' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_expiry_date')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_expiry_date')}>
                             انتهاء الإقامة {sortKey === 'iqama_expiry_date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('current_employee')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('current_employee')}>
                             المندوب الحالي {sortKey === 'current_employee' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
-                          <th className="text-right font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('status')}>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('status')}>
                             الحالة {sortKey === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
                           <th className="px-4 py-3" />

@@ -61,6 +61,14 @@ export const fuelService = {
     return { data, error };
   },
 
+  getMonthlyFuelByMonthYear: async (monthYear: string) => {
+    const { data, error } = await supabase
+      .from('vehicle_mileage')
+      .select('employee_id, fuel_cost')
+      .eq('month_year', monthYear);
+    return { data, error };
+  },
+
   getActiveVehicleAssignments: async () => {
     const { data, error } = await supabase
       .from('vehicle_assignments')
@@ -111,7 +119,7 @@ export const fuelService = {
     }
     const { error } = await supabase
       .from('vehicle_mileage')
-      .insert(rows as any, { ignoreDuplicates: true });
+      .insert(rows as Record<string, unknown>[], { ignoreDuplicates: true });
     return { error };
   },
 };

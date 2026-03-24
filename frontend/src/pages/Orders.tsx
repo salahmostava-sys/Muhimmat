@@ -879,7 +879,7 @@ const MonthSummary = () => {
             <thead>
               <tr className="border-b-2 border-border bg-muted/40">
                 <th className="text-center p-3 font-semibold text-muted-foreground w-10">#</th>
-                <th className="text-right p-3 font-semibold text-foreground min-w-[160px] cursor-pointer" onClick={() => handleSort('name')}>
+                <th className="text-center p-3 font-semibold text-foreground min-w-[160px] cursor-pointer" onClick={() => handleSort('name')}>
                   المندوب <SortIcon field="name" />
                 </th>
                 {apps.map(app => {

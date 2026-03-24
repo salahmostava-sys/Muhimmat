@@ -661,7 +661,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">تاريخ السلفة</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">أخذ كام</th>
                     <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">سدّد كام</th>
-                    <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground">ملاحظات</th>
+                    <th className="text-center px-3 py-2.5 text-xs font-semibold text-muted-foreground">ملاحظات</th>
                     <th className="w-16 px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">حذف</th>
                   </tr>
                 </thead>
@@ -679,7 +679,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                           ? <span className="font-semibold text-success text-xs">{inst.amount.toLocaleString()} ر.س</span>
                           : <span className="text-muted-foreground/40 text-xs">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-right max-w-xs">
+                      <td className="px-3 py-2.5 text-center max-w-xs">
                         {editingNoteId === inst.id ? (
                           <div className="flex items-center gap-2">
                             <Input autoFocus value={noteValue} onChange={e => setNoteValue(e.target.value)} className="h-7 text-xs"
@@ -710,7 +710,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                 </tbody>
                 <tfoot>
                   <tr className="bg-muted/60 border-t-2 border-border/60">
-                    <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-bold text-muted-foreground">الإجمالي</td>
+                    <td colSpan={3} className="px-3 py-2.5 text-center text-xs font-bold text-muted-foreground">الإجمالي</td>
                     <td className="px-3 py-2.5 text-center text-xs font-bold text-info">{totalDebt.toLocaleString()} ر.س</td>
                     <td className="px-3 py-2.5 text-center text-xs font-bold text-success">{totalPaid.toLocaleString()} ر.س</td>
                     <td colSpan={2} />
@@ -1134,7 +1134,7 @@ const Advances = () => {
               <thead>
                 <tr className="bg-muted/50 border-b border-border/60">
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('employeeName')}>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('employeeName')}>
                     اسم المندوب <SortIcon field="employeeName" />
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('nationalId')}>
@@ -1158,7 +1158,7 @@ const Advances = () => {
                     <tr className={`border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${s.isWrittenOff ? 'opacity-60' : ''}`}
                       onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName, nationalId: s.nationalId, totalDebt: s.totalDebt, totalPaid: s.totalPaid, remaining: s.remaining, isWrittenOff: s.isWrittenOff, allAdvances: s.allAdvances })}>
                       <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">{idx + 1}</td>
-                      <td className="px-3 py-3 text-right">
+                      <td className="px-3 py-3 text-center">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-primary text-sm">{s.employeeName}</span>
                           {s.isWrittenOff && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-semibold">معدوم</span>}
@@ -1203,7 +1203,7 @@ const Advances = () => {
               </tbody>
               <tfoot>
                 <tr className="bg-muted/70 border-t-2 border-border/60">
-                  <td colSpan={2} className="px-3 py-3 text-right text-xs font-bold text-muted-foreground">
+                  <td colSpan={2} className="px-3 py-3 text-center text-xs font-bold text-muted-foreground">
                     الإجمالي ({grandTotals.count} مندوب)
                   </td>
                   <td className="px-3 py-3 text-center text-xs text-muted-foreground">—</td>

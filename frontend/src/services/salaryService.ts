@@ -15,6 +15,11 @@ export interface SalaryRecordPayload {
   notes?: string;
 }
 
+export interface SalaryRpcParams {
+  monthYear: string;
+  paymentMethod?: string;
+}
+
 export type PricingCalcType = 'per_order' | 'fixed' | 'hybrid';
 
 export interface PricingRule {
@@ -165,12 +170,45 @@ export const salaryService = {
     return { data: result, error: null };
   },
 
+  calculateSalaryForEmployeeMonth: async (
+    employeeId: string,
+    monthYear: string,
+    paymentMethod = 'cash',
+    manualDeduction = 0,
+    manualDeductionNote: string | null = null
+  ) => {
+    const { data, error } = await supabase.rpc('calculate_salary_for_employee_month', {
+      p_employee_id: employeeId,
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
+      p_manual_deduction: manualDeduction,
+      p_manual_deduction_note: manualDeductionNote,
+    } as Record<string, unknown>);
+    return { data, error };
+  },
+
+  calculateSalaryForMonth: async ({ monthYear, paymentMethod = 'cash' }: SalaryRpcParams) => {
+    const { data, error } = await supabase.rpc('calculate_salary_for_month', {
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
+    } as Record<string, unknown>);
+    return { data, error };
+  },
+
   getByMonth: async (monthYear: string) => {
     const { data, error } = await supabase
       .from('salary_records')
       .select('*, employees(name, national_id, salary_type)')
       .eq('month_year', monthYear)
       .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  getMonthRecordsForSalaryContext: async (monthYear: string) => {
+    const { data, error } = await supabase
+      .from('salary_records')
+      .select('employee_id, is_approved, advance_deduction, net_salary, manual_deduction, attendance_deduction, external_deduction')
+      .eq('month_year', monthYear);
     return { data, error };
   },
 
@@ -190,6 +228,13 @@ export const salaryService = {
       .select()
       .single();
     return { data, error };
+  },
+
+  upsertMany: async (records: Record<string, unknown>[]) => {
+    const { error } = await supabase
+      .from('salary_records')
+      .upsert(records, { onConflict: 'employee_id,month_year' });
+    return { error };
   },
 
   update: async (id: string, payload: Partial<SalaryRecordPayload>) => {

@@ -168,7 +168,7 @@ const ArchiveAttendance = () => {
           <table className="w-full text-sm" dir={isRTL ? "rtl" : "ltr"}>
             <thead className="ta-thead">
               <tr>
-                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} ${isRTL ? "text-right" : "text-left"} bg-muted/40`}>
+                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} text-center bg-muted/40`}>
                   المندوب
                 </th>
                 <th className="ta-th">رقم الهوية</th>

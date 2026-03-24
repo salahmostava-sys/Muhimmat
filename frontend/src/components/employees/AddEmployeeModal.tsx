@@ -179,7 +179,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     if (editEmployee) {
       setForm({
         name: editEmployee.name || '',
-        employee_code: (editEmployee as any).employee_code || '',
+        employee_code: editEmployee.employee_code || '',
         job_title: editEmployee.job_title || '',
         phone: editEmployee.phone || '',
         email: editEmployee.email || '',
@@ -188,7 +188,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         bank_account_number: editEmployee.bank_account_number || '',
         city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
         join_date: editEmployee.join_date || '',
-        birth_date: (editEmployee as any).birth_date || '',
+        birth_date: editEmployee.birth_date || '',
         residency_expiry: editEmployee.residency_expiry || '',
         health_insurance_expiry: editEmployee.health_insurance_expiry || '',
         probation_end_date: editEmployee.probation_end_date || '',

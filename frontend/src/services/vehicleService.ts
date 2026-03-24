@@ -58,11 +58,11 @@ export const vehicleService = {
     ]);
 
     const assignMap: Record<string, string> = {};
-    (assignmentsRes.data || []).forEach((a: any) => {
+    (assignmentsRes.data || []).forEach((a: { vehicle_id?: string; employees?: { name?: string } | null }) => {
       if (a.vehicle_id && a.employees?.name) assignMap[a.vehicle_id] = a.employees.name;
     });
 
-    const data = (vehiclesRes.data || []).map((v: any) => ({
+    const data = (vehiclesRes.data || []).map((v: { id: string }) => ({
       ...v,
       current_rider: assignMap[v.id] ?? null,
     }));
@@ -82,7 +82,7 @@ export const vehicleService = {
   create: async (payload: VehiclePayload) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .insert(payload as any)
+      .insert(payload as Record<string, unknown>)
       .select()
       .single();
     return { data, error };
@@ -91,7 +91,7 @@ export const vehicleService = {
   update: async (id: string, payload: Partial<VehiclePayload>) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .update(payload as any)
+      .update(payload as Record<string, unknown>)
       .eq('id', id)
       .select()
       .single();
@@ -101,7 +101,7 @@ export const vehicleService = {
   upsert: async (payload: Partial<VehiclePayload> & { plate_number: string }) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .upsert(payload as any, { onConflict: 'plate_number' })
+      .upsert(payload as Record<string, unknown>, { onConflict: 'plate_number' })
       .select()
       .single();
     return { data, error };
@@ -131,7 +131,7 @@ export const vehicleService = {
   createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .insert(payload as any)
+      .insert(payload as Record<string, unknown>)
       .select()
       .single();
     return { data, error };
@@ -140,7 +140,7 @@ export const vehicleService = {
   updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .update(payload as any)
+      .update(payload as Record<string, unknown>)
       .eq('id', id)
       .select()
       .single();

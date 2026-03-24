@@ -481,7 +481,7 @@ const Apps = () => {
               <table className="w-full">
                 <thead className="ta-thead">
                   <tr>
-                    <th className="ta-th text-right">المندوب</th>
+                    <th className="ta-th text-center">المندوب</th>
                     <th className="ta-th text-center">الحالة</th>
                     <th className="ta-th text-center">طلبات الشهر</th>
                   </tr>

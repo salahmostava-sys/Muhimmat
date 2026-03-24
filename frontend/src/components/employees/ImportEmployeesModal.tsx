@@ -323,11 +323,11 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
             payload.status = payload.status || 'active';
             const { data: newEmp, error: insErr } = await supabase
               .from('employees')
-              .insert([payload] as any)
+              .insert([payload] as Record<string, unknown>[])
               .select('id')
               .single();
             if (insErr) throw insErr;
-            empId = (newEmp as any).id;
+            empId = (newEmp as { id: string } | null)?.id;
           }
 
           if (empId && emp.platform && appsMap[emp.platform]) {
@@ -500,7 +500,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
                   ].map(f => (
                     <button
                       key={f.key}
-                      onClick={() => { setPreviewFilter(f.key as any); setShowAllRows(false); }}
+                      onClick={() => { setPreviewFilter(f.key as 'all' | 'errors' | 'warnings'); setShowAllRows(false); }}
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${previewFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                     >
                       {f.label}

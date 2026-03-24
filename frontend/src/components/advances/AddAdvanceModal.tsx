@@ -88,7 +88,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
           total_installments: parseInt(form.totalInstallments),
           disbursement_date: form.disbursementDate,
           note: form.note || null,
-          status: form.status as any,
+          status: form.status as 'active' | 'paused' | 'completed',
         }).eq('id', editId);
         if (error) throw error;
         toast({ title: 'تم تعديل السلفة ✅' });

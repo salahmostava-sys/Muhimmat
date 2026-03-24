@@ -57,4 +57,10 @@ export const appService = {
 
   getActiveWithScheme: async () =>
     supabase.from('apps').select('id, name, scheme_id').eq('is_active', true).order('name'),
+
+  getActiveWithSalarySchemes: async () =>
+    supabase
+      .from('apps')
+      .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, scheme_type, monthly_amount, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order, tier_type, incremental_threshold, incremental_price))')
+      .eq('is_active', true),
 };

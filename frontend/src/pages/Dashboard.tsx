@@ -508,8 +508,14 @@ const Dashboard = () => {
       const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
       const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
       const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
-      const recentActivity = (auditRes.data || []).map((a: any) => {
-        const profile = a.profiles as any;
+      type AuditRow = {
+        action: string;
+        table_name: string;
+        created_at: string;
+        profiles?: { name?: string | null; email?: string | null } | null;
+      };
+      const recentActivity = ((auditRes.data || []) as AuditRow[]).map((a) => {
+        const profile = a.profiles;
         const userName = profile?.name || profile?.email?.split('@')[0] || 'مستخدم';
         return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
       });

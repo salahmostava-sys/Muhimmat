@@ -445,7 +445,7 @@ const ImportModal = ({ onClose }: { onClose: () => void }) => {
                   <thead>
                     <tr className="bg-muted/40 border-b border-border">
                       {Object.keys(preview[0]).map(k => (
-                        <th key={k} className="p-2 text-right font-semibold text-muted-foreground whitespace-nowrap">{k}</th>
+                        <th key={k} className="p-2 text-center font-semibold text-muted-foreground whitespace-nowrap">{k}</th>
                       ))}
                     </tr>
                   </thead>
@@ -2281,7 +2281,7 @@ const Salaries = () => {
                 {/* Totals footer */}
                  <tr className="bg-muted/60 border-t-2 border-border">
                    <td className={`${tfClass} sticky text-center`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>—</td>
-                   <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
+                  <td className={`${tfClass} sticky text-center border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 216, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 328, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    {/* New info columns totals */}

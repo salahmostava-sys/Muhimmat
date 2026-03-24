@@ -111,9 +111,9 @@ export default function NotificationCenter() {
         const d = differenceInDays(parseISO(emp.residency_expiry), today);
         generated.push({ id: `res-${emp.id}`, type: 'residency', entityName: emp.name, dueDate: emp.residency_expiry, daysLeft: d, severity: calcSeverity(d, 'residency'), resolved: false });
       }
-      if ((emp as any).probation_end_date && (emp as any).probation_end_date <= threshold) {
-        const d = differenceInDays(parseISO((emp as any).probation_end_date), today);
-        generated.push({ id: `prob-${emp.id}`, type: 'probation', entityName: emp.name, dueDate: (emp as any).probation_end_date, daysLeft: d, severity: calcSeverity(d, 'probation'), resolved: false });
+      if (emp.probation_end_date && emp.probation_end_date <= threshold) {
+        const d = differenceInDays(parseISO(emp.probation_end_date), today);
+        generated.push({ id: `prob-${emp.id}`, type: 'probation', entityName: emp.name, dueDate: emp.probation_end_date, daysLeft: d, severity: calcSeverity(d, 'probation'), resolved: false });
       }
     });
 

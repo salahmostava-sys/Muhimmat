@@ -48,6 +48,18 @@ export const orderService = {
     return { data, error };
   },
 
+  getSalaryContextOrdersByMonth: async (monthYear: string) => {
+    const [year, month] = monthYear.split('-');
+    const from = `${year}-${month}-01`;
+    const to = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('employee_id, app_id, orders_count, apps(name, id)')
+      .gte('date', from)
+      .lte('date', to);
+    return { data, error };
+  },
+
   getByDate: async (date: string, filters: Pick<OrderFilter, 'employeeId' | 'appId'> = {}) => {
     let query = supabase
       .from('daily_orders')

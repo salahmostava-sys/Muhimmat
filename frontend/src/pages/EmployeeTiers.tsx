@@ -371,7 +371,7 @@ const EmployeeTiers = () => {
   }).length;
 
   const ThSort = ({ field, label }: { field: string; label: string }) => (
-    <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground transition-colors border-b border-border/50 text-right"
+    <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground transition-colors border-b border-border/50 text-center"
       onClick={() => handleSort(field)}>
       {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
     </th>
@@ -446,7 +446,7 @@ const EmployeeTiers = () => {
                   <ThSort field="package_type" label="نوع الباقة" />
                   <ThSort field="renewal_date" label="تاريخ التجديد" />
                   <ThSort field="delivery_status" label="الحالة" />
-                  <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-right">المنصات</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">المنصات</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">إجراءات</th>
                 </tr>
               </thead>

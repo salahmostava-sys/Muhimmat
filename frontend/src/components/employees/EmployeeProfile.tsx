@@ -492,10 +492,10 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="border-t border-border/30 bg-muted/10">
-                                <th className="text-right p-2 text-muted-foreground">الشهر</th>
-                                <th className="text-right p-2 text-muted-foreground">المبلغ</th>
-                                <th className="text-right p-2 text-muted-foreground">الحالة</th>
-                                <th className="text-right p-2 text-muted-foreground">تاريخ الخصم</th>
+                                <th className="text-center p-2 text-muted-foreground">الشهر</th>
+                                <th className="text-center p-2 text-muted-foreground">المبلغ</th>
+                                <th className="text-center p-2 text-muted-foreground">الحالة</th>
+                                <th className="text-center p-2 text-muted-foreground">تاريخ الخصم</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -576,11 +576,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/40 border-b border-border/50">
-                          <th className="text-right p-3 text-xs text-muted-foreground">الشهر</th>
-                          <th className="text-right p-3 text-xs text-muted-foreground">الأساسي</th>
-                          <th className="text-right p-3 text-xs text-muted-foreground">البدلات</th>
-                          <th className="text-right p-3 text-xs text-muted-foreground">الخصومات</th>
-                          <th className="text-right p-3 text-xs font-semibold text-foreground">الصافي</th>
+                          <th className="text-center p-3 text-xs text-muted-foreground">الشهر</th>
+                          <th className="text-center p-3 text-xs text-muted-foreground">الأساسي</th>
+                          <th className="text-center p-3 text-xs text-muted-foreground">البدلات</th>
+                          <th className="text-center p-3 text-xs text-muted-foreground">الخصومات</th>
+                          <th className="text-center p-3 text-xs font-semibold text-foreground">الصافي</th>
                           <th className="text-center p-3 text-xs text-muted-foreground">الحالة</th>
                         </tr>
                       </thead>
@@ -713,9 +713,9 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="bg-muted/20">
-                                    <th className="text-right p-2.5 text-muted-foreground">التاريخ</th>
-                                    <th className="text-right p-2.5 text-muted-foreground">التطبيق</th>
-                                    <th className="text-right p-2.5 text-muted-foreground font-semibold text-foreground">الطلبات</th>
+                                    <th className="text-center p-2.5 text-muted-foreground">التاريخ</th>
+                                    <th className="text-center p-2.5 text-muted-foreground">التطبيق</th>
+                                    <th className="text-center p-2.5 text-muted-foreground font-semibold text-foreground">الطلبات</th>
                                   </tr>
                                 </thead>
                                 <tbody>

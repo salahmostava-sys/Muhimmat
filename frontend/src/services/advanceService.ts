@@ -17,6 +17,11 @@ export interface InstallmentUpdate {
   notes?: string | null;
 }
 
+export interface MarkInstallmentDeductedPayload {
+  status: 'deducted';
+  deducted_at: string;
+}
+
 export const advanceService = {
   getAll: async () => {
     const { data, error } = await supabase
@@ -29,7 +34,7 @@ export const advanceService = {
   create: async (payload: AdvancePayload) => {
     const { data, error } = await supabase
       .from('advances')
-      .insert(payload as any)
+      .insert(payload as Record<string, unknown>)
       .select()
       .single();
     return { data, error };
@@ -45,7 +50,7 @@ export const advanceService = {
   update: async (id: string, payload: Partial<AdvancePayload>) => {
     const { error } = await supabase
       .from('advances')
-      .update(payload as any)
+      .update(payload as Record<string, unknown>)
       .eq('id', id);
     return { error };
   },
@@ -53,7 +58,7 @@ export const advanceService = {
   updateStatus: async (id: string, status: string) => {
     const { error } = await supabase
       .from('advances')
-      .update({ status } as any)
+      .update({ status } as Record<string, unknown>)
       .eq('id', id);
     return { error };
   },
@@ -111,7 +116,7 @@ export const advanceService = {
   updateInstallment: async (id: string, payload: InstallmentUpdate) => {
     const { error } = await supabase
       .from('advance_installments')
-      .update(payload as any)
+      .update(payload as Record<string, unknown>)
       .eq('id', id);
     return { error };
   },
@@ -138,12 +143,73 @@ export const advanceService = {
     return { error };
   },
 
+  markInstallmentsDeducted: async (installmentIds: string[], deductedAtIso: string) => {
+    const payload: MarkInstallmentDeductedPayload = { status: 'deducted', deducted_at: deductedAtIso };
+    const { error } = await supabase
+      .from('advance_installments')
+      .update(payload)
+      .in('id', installmentIds);
+    return { error };
+  },
+
+  getInstallmentsByIds: async (installmentIds: string[]) => {
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('advance_id, status')
+      .in('id', installmentIds);
+    return { data: data || [], error };
+  },
+
+  getAdvanceInstallmentStatuses: async (advanceId: string) => {
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('status')
+      .eq('advance_id', advanceId);
+    return { data: data || [], error };
+  },
+
+  markAdvanceCompleted: async (advanceId: string) => {
+    const { error } = await supabase
+      .from('advances')
+      .update({ status: 'completed' })
+      .eq('id', advanceId);
+    return { error };
+  },
+
+  getMonthInstallmentsForAdvances: async (selectedMonth: string, advanceIds: string[]) => {
+    if (!advanceIds.length) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('id, advance_id, amount, status')
+      .eq('month_year', selectedMonth)
+      .in('advance_id', advanceIds);
+    return { data: data || [], error };
+  },
+
+  getPendingInstallmentsForAdvances: async (advanceIds: string[]) => {
+    if (!advanceIds.length) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('advance_id, amount, status')
+      .in('status', ['pending', 'deferred'])
+      .in('advance_id', advanceIds);
+    return { data: data || [], error };
+  },
+
   getActiveByEmployee: async (employeeId: string) => {
     const { data, error } = await supabase
       .from('advances')
       .select('id, amount, status')
       .eq('employee_id', employeeId)
       .eq('status', 'active');
+    return { data, error };
+  },
+
+  getActiveAndPausedForSalaryContext: async () => {
+    const { data, error } = await supabase
+      .from('advances')
+      .select('id, employee_id, status, amount, monthly_amount')
+      .in('status', ['active', 'paused']);
     return { data, error };
   },
 

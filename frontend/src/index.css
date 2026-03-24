@@ -175,6 +175,13 @@
     overflow-y: scroll;
     font-family: 'IBM Plex Sans Arabic', sans-serif;
   }
+
+  /* Global table alignment: center all cells */
+  table th,
+  table td {
+    text-align: center;
+    vertical-align: middle;
+  }
 }
 
 @layer components {
@@ -237,7 +244,7 @@
   }
 
   .ta-th {
-    @apply px-4 py-2.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-right;
+    @apply px-4 py-2.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-center;
     color: var(--ds-on-surface-variant);
   }
 
@@ -253,7 +260,7 @@
   .ta-tr:hover { background: var(--ds-surface-low); }
 
   .ta-td {
-    @apply px-4 py-2 text-sm;
+    @apply px-4 py-2 text-sm text-center;
     color: var(--ds-on-surface);
   }
 
@@ -282,7 +289,7 @@
   }
 
   .data-table thead th {
-    @apply px-4 py-2.5 text-xs font-semibold whitespace-nowrap text-start;
+    @apply px-4 py-2.5 text-xs font-semibold whitespace-nowrap text-center;
     color: var(--ds-on-surface-variant);
   }
 
@@ -295,7 +302,7 @@
   .data-table tbody tr:last-child { border-bottom: none; }
 
   .data-table tbody td {
-    @apply px-4 py-2 text-sm;
+    @apply px-4 py-2 text-sm text-center;
     color: var(--ds-on-surface);
   }
 

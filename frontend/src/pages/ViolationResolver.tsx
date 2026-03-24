@@ -617,11 +617,11 @@ const ViolationResolver = () => {
               <table className="w-full min-w-[760px] text-sm">
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">اسم الموظف</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">التاريخ</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">اسم الموظف</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">التاريخ</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">المبلغ</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">الحالة</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">الحالة</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">تأكيد</th>
                   </tr>
                 </thead>
@@ -686,11 +686,11 @@ const ViolationResolver = () => {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">اسم الموظف</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">التاريخ</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">اسم الموظف</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">التاريخ</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">المبلغ</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">الحالة</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">الحالة</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">إجراءات</th>
                   </tr>
                 </thead>

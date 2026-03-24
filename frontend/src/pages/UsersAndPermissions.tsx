@@ -138,9 +138,9 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
-              <th className="px-3 py-2 text-right">الاسم</th>
-              <th className="px-3 py-2 text-right">الحالة</th>
-              <th className="px-3 py-2 text-right">الصلاحية</th>
+              <th className="px-3 py-2 text-center">الاسم</th>
+              <th className="px-3 py-2 text-center">الحالة</th>
+              <th className="px-3 py-2 text-center">الصلاحية</th>
             </tr>
           </thead>
           <tbody>

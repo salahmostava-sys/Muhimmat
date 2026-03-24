@@ -33,6 +33,15 @@ export const employeeService = {
       .eq('id', employeeId);
     return { error };
   },
+
+  async getActiveForSalaryContext() {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
+      .eq('status', 'active')
+      .order('name');
+    return { data, error };
+  },
 };
 
 export default employeeService;
