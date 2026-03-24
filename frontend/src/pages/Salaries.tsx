@@ -606,8 +606,12 @@ const Salaries = () => {
     const fetchAllData = async () => {
       setLoadingData(true);
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
+      let monthlyContextTimeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('انتهت مهلة تحميل بيانات الرواتب. حاول مرة أخرى.')), 15000);
+        monthlyContextTimeoutId = setTimeout(
+          () => reject(new Error('انتهت مهلة تحميل بيانات الرواتب. حاول مرة أخرى.')),
+          15000
+        );
       });
       let monthlyContext: Awaited<ReturnType<typeof salaryDataService.getMonthlyContext>>;
       try {
@@ -622,6 +626,8 @@ const Salaries = () => {
           });
         }
         return;
+      } finally {
+        if (monthlyContextTimeoutId) clearTimeout(monthlyContextTimeoutId);
       }
       if (cancelled) return;
       try {
@@ -2071,7 +2077,7 @@ const Salaries = () => {
                   <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات (نقر مزدوج لتعديل الطلبات)
                   </th>
-                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">الراتب الثابت</th>
+                  <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/40 bg-primary/10 text-center border-l border-border/40">إجمالي الطلبات + الراتب الثابت</th>
                   <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/40 bg-success/10 text-center border-l border-border/40">✅ الإضافات</th>
                   <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/40 bg-destructive/10 text-center border-l border-border/40">🔻 المستقطعات</th>
                   <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">المستحق</th>
@@ -2117,10 +2123,10 @@ const Salaries = () => {
                       </th>
                     );
                   })}
-                  <th className="px-2 py-2 text-xs font-semibold text-foreground whitespace-nowrap border border-border/30 bg-muted/30 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('totalPlatformOrders')}>
+                  <th className="px-2 py-2 text-xs font-semibold text-foreground whitespace-nowrap border border-border/30 bg-primary/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('totalPlatformOrders')}>
                     إجمالي الطلبات <SortIcon field="totalPlatformOrders" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={thBase}>الراتب الأساسي</th>
+                  <th className={`${thBase} bg-primary/10`}>الراتب الأساسي</th>
                   <th className={`${thBase} bg-success/5`}>حوافز</th>
                   <th className={`${thBase} bg-success/5`}>إجازة مرضية</th>
                   <th className={`${thBase} bg-success/5`}>إجمالي الإضافات</th>
@@ -2228,10 +2234,10 @@ const Salaries = () => {
                           </td>
                         );
                       })}
-                      <td className={`${tdClass} text-center font-bold text-foreground border-l border-border/20`}>
+                      <td className={`${tdClass} text-center font-bold text-foreground border-l border-border/20 bg-primary/[0.04]`}>
                         {Object.values(r.platformOrders).reduce((s, v) => s + v, 0) || <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20 bg-primary/[0.06]`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={`${tdClass} bg-success/[0.04] border-l border-border/40`}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
                       <td className={`${tdClass} bg-success/[0.04]`}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
                       <td className={`${tdClass} text-foreground font-semibold bg-success/[0.04]`}>{c.totalAdditions.toLocaleString()}</td>
@@ -2249,7 +2255,7 @@ const Salaries = () => {
                           />
                         </td>
                       ))}
-                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/20 bg-destructive/[0.06]`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                       </td>
                       <td className={`${tdClass} font-black text-foreground text-base ${c.netSalary < 0 ? 'text-destructive' : ''}`}>{c.netSalary.toLocaleString()}</td>
