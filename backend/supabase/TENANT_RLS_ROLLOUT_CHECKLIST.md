@@ -22,6 +22,7 @@
   7. `20260325174500_add_company_id_to_operational_tables.sql`
   8. `20260325181500_company_id_rollout_remaining_tables.sql`
   9. `20260325190000_salary_engine_tenant_secure.sql`
+  10. `20260325193000_salary_preview_rpc.sql`
 
 - Deploy edge function:
   - `supabase functions deploy salary-engine`

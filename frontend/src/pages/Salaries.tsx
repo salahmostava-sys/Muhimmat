@@ -81,6 +81,7 @@ interface SalaryRow {
   workDays: number;
   fuelCost: number;
   platformIncome: number;
+  engineBaseSalary?: number;
 }
 
 interface SchemeData {
@@ -547,6 +548,7 @@ const Salaries = () => {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [previewBackendError, setPreviewBackendError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
@@ -605,6 +607,7 @@ const Salaries = () => {
     let cancelled = false;
     const fetchAllData = async () => {
       setLoadingData(true);
+      setPreviewBackendError(null);
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
       let monthlyContextTimeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -632,10 +635,24 @@ const Salaries = () => {
       if (cancelled) return;
       try {
         const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
+        const { data: previewData, error: previewError } = await salaryDataService.getSalaryPreviewForMonth(selectedMonth);
+        if (previewError) {
+          throw new Error(`PREVIEW_BACKEND: ${previewError.message}`);
+        }
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
       savedRecords?.forEach(r => {
         savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
+      });
+      const previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }> = {};
+      (previewData || []).forEach((row: Record<string, unknown>) => {
+        const employeeId = String(row.employee_id || '');
+        if (!employeeId) return;
+        previewMap[employeeId] = {
+          base_salary: Number(row.base_salary || 0),
+          advance_deduction: Number(row.advance_deduction || 0),
+          external_deduction: Number(row.external_deduction || 0),
+        };
       });
 
       // ── Fetch advance installments via advances → employee_id ──
@@ -685,6 +702,10 @@ const Salaries = () => {
       if (cancelled) return;
 
       const employees = empRes.data || [];
+      const missingPreviewEmployees = employees.filter((emp) => !previewMap[emp.id]);
+      if (missingPreviewEmployees.length > 0) {
+        throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
+      }
 
       // Build attendance days map: employeeId → count of present/late days
       const attendanceDaysMap: Record<string, number> = {};
@@ -819,8 +840,9 @@ const Salaries = () => {
           }
         }
 
-        const advDeduction = advMap[emp.id] || 0;
-        const extDeduction = extMap[emp.id] || 0;
+        const preview = previewMap[emp.id];
+        const advDeduction = preview.advance_deduction;
+        const extDeduction = preview.external_deduction;
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
         const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
         const hasIban = !!emp.iban;
@@ -854,6 +876,7 @@ const Salaries = () => {
           workDays: attendanceDays,
           fuelCost: fuelCostMap[emp.id] || 0,
           platformIncome: 0,
+          engineBaseSalary: preview.base_salary,
         };
       });
 
@@ -876,9 +899,15 @@ const Salaries = () => {
         setRows(hydratedRows);
       } catch (error) {
         if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب';
+          if (message.startsWith('PREVIEW_BACKEND:')) {
+            const normalized = message.replace('PREVIEW_BACKEND:', '').trim();
+            setRows([]);
+            setPreviewBackendError(normalized || 'تعذر تحميل معاينة الرواتب من الخادم');
+          }
           toast({
             title: 'تعذر تحميل البيانات',
-            description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
+            description: message,
             variant: 'destructive',
           });
         }
@@ -919,7 +948,7 @@ const Salaries = () => {
   }, [rows, loadingData, salariesDraftKey]);
 
   const computeRow = useCallback((r: SalaryRow) => {
-    const totalPlatformSalary = Object.values(r.platformSalaries).reduce((s, v) => s + v, 0);
+    const totalPlatformSalary = Number(r.engineBaseSalary || 0);
     const totalAdditions = r.incentives + r.sickAllowance;
     const totalWithSalary = totalPlatformSalary + totalAdditions;
     const totalDeductions = getTotalDeductions(r);
@@ -1832,6 +1861,24 @@ const Salaries = () => {
             <span>الرواتب الشهرية</span>
           </nav>
           <h1 className="page-title flex items-center gap-2"><Wallet size={20} /> الرواتب الشهرية</h1>
+          <div className="mt-1">
+            {loadingData ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/70 animate-pulse" />
+                جارٍ فحص محرك الرواتب
+              </span>
+            ) : previewBackendError ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                Backend Engine Offline
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[11px] text-success">
+                <span className="h-2 w-2 rounded-full bg-success" />
+                Backend Engine Online
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -1903,6 +1950,18 @@ const Salaries = () => {
       </div>
 
       {/* Setup Required Banner — unified to avoid duplicate alerts */}
+      {previewBackendError && (
+        <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3">
+          <AlertTriangle size={18} className="text-destructive flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">المعاينة الخلفية غير متاحة</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              تم إيقاف الحساب المحلي حفاظاً على الدقة. {previewBackendError}
+            </p>
+          </div>
+        </div>
+      )}
+
       {(appsWithoutScheme.length > 0 || appsWithoutPricingRulesDeduped.length > 0) && (
         <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
           <AlertTriangle size={18} className="text-warning flex-shrink-0" />

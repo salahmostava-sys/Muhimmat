@@ -320,5 +320,5 @@ FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 JOIN pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
 WHERE n.nspname = 'public'
-  AND p.proname IN ('calculate_salary_for_employee_month', 'calculate_salary_for_month')
+  AND p.proname IN ('calculate_salary_for_employee_month', 'calculate_salary_for_month', 'preview_salary_for_month')
 ORDER BY p.proname, r.rolname;
