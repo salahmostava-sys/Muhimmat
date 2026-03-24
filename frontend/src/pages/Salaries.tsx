@@ -11,6 +11,7 @@ import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
+import { payrollService } from '@/services/payrollService';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
@@ -479,60 +480,6 @@ const ImportModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-function calcSalaryFromTiers(
-  orders: number,
-  tiers: SchemeData['salary_scheme_tiers'],
-  targetOrders: number | null,
-  targetBonus: number | null
-): number {
-  if (!tiers || tiers.length === 0 || orders === 0) return 0;
-  const sorted = [...tiers].sort((a, b) => a.tier_order - b.tier_order);
-
-  // Find the matching tier for the total orders
-  let matchedTier = sorted[0];
-  for (const tier of sorted) {
-    const from = tier.from_orders;
-    const to = tier.to_orders ?? Infinity;
-    if (orders >= from && orders <= to) { matchedTier = tier; break; }
-    if (orders > (tier.to_orders ?? Infinity)) matchedTier = tier;
-  }
-
-  let total = 0;
-
-  // Check the tier type of the matching tier
-  const tierType = matchedTier?.tier_type || 'total_multiplier';
-
-  if (tierType === 'fixed_amount') {
-    // Fixed amount regardless of order count within range
-    total = matchedTier.price_per_order;
-  } else if (tierType === 'base_plus_incremental') {
-    const threshold = matchedTier.incremental_threshold ?? matchedTier.from_orders;
-    const incrPrice = matchedTier.incremental_price ?? 0;
-    const extra = Math.max(0, orders - threshold);
-    total = matchedTier.price_per_order + extra * incrPrice;
-  } else {
-    // Default: total_multiplier — all tiers accumulate progressively
-    for (const tier of sorted) {
-      const from = tier.from_orders;
-      const to = tier.to_orders ?? Infinity;
-      if (orders < from) break;
-      const inTier = Math.min(orders, to) - from + 1;
-      if (inTier <= 0) continue;
-      total += inTier * tier.price_per_order;
-    }
-  }
-
-  if (targetOrders && targetBonus && orders >= targetOrders) {
-    total += targetBonus;
-  }
-  return Math.round(total);
-}
-
-function calcFixedMonthlySalary(monthlyAmount: number, attendanceDays: number): number {
-  if (!monthlyAmount || monthlyAmount <= 0) return 0;
-  return Math.round((monthlyAmount / 30) * attendanceDays);
-}
-
 // ─── Salary breakdown tooltip ─────────────────────────────────────
 interface SalaryBreakdownProps {
   orders: number;
@@ -822,12 +769,17 @@ const Salaries = () => {
             if (alreadyCalcForScheme) {
               platformSalaries[p] = 0; // already counted
             } else {
-              platformSalaries[p] = calcFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+              platformSalaries[p] = payrollService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
             }
           } else if (orders === 0) {
             platformSalaries[p] = 0;
           } else if (scheme.salary_scheme_tiers) {
-            platformSalaries[p] = calcSalaryFromTiers(orders, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
+            platformSalaries[p] = payrollService.calculateTierSalary(
+              orders,
+              scheme.salary_scheme_tiers,
+              scheme.target_orders,
+              scheme.target_bonus
+            );
           } else {
             platformSalaries[p] = 0;
           }
@@ -976,7 +928,12 @@ const Salaries = () => {
       const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
       let salary = 0;
       if (scheme && scheme.salary_scheme_tiers) {
-        salary = calcSalaryFromTiers(value, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
+        salary = payrollService.calculateTierSalary(
+          value,
+          scheme.salary_scheme_tiers,
+          scheme.target_orders,
+          scheme.target_bonus
+        );
       } else {
         // No scheme assigned → 0 salary (user needs to assign scheme)
         salary = 0;
