@@ -614,18 +614,15 @@ const Salaries = () => {
         allAdvances.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
 
         // Fetch installments for this month
-        const { data: advInstData } = await supabase
-          .from('advance_installments')
-          .select('id, advance_id, amount, status')
-          .eq('month_year', selectedMonth)
-          .in('advance_id', allAdvances.map(a => a.id));
+        const { data: advInstData } = await salaryDataService.getMonthInstallmentsForAdvances(
+          selectedMonth,
+          allAdvances.map(a => a.id)
+        );
 
         // Fetch all pending/deferred installments to calculate remaining balance
-        const { data: allPendingInsts } = await supabase
-          .from('advance_installments')
-          .select('advance_id, amount, status')
-          .in('status', ['pending', 'deferred'])
-          .in('advance_id', allAdvances.map(a => a.id));
+        const { data: allPendingInsts } = await salaryDataService.getPendingInstallmentsForAdvances(
+          allAdvances.map(a => a.id)
+        );
 
         // Build remaining balance per employee
         allPendingInsts?.forEach(inst => {
@@ -922,7 +919,7 @@ const Salaries = () => {
     if (!row) return;
     const c = computeRow(row);
     // Save to salary_records
-    await supabase.from('salary_records').upsert({
+    await salaryDataService.upsertSalaryRecord({
       employee_id: row.employeeId,
       month_year: selectedMonth,
       base_salary: c.totalPlatformSalary,
@@ -935,7 +932,7 @@ const Salaries = () => {
       is_approved: true,
       approved_by: user?.id ?? null,
       approved_at: new Date().toISOString(),
-    }, { onConflict: 'employee_id,month_year' });
+    });
     updateRow(id, { status: 'approved', isDirty: false });
     toast({ title: '✅ تم اعتماد الراتب' });
     if (row.phone) {
@@ -953,7 +950,7 @@ const Salaries = () => {
       const nowStr = new Date().toISOString();
 
       // 1. Upsert into salary_records
-      const { error: srError } = await supabase.from('salary_records').upsert({
+      const { error: srError } = await salaryDataService.upsertSalaryRecord({
         employee_id: row.employeeId,
         month_year: selectedMonth,
         base_salary: c.totalPlatformSalary,
@@ -967,32 +964,23 @@ const Salaries = () => {
         approved_by: user?.id ?? null,
         approved_at: nowStr,
         payment_method: row.paymentMethod,
-      }, { onConflict: 'employee_id,month_year' });
+      });
 
       if (srError) throw srError;
 
       // 2. Mark installments as deducted (if any)
       if (row.advanceInstallmentIds.length > 0) {
-        await supabase
-          .from('advance_installments')
-          .update({ status: 'deducted', deducted_at: nowStr })
-          .in('id', row.advanceInstallmentIds);
+        await salaryDataService.markInstallmentsDeducted(row.advanceInstallmentIds, nowStr);
 
         // 3. Check if advance is fully paid
-        const { data: instData } = await supabase
-          .from('advance_installments')
-          .select('advance_id, status')
-          .in('id', row.advanceInstallmentIds);
+        const { data: instData } = await salaryDataService.getInstallmentsByIds(row.advanceInstallmentIds);
 
         if (instData) {
           const advanceIds = [...new Set(instData.map(i => i.advance_id))];
           for (const advId of advanceIds) {
-            const { data: allInsts } = await supabase
-              .from('advance_installments')
-              .select('status')
-              .eq('advance_id', advId);
+            const { data: allInsts } = await salaryDataService.getAdvanceInstallmentStatuses(advId);
             if (allInsts?.every(i => i.status === 'deducted')) {
-              await supabase.from('advances').update({ status: 'completed' }).eq('id', advId);
+              await salaryDataService.markAdvanceCompleted(advId);
             }
           }
         }
@@ -1035,7 +1023,7 @@ const Salaries = () => {
       };
     });
 
-    const { error } = await supabase.from('salary_records').upsert(records, { onConflict: 'employee_id,month_year' });
+    const { error } = await salaryDataService.upsertSalaryRecords(records);
     if (error) {
       toast({ title: 'خطأ أثناء الاعتماد', description: error.message, variant: 'destructive' });
       return;

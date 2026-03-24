@@ -59,6 +59,72 @@ export const salaryDataService = {
       allAdvances: allAdvancesRes.data || [],
     };
   },
+
+  async upsertSalaryRecord(record: Record<string, unknown>) {
+    const { error } = await supabase
+      .from('salary_records')
+      .upsert(record, { onConflict: 'employee_id,month_year' });
+    return { error };
+  },
+
+  async upsertSalaryRecords(records: Record<string, unknown>[]) {
+    const { error } = await supabase
+      .from('salary_records')
+      .upsert(records, { onConflict: 'employee_id,month_year' });
+    return { error };
+  },
+
+  async markInstallmentsDeducted(installmentIds: string[], deductedAtIso: string) {
+    const { error } = await supabase
+      .from('advance_installments')
+      .update({ status: 'deducted', deducted_at: deductedAtIso })
+      .in('id', installmentIds);
+    return { error };
+  },
+
+  async getInstallmentsByIds(installmentIds: string[]) {
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('advance_id, status')
+      .in('id', installmentIds);
+    return { data: data || [], error };
+  },
+
+  async getAdvanceInstallmentStatuses(advanceId: string) {
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('status')
+      .eq('advance_id', advanceId);
+    return { data: data || [], error };
+  },
+
+  async markAdvanceCompleted(advanceId: string) {
+    const { error } = await supabase
+      .from('advances')
+      .update({ status: 'completed' })
+      .eq('id', advanceId);
+    return { error };
+  },
+
+  async getMonthInstallmentsForAdvances(selectedMonth: string, advanceIds: string[]) {
+    if (!advanceIds.length) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('id, advance_id, amount, status')
+      .eq('month_year', selectedMonth)
+      .in('advance_id', advanceIds);
+    return { data: data || [], error };
+  },
+
+  async getPendingInstallmentsForAdvances(advanceIds: string[]) {
+    if (!advanceIds.length) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('advance_installments')
+      .select('advance_id, amount, status')
+      .in('status', ['pending', 'deferred'])
+      .in('advance_id', advanceIds);
+    return { data: data || [], error };
+  },
 };
 
 export default salaryDataService;
