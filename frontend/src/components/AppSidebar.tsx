@@ -94,7 +94,7 @@ const AppSidebar = () => {
     if (activeGroup && !openGroups[activeGroup.key]) {
       setOpenGroups(prev => ({ ...prev, [activeGroup.key]: true }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [location.pathname]);
 
   return (

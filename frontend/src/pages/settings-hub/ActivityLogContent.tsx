@@ -123,7 +123,7 @@ export default function ActivityLogContent() {
       if (error) throw error;
 
       const userIds = [...new Set((data || []).map(l => l.user_id).filter(Boolean))] as string[];
-      let profileMap: Record<string, { name: string | null; email: string | null }> = {};
+      const profileMap: Record<string, { name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await settingsHubService.getAuditProfilesByIds(userIds);
         profiles?.forEach(p => { profileMap[p.id] = { name: p.name, email: p.email }; });

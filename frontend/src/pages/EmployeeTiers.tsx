@@ -246,7 +246,7 @@ const EmployeeTiers = () => {
     };
 
     if (employees.length > 0 && tiers.length > 0) checkAbsconded();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [employees, tiers.length]);
 
   /* ── Inline edit helpers ── */
@@ -351,8 +351,8 @@ const EmployeeTiers = () => {
     if (sortField && sortDir) {
       list = [...list].sort((a, b) => {
         const typedSortField = sortField as TierSortField;
-        let va = sortField === 'employee_name' ? (empMap[a.employee_id]?.name || '') : String(getTierFieldValue(a, typedSortField) ?? '');
-        let vb = sortField === 'employee_name' ? (empMap[b.employee_id]?.name || '') : String(getTierFieldValue(b, typedSortField) ?? '');
+        const va = sortField === 'employee_name' ? (empMap[a.employee_id]?.name || '') : String(getTierFieldValue(a, typedSortField) ?? '');
+        const vb = sortField === 'employee_name' ? (empMap[b.employee_id]?.name || '') : String(getTierFieldValue(b, typedSortField) ?? '');
         if (va < vb) return sortDir === 'asc' ? -1 : 1;
         if (va > vb) return sortDir === 'asc' ? 1 : -1;
         return 0;

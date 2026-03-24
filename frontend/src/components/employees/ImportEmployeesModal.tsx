@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback } from 'react';
 import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -97,7 +98,7 @@ const parseDate = (val: any): string | null => {
   return null;
 };
 
-const isValidPhone = (phone?: string) => !phone || /^[0-9+\s\-]{7,15}$/.test(phone);
+const isValidPhone = (phone?: string) => !phone || /^[0-9+\s-]{7,15}$/.test(phone);
 const isValidEmail = (email?: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidNationalId = (id?: string) => !id || /^[0-9]{10}$/.test(id);
 

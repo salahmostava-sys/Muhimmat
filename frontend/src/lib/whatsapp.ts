@@ -23,7 +23,7 @@ export async function sendWhatsAppMessage(
   const cfg = getWhatsAppConfig();
   if (!cfg) return false;
 
-  const cleanPhone = to.replace(/[\s\-\(\)]/g, '').replace(/^0+/, '');
+  const cleanPhone = to.replace(/[\s\-()]/g, '').replace(/^0+/, '');
 
   try {
     const res = await fetch(

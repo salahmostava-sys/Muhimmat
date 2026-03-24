@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react';
 import {
   Plus, FolderOpen, Eye, Edit, Trash2,
@@ -612,7 +613,7 @@ const Employees = () => {
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script></body></html>`);
+    printWindow.document.write(`<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script></body></html>`);
     printWindow.document.close();
   };
 

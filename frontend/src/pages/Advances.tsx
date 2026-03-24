@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Plus, CreditCard, FolderOpen, Upload, Edit2, FileText, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -931,7 +932,7 @@ const Advances = () => {
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     printWindow.document.close();
   };
 

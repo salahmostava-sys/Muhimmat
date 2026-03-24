@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -114,7 +114,7 @@ const Attendance = () => {
                 if (!win.document.body) return;
                 // Append the live DOM table node to avoid string-interpolating table HTML.
                 win.document.body.appendChild(table.cloneNode(true));
-                win.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+                win.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
                 win.document.close();
               }}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>

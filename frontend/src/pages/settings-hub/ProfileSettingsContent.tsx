@@ -84,7 +84,7 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- جلب مرة عند تسجيل الدخول؛ toast مستقر عملياً
+     
   }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
