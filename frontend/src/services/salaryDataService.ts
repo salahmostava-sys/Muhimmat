@@ -1,6 +1,31 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const salaryDataService = {
+  async calculateSalaryForEmployeeMonth(
+    employeeId: string,
+    monthYear: string,
+    paymentMethod = 'cash',
+    manualDeduction = 0,
+    manualDeductionNote: string | null = null
+  ) {
+    const { data, error } = await supabase.rpc('calculate_salary_for_employee_month', {
+      p_employee_id: employeeId,
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
+      p_manual_deduction: manualDeduction,
+      p_manual_deduction_note: manualDeductionNote,
+    } as any);
+    return { data, error };
+  },
+
+  async calculateSalaryForMonth(monthYear: string, paymentMethod = 'cash') {
+    const { data, error } = await supabase.rpc('calculate_salary_for_month', {
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
+    } as any);
+    return { data, error };
+  },
+
   async getMonthlyContext(selectedMonth: string) {
     const [y, m] = selectedMonth.split('-');
     const daysInMonth = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
