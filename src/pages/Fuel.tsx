@@ -54,7 +54,6 @@ async function saveVehicleMileageDaily(
   payload: { employee_id: string; date: string; km_total: number; fuel_cost: number; notes: string | null },
   editId?: string
 ) {
-  const db = supabase as any;
   const row = {
     employee_id: payload.employee_id,
     date: payload.date,
@@ -63,9 +62,9 @@ async function saveVehicleMileageDaily(
     notes: payload.notes,
   };
   if (editId) {
-    return db.from('vehicle_mileage_daily').update(row).eq('id', editId);
+    return supabase.from('vehicle_mileage_daily').update(row).eq('id', editId);
   }
-  return db.from('vehicle_mileage_daily').upsert(row, { onConflict: 'employee_id,date' });
+  return supabase.from('vehicle_mileage_daily').upsert(row, { onConflict: 'employee_id,date' });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
