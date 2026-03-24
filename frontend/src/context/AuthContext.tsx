@@ -16,12 +16,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 const fetchIsActive = async (userId: string): Promise<boolean> => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('is_active')
     .eq('id', userId)
     .maybeSingle();
-  return data?.is_active ?? false;
+  // Network or transient DB errors should not force-signout users.
+  if (error) return true;
+  return data?.is_active !== false;
 };
 
 const fetchRole = async (userId: string): Promise<AppRole | null> => {

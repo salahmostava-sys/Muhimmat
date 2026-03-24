@@ -236,6 +236,17 @@ const SpreadsheetGrid = () => {
     [filteredEmployees, empMonthTotal]
   );
   const monthDailyAvg = days > 0 ? Math.round(monthGrandTotal / days) : 0;
+  const platformOrderTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    apps.forEach((app) => {
+      totals[app.id] = filteredEmployees.reduce(
+        (sum, emp) =>
+          sum + dayArr.reduce((daySum, d) => daySum + (data[`${emp.id}::${app.id}::${d}`] ?? 0), 0),
+        0
+      );
+    });
+    return totals;
+  }, [apps, filteredEmployees, dayArr, data]);
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -434,12 +445,10 @@ const SpreadsheetGrid = () => {
                     : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
                 )}
               >
-                الكل ({employees.length})
+                الكل ({monthGrandTotal.toLocaleString()})
               </button>
               {apps.map(app => {
-                const count = appEmployeeIds[app.id]
-                  ? employees.filter(e => appEmployeeIds[app.id]?.has(e.id)).length
-                  : 0;
+                const count = platformOrderTotals[app.id] ?? 0;
                 const active = platformFilter === app.id;
                 const c = getAppColor(appColorsList, app.name);
                 return (
@@ -460,7 +469,7 @@ const SpreadsheetGrid = () => {
                       <img src={app.logo_url} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" alt="" />
                     )}
                     <span className="truncate">{app.name}</span>
-                    <span className="shrink-0">({count})</span>
+                    <span className="shrink-0">({count.toLocaleString()})</span>
                   </button>
                 );
               })}
@@ -865,9 +874,13 @@ const MonthSummary = () => {
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
   return (
-    <div className="space-y-5">
-      {/* Month nav */}
-      <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+          <TrendingUp size={14} className="text-primary" />
+          <span className="text-sm font-semibold text-foreground">ملخص الشهر</span>
+        </div>
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           <button onClick={prevMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronRight size={16} /></button>
           <span className="px-3 text-sm font-medium min-w-28 text-center">{monthLabel(year, month)}</span>
@@ -882,15 +895,15 @@ const MonthSummary = () => {
             <Target size={15} className="text-primary" />
             <h3 className="text-sm font-semibold text-foreground">إجمالي المنصات والتارجت الشهري</h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
             {/* Grand total card */}
-            <div className="bg-card border-2 border-primary/30 rounded-xl p-3 flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                <TrendingUp size={13} className="text-primary" />
-                <span className="text-xs font-semibold text-primary">الإجمالي الكلي</span>
+            <div className="bg-card border border-primary/30 rounded-lg p-2.5 flex flex-col gap-1.5">
+              <div className="flex items-center gap-1">
+                <TrendingUp size={12} className="text-primary" />
+                <span className="text-[11px] font-semibold text-primary">الإجمالي</span>
               </div>
-              <p className="text-2xl font-bold text-foreground">{grandTotal.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">{employees.length} مندوب</p>
+              <p className="text-lg font-bold text-foreground leading-tight">{grandTotal.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">{employees.length} مندوب</p>
             </div>
 
             {apps.map(app => {
@@ -902,17 +915,17 @@ const MonthSummary = () => {
               const isSaving = savingTarget === app.id;
 
               return (
-                <div key={app.id} className="bg-card border border-border/50 rounded-xl p-3 flex flex-col gap-2.5 hover:border-border transition-colors">
+                <div key={app.id} className="bg-card border border-border/50 rounded-lg p-2.5 flex flex-col gap-1.5 hover:border-border transition-colors">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: c.bg, color: c.text }}>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: c.bg, color: c.text }}>
                       {app.name}
                     </span>
-                    {overTarget && <span className="text-[9px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-semibold">✓ حُقِّق</span>}
+                    {overTarget && <span className="text-[9px] bg-success/10 text-success px-1 py-0.5 rounded-full font-semibold">✓</span>}
                   </div>
 
                   <div>
-                    <p className="text-xl font-bold" style={{ color: c.val }}>{total.toLocaleString()}</p>
-                    <p className="text-[11px] text-muted-foreground">طلب هذا الشهر</p>
+                    <p className="text-base font-bold leading-tight" style={{ color: c.val }}>{total.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">طلب هذا الشهر</p>
                   </div>
 
                   {/* Target input with save on blur */}
@@ -925,7 +938,7 @@ const MonthSummary = () => {
                       onBlur={e => saveTarget(app.id, e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveTarget(app.id, targets[app.id] || '0'); }}
                       disabled={!permissions.can_edit || isMonthLocked}
-                      className="w-full h-6 text-xs rounded border border-border bg-muted/30 px-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-center"
+                      className="w-full h-6 text-[11px] rounded border border-border bg-muted/30 px-1.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-center"
                     />
                     {isSaving && <Loader2 size={10} className="animate-spin text-muted-foreground flex-shrink-0" />}
                   </div>
@@ -933,7 +946,7 @@ const MonthSummary = () => {
                   {targetVal > 0 && (
                     <div className="space-y-1">
                       <Progress value={pct} className="h-1.5" />
-                      <p className="text-[11px] font-semibold" style={{ color: overTarget ? 'hsl(var(--success))' : c.val }}>
+                      <p className="text-[10px] font-semibold" style={{ color: overTarget ? 'hsl(var(--success))' : c.val }}>
                         {pct}% من {targetVal.toLocaleString()}
                       </p>
                     </div>
@@ -948,11 +961,11 @@ const MonthSummary = () => {
       {/* Summary table */}
       <div className="bg-card rounded-xl shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b-2 border-border bg-muted/40">
                 <th className="text-center p-3 font-semibold text-muted-foreground w-10">#</th>
-                <th className="text-center p-3 font-semibold text-foreground min-w-[160px] cursor-pointer" onClick={() => handleSort('name')}>
+                <th className="text-center p-3 font-semibold text-foreground min-w-[110px] cursor-pointer" onClick={() => handleSort('name')}>
                   المندوب <SortIcon field="name" />
                 </th>
                 {apps.map(app => {
@@ -990,7 +1003,9 @@ const MonthSummary = () => {
                     <td className="p-3 text-center text-xs text-muted-foreground font-medium">{idx + 1}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground whitespace-nowrap">{emp.name}</span>
+                        <span className="font-medium text-foreground whitespace-nowrap" title={emp.name}>
+                          {shortName(emp.name)}
+                        </span>
                       </div>
                     </td>
                     {apps.map(app => {

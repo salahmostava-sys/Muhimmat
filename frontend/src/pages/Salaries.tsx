@@ -42,6 +42,12 @@ const generateMonths = () => {
 };
 const months = generateMonths();
 
+const shortEmployeeName = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[1]}`;
+};
+
 type SortDir = 'asc' | 'desc' | null;
 
 interface SalaryRow {
@@ -160,7 +166,7 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
   const deductionItems = hasAnyDeduction ? allDeductions.filter(d => d.val > 0) : [];
   const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
 
-  const netSalary = Math.max(0, totalEarnings - totalDeductions);
+  const netSalary = totalEarnings - totalDeductions;
   const remaining = netSalary - row.transfer;
   const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
 
@@ -618,7 +624,8 @@ const Salaries = () => {
         return;
       }
       if (cancelled) return;
-      const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
+      try {
+        const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
       savedRecords?.forEach(r => {
@@ -859,9 +866,21 @@ const Salaries = () => {
         // Ignore malformed draft payloads safely.
       }
 
-      if (cancelled) return;
-      setRows(hydratedRows);
-      setLoadingData(false);
+        if (cancelled) return;
+        setRows(hydratedRows);
+      } catch (error) {
+        if (!cancelled) {
+          toast({
+            title: 'تعذر تحميل البيانات',
+            description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingData(false);
+        }
+      }
     };
 
     void fetchAllData();
@@ -898,7 +917,7 @@ const Salaries = () => {
     const totalAdditions = r.incentives + r.sickAllowance;
     const totalWithSalary = totalPlatformSalary + totalAdditions;
     const totalDeductions = getTotalDeductions(r);
-    const netSalary = Math.max(0, totalWithSalary - totalDeductions);
+    const netSalary = totalWithSalary - totalDeductions;
     const remaining = netSalary - r.transfer;
     return { totalPlatformSalary, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
   }, []);
@@ -1719,11 +1738,11 @@ const Salaries = () => {
     </th>
   );
 
-  const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border bg-muted/60 text-right sticky z-20";
-  const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border bg-muted/50 text-center";
-  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border bg-card text-foreground sticky z-10";
-  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border text-foreground";
-  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border bg-muted/60 text-foreground";
+  const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/60 text-right sticky z-20";
+  const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/50 text-center";
+  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border/40 bg-card text-foreground sticky z-10";
+  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border/40 text-foreground";
+  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/40 bg-muted/60 text-foreground";
   const stickyLeft = (offset: number) => ({ left: offset });
 
   const [detailRow, setDetailRow] = useState<SalaryRow | null>(null);
@@ -2048,36 +2067,36 @@ const Salaries = () => {
                 <tr className="bg-muted/70 border-b border-border/50">
                   <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
                   <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
-                  <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-info whitespace-nowrap border-b border-border/50 bg-info/10 text-center border-l-2 border-info/40">📊 بيانات المندوب الشهرية</th>
+                  <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-info whitespace-nowrap border-b border-border/40 bg-info/10 text-center border-l border-border/40">📊 بيانات المندوب الشهرية</th>
                   <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات (نقر مزدوج لتعديل الطلبات)
                   </th>
-                  <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الراتب الأساسي</th>
-                  <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-success/10 text-center border-l-2 border-success/40">✅ الإضافات</th>
-                  <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/50 bg-destructive/10 text-center border-l-2 border-destructive/40">🔻 المستقطعات</th>
-                  <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الصافي والصرف</th>
-                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l-2 border-border/60">معلومات الصرف</th>
-                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l-2 border-border/60">الإجراءات</th>
+                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">الراتب الثابت</th>
+                  <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/40 bg-success/10 text-center border-l border-border/40">✅ الإضافات</th>
+                  <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/40 bg-destructive/10 text-center border-l border-border/40">🔻 المستقطعات</th>
+                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">المستحق</th>
+                  <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">معلومات الصرف</th>
+                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">الإجراءات</th>
                 </tr>
                 <tr className="bg-muted/50">
                   <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
-                  <th className={`${thFrozenBase} w-44 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(40)} onClick={() => handleSort('employeeName')}>
+                  <th className={`${thFrozenBase} w-32 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(40)} onClick={() => handleSort('employeeName')}>
                     الاسم <SortIcon field="employeeName" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(216)} onClick={() => handleSort('jobTitle')}>
+                  <th className={`${thFrozenBase} w-24 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(168)} onClick={() => handleSort('jobTitle')}>
                     المسمى الوظيفي <SortIcon field="jobTitle" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(328)} onClick={() => handleSort('nationalId')}>
+                  <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(264)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {/* ── New info columns ── */}
-                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-info/30 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('platformIncome')}>
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-border/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('platformIncome')}>
                     دخل <SortIcon field="platformIncome" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-info/30 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('workDays')}>
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-border/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('workDays')}>
                     أيام العمل <SortIcon field="workDays" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border-l-2 border-info/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('fuelCost')}>
+                  <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-border/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('fuelCost')}>
                     البنزين <SortIcon field="fuelCost" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {platforms.map(p => {
@@ -2105,17 +2124,16 @@ const Salaries = () => {
                   <th className={`${thBase} bg-success/5`}>حوافز</th>
                   <th className={`${thBase} bg-success/5`}>إجازة مرضية</th>
                   <th className={`${thBase} bg-success/5`}>إجمالي الإضافات</th>
-                  <th className={`${thBase} bg-success/10 border-l-2 border-success/50`}>الإجمالي مع الراتب</th>
+                  <th className={`${thBase} bg-success/10 border-l border-border/40`}>الإجمالي مع الراتب</th>
                   <th className={`${thBase} bg-destructive/5`}>سلف</th>
                   <th className={`${thBase} bg-destructive/5`}>مخالفات</th>
                   {allCustomCols.map(col => (
                     <th key={col.fullKey} className={`${thBase} bg-destructive/5`}>{col.label}</th>
                   ))}
-                  <th className={`${thBase} bg-destructive/10 border-l-2 border-destructive/50`}>إجمالي المستقطعات</th>
-                  <th className={thBase}>الصافي</th>
-                  <th className={thBase}>تحويل</th>
-                  <th className={`${thBase} border-l border-border/50`}>متبقي</th>
-                  <th className={`${thBase} border-l border-border/50`}>المدينة</th>
+                  <th className={`${thBase} bg-destructive/10 border-l border-border/40`}>إجمالي المستقطعات</th>
+                  <th className={thBase}>المستحق</th>
+                  <th className={thBase}>المحوّل</th>
+                  <th className={`${thBase} border-l border-border/40`}>المتبقي</th>
                   <th className={`${thBase} border-l border-border/50`}>الإجراءات</th>
                 </tr>
               </thead>
@@ -2132,7 +2150,7 @@ const Salaries = () => {
                             className="whitespace-nowrap text-primary hover:underline font-medium text-right"
                             onClick={() => openEmployeeDetail(r)}
                           >
-                            {r.employeeName}
+                            {shortEmployeeName(r.employeeName)}
                           </button>
                           {r.isDirty && (
                             <span title="تم تعديل البيانات بعد الاعتماد — يرجى إعادة الاعتماد" className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/40 whitespace-nowrap cursor-help">
@@ -2141,18 +2159,18 @@ const Salaries = () => {
                           )}
                         </div>
                       </td>
-                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 216, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
-                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 328, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 168, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
+                      <td className={`${tdClass} border-l border-border/40 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 264, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
                       {/* ── New info columns: income (manual), work days, fuel ── */}
-                      <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
+                      <td className="px-2 py-2 text-xs text-center border border-border/40 bg-info/5 whitespace-nowrap">
                         <EditableCell value={r.platformIncome} onChange={v => updateRow(r.id, { platformIncome: v })} className="text-foreground" />
                       </td>
-                      <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
+                      <td className="px-2 py-2 text-xs text-center border border-border/40 bg-info/5 whitespace-nowrap">
                         {r.workDays > 0
                           ? <span className="font-semibold text-foreground">{r.workDays}</span>
                           : <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className="px-2 py-2 text-xs text-center border-l-2 border-info/30 bg-info/5 whitespace-nowrap">
+                      <td className="px-2 py-2 text-xs text-center border border-border/40 bg-info/5 whitespace-nowrap">
                         {r.fuelCost > 0
                           ? <span className="font-semibold text-foreground">{r.fuelCost.toLocaleString()}</span>
                           : <span className="text-muted-foreground/30">—</span>}
@@ -2214,11 +2232,11 @@ const Salaries = () => {
                         {Object.values(r.platformOrders).reduce((s, v) => s + v, 0) || <span className="text-muted-foreground/30">—</span>}
                       </td>
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
-                      <td className={`${tdClass} bg-success/[0.04] border-l-2 border-success/30`}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
+                      <td className={`${tdClass} bg-success/[0.04] border-l border-border/40`}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
                       <td className={`${tdClass} bg-success/[0.04]`}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
                       <td className={`${tdClass} text-foreground font-semibold bg-success/[0.04]`}>{c.totalAdditions.toLocaleString()}</td>
-                      <td className={`${tdClass} font-bold text-foreground border-l-2 border-success/35 bg-success/[0.06]`}>{c.totalWithSalary.toLocaleString()}</td>
-                      <td className={`${tdClass} border-l-2 border-destructive/35 bg-destructive/[0.04]`}>
+                      <td className={`${tdClass} font-bold text-foreground border-l border-border/40 bg-success/[0.06]`}>{c.totalWithSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} border-l border-border/40 bg-destructive/[0.04]`}>
                         <EditableCell value={r.advanceDeduction} onChange={v => updateRow(r.id, { advanceDeduction: v })} className="text-foreground" />
                       </td>
                       <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
@@ -2234,56 +2252,32 @@ const Salaries = () => {
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                       </td>
-                      <td className={`${tdClass} font-black text-foreground text-base`}>{c.netSalary.toLocaleString()}</td>
+                      <td className={`${tdClass} font-black text-foreground text-base ${c.netSalary < 0 ? 'text-destructive' : ''}`}>{c.netSalary.toLocaleString()}</td>
                       <td className={tdClass}>
-                        <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })} />
+                        <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.max(0, Math.min(v, Math.max(0, c.netSalary))) })} />
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
-                      <td className={`${tdClass} border-l border-border text-sm font-medium`}>
-                        {r.city === 'مكة' || r.city === 'جدة' ? r.city : '—'}
-                      </td>
                       <td className={`${tdClass} border-l border-border`}>
-                        <div className="flex items-center justify-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="إجراءات">⋮</Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-[14rem]">
-                              <DropdownMenuLabel className="text-xs text-muted-foreground">الحالة الحالية: {statusLabels[r.status]}</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => updateRow(r.id, { status: 'pending' as const })}>
-                                تعيين الحالة: معلّق
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => approveRow(r.id)}>
-                                تعيين الحالة: معتمد
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => { if (r.status === 'approved') void markAsPaid(r); }}
-                                disabled={r.status !== 'approved' || markingPaid === r.id}
-                              >
-                                {markingPaid === r.id ? '...' : 'تعيين الحالة: مصروف'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel className="text-xs text-muted-foreground">طريقة الصرف</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'cash' })}>
-                                كاش
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'bank' })}>
-                                تحويل بنكي
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel className="text-xs text-muted-foreground">المدينة (بيانات الموظف)</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => void updateSalaryCityFromMenu(r, 'مكة', 'makkah')}>
-                                مكة
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => void updateSalaryCityFromMenu(r, 'جدة', 'jeddah')}>
-                                جدة
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => setPayslipRow(r)}>
-                                <Printer size={13} className="ml-2" /> كشف الراتب
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <div className="flex items-center justify-center gap-1.5">
+                          {r.status === 'pending' && (
+                            <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => approveRow(r.id)}>
+                              <CheckCircle size={11} /> اعتماد
+                            </Button>
+                          )}
+                          {r.status === 'approved' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] gap-1 text-primary border-primary/40 hover:bg-primary/10"
+                              onClick={() => void markAsPaid(r)}
+                              disabled={markingPaid === r.id}
+                            >
+                              {markingPaid === r.id ? <Loader2 size={11} className="animate-spin" /> : <>✅ تم الصرف</>}
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setPayslipRow(r)}>
+                            <Printer size={11} /> كشف
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -2293,16 +2287,16 @@ const Salaries = () => {
                  <tr className="bg-muted/60 border-t-2 border-border">
                    <td className={`${tfClass} sticky text-center`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>—</td>
                   <td className={`${tfClass} sticky text-center border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
-                   <td className={tfClass} style={{ position: 'sticky', left: 216, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 328, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                   <td className={tfClass} style={{ position: 'sticky', left: 168, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                   <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 264, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    {/* New info columns totals */}
-                   <td className="px-2 py-2 text-xs font-bold text-center border border-info/20 bg-info/10 text-foreground">
+                   <td className="px-2 py-2 text-xs font-bold text-center border border-border/40 bg-info/10 text-foreground">
                      {filtered.reduce((s, r) => s + r.platformIncome, 0).toLocaleString()}
                    </td>
-                   <td className="px-2 py-2 text-xs font-bold text-center border border-info/20 bg-info/10 text-foreground">
+                   <td className="px-2 py-2 text-xs font-bold text-center border border-border/40 bg-info/10 text-foreground">
                      {Math.round(filtered.reduce((s, r) => s + r.workDays, 0) / Math.max(filtered.length, 1))}
                    </td>
-                   <td className="px-2 py-2 text-xs font-bold text-center border-l-2 border-info/30 bg-info/10 text-foreground">
+                   <td className="px-2 py-2 text-xs font-bold text-center border border-border/40 bg-info/10 text-foreground">
                      {filtered.reduce((s, r) => s + r.fuelCost, 0).toLocaleString()}
                    </td>
                   {platforms.map(p => {
@@ -2332,10 +2326,10 @@ const Salaries = () => {
                     return <td key={col.fullKey} className={`${tfClass} text-foreground`}>{colTotal > 0 ? colTotal.toLocaleString() : '—'}</td>;
                   })}
                   <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.totalDed.toLocaleString()}</td>
-                  <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
+                  <td className={`${tfClass} text-foreground text-base ${totals.net < 0 ? 'text-destructive' : ''}`}>{totals.net.toLocaleString()}</td>
                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                  <td className={tfClass} colSpan={2}></td>
+                  <td className={tfClass} colSpan={1}></td>
                 </tr>
               </tbody>
             </table>
@@ -2526,7 +2520,7 @@ const Salaries = () => {
         ];
         const deductionItems = allDeductions.filter(d => d.val > 0);
         const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
-        const netSalary = Math.max(0, totalEarnings - totalDeductions);
+        const netSalary = totalEarnings - totalDeductions;
         const remaining = netSalary - row.transfer;
         const monthLabel = batchMonth;
         const fmt = (n: number) => `${n.toLocaleString()} ${t.currency}`;

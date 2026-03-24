@@ -38,6 +38,13 @@ interface EmployeeData {
   nationality?: string | null;
 }
 
+type AppOption = {
+  id: string;
+  name: string;
+  brand_color?: string | null;
+  text_color?: string | null;
+};
+
 interface Props {
   onClose: () => void;
   onSuccess?: () => void;
@@ -129,12 +136,29 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
-  const [availableApps, setAvailableApps] = useState<{ id: string; name: string }[]>([]);
+  const [availableApps, setAvailableApps] = useState<AppOption[]>([]);
+
+  const APP_COLOR_FALLBACKS: Record<string, { bg: string; fg: string }> = {
+    'هنقرستيشن': { bg: '#ea580c', fg: '#ffffff' },
+    'هنجر': { bg: '#ea580c', fg: '#ffffff' },
+    'كيتا': { bg: '#7c3aed', fg: '#ffffff' },
+  };
+
+  const getAppChipColors = (appName: string) => {
+    const app = availableApps.find((a) => a.name === appName);
+    if (app?.brand_color) {
+      return {
+        bg: app.brand_color,
+        fg: app.text_color || '#ffffff',
+      };
+    }
+    return APP_COLOR_FALLBACKS[appName] || { bg: '#6366f1', fg: '#ffffff' };
+  };
 
   useEffect(() => {
     Promise.all([
       supabase.from('salary_schemes').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('apps').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
     ]).then(([schemesRes, appsRes]) => {
       if (schemesRes.data) setSchemes(schemesRes.data);
       if (appsRes.data) setAvailableApps(appsRes.data);
@@ -544,7 +568,12 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <div className="flex flex-wrap gap-2">
                 {availableApps.map(app => (
                   <button key={app.id} type="button" onClick={() => toggleApp(app.name)}
-                    className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${form.selected_apps.includes(app.name) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                    style={form.selected_apps.includes(app.name) ? {
+                      backgroundColor: getAppChipColors(app.name).bg,
+                      color: getAppChipColors(app.name).fg,
+                      borderColor: getAppChipColors(app.name).bg,
+                    } : undefined}
+                    className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${form.selected_apps.includes(app.name) ? '' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
                     {app.name}
                   </button>
                 ))}
@@ -553,7 +582,16 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 <div className="space-y-3 bg-muted/30 rounded-xl p-4">
                   {form.selected_apps.map(app => (
                     <div key={app} className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-foreground w-24 shrink-0">{app}</span>
+                      <span
+                        style={{
+                          backgroundColor: getAppChipColors(app).bg,
+                          color: getAppChipColors(app).fg,
+                          borderColor: getAppChipColors(app).bg,
+                        }}
+                        className="text-xs font-semibold rounded-full border px-2.5 py-1 w-fit shrink-0"
+                      >
+                        {app}
+                      </span>
                       <Select value={form.app_schemes[app] || ''} onValueChange={v => setForm(f => ({ ...f, app_schemes: { ...f.app_schemes, [app]: v } }))}>
                         <SelectTrigger className="flex-1 h-8 text-xs">
                           <SelectValue placeholder="اختر السكيمة" />
