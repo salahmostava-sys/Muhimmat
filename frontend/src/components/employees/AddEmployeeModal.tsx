@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, parseISO } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { employeeService, type EmployeeAppOption } from '@/services/employeeService';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import { validateUploadFile } from '@/lib/validation';
 
@@ -15,6 +15,7 @@ import { validateUploadFile } from '@/lib/validation';
 interface EmployeeData {
   id: string;
   name: string;
+  employee_code?: string | null;
   job_title?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -37,13 +38,6 @@ interface EmployeeData {
   preferred_language?: string | null;
   nationality?: string | null;
 }
-
-type AppOption = {
-  id: string;
-  name: string;
-  brand_color?: string | null;
-  text_color?: string | null;
-};
 
 interface Props {
   onClose: () => void;
@@ -136,7 +130,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
-  const [availableApps, setAvailableApps] = useState<AppOption[]>([]);
+  const [availableApps, setAvailableApps] = useState<EmployeeAppOption[]>([]);
 
   const APP_COLOR_FALLBACKS: Record<string, { bg: string; fg: string }> = {
     'هنقرستيشن': { bg: '#ea580c', fg: '#ffffff' },
@@ -156,22 +150,26 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
     Promise.all([
-      supabase.from('salary_schemes').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
+      employeeService.getActiveSalarySchemes(),
+      employeeService.getActiveApps(),
     ]).then(([schemesRes, appsRes]) => {
+      if (!isMounted) return;
       if (schemesRes.data) setSchemes(schemesRes.data);
       if (appsRes.data) setAvailableApps(appsRes.data);
     });
-    // If editing, load current employee_apps
+
     if (editEmployee) {
-      supabase.from('employee_apps').select('app_id, apps(name)').eq('employee_id', editEmployee.id)
-        .then(({ data }) => {
-          if (data) {
-            setForm(f => ({ ...f, selected_apps: data.map((ea: any) => ea.apps?.name).filter(Boolean) }));
-          }
-        });
+      employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
+        if (!isMounted || !data) return;
+        setForm((f) => ({ ...f, selected_apps: data }));
+      });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [editEmployee]);
 
   const [form, setForm] = useState({
@@ -300,13 +298,11 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       let empId: string;
 
       if (isEdit && editEmployee) {
-        const { error } = await supabase.from('employees').update(payload).eq('id', editEmployee.id);
-        if (error) throw error;
+        await employeeService.updateEmployee(editEmployee.id, payload);
         empId = editEmployee.id;
       } else {
         payload.status = 'active';
-        const { data: emp, error } = await supabase.from('employees').insert(payload).select().single();
-        if (error) throw error;
+        const { data: emp } = await employeeService.createEmployee(payload);
         empId = emp.id;
       }
 
@@ -328,32 +324,22 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
           }
           const ext = u.file.name.split('.').pop();
           const storagePath = `${u.path}.${ext}`;
-          const { data: upData, error: upError } = await supabase.storage
-            .from('employee-documents')
-            .upload(storagePath, u.file, { upsert: true });
-          if (!upError && upData) {
+          const { data: upData } = await employeeService.uploadEmployeeDocument(storagePath, u.file);
+          if (upData) {
             // Store the raw storage path — NOT a public URL
             updates[u.field] = upData.path;
           }
         }
       }
       if (Object.keys(updates).length > 0) {
-        await supabase.from('employees').update(updates).eq('id', empId);
+        await employeeService.updateEmployeeDocumentPaths(empId, updates);
       }
 
       // Sync employee_apps: delete old, insert new
-      await supabase.from('employee_apps').delete().eq('employee_id', empId);
-      if (form.selected_apps.length > 0) {
-        const appsToInsert = form.selected_apps
-          .map(appName => {
-            const appData = availableApps.find(a => a.name === appName);
-            return appData ? { employee_id: empId, app_id: appData.id, status: 'active' } : null;
-          })
-          .filter(Boolean) as { employee_id: string; app_id: string; status: string }[];
-        if (appsToInsert.length > 0) {
-          await supabase.from('employee_apps').insert(appsToInsert);
-        }
-      }
+      const appIds = form.selected_apps
+        .map((appName) => availableApps.find((a) => a.name === appName)?.id)
+        .filter((id): id is string => Boolean(id));
+      await employeeService.replaceEmployeeApps(empId, appIds);
 
       toast({
         title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',

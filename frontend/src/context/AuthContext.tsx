@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { authService } from '@/services/authService';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -15,25 +15,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-const fetchIsActive = async (userId: string): Promise<boolean> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('is_active')
-    .eq('id', userId)
-    .maybeSingle();
-  // Network or transient DB errors should not force-signout users.
-  if (error) return true;
-  return data?.is_active !== false;
-};
-
 const fetchRole = async (userId: string): Promise<AppRole | null> => {
-  const { data } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  return (data?.role as AppRole) || null;
+  return authService.fetchUserRole(userId);
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -43,13 +26,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const forceSignOut = useCallback(async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { user: currentUser } = await authService.getCurrentUser();
     const userId = currentUser?.id ?? user?.id ?? null;
-    await supabase.auth.signOut();
+    await authService.signOut();
     try {
-      await supabase.functions.invoke('admin-update-user', {
-        body: { userId, action: 'revoke_session' },
-      });
+      await authService.revokeSession(userId);
     } catch {
       // silent fail — local session already cleared
     }
@@ -59,39 +40,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user?.id]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          const active = await fetchIsActive(session.user.id);
-          if (!active) {
-            await forceSignOut();
-            setLoading(false);
-            return;
-          }
-          setSession(session);
-          setUser(session.user);
-          const r = await fetchRole(session.user.id);
-          setRole(r);
-        } else {
-          setSession(null);
-          setUser(null);
-          setRole(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const active = await fetchIsActive(session.user.id);
+    const subscription = authService.onAuthStateChange(async (_event, nextSession) => {
+      if (nextSession?.user) {
+        const active = await authService.fetchIsActive(nextSession.user.id);
         if (!active) {
           await forceSignOut();
           setLoading(false);
           return;
         }
-        setSession(session);
-        setUser(session.user);
-        const r = await fetchRole(session.user.id);
+        setSession(nextSession);
+        setUser(nextSession.user);
+        const r = await fetchRole(nextSession.user.id);
+        setRole(r);
+      } else {
+        setSession(null);
+        setUser(null);
+        setRole(null);
+      }
+      setLoading(false);
+    });
+
+    authService.getSession().then(async ({ session: currentSession }) => {
+      if (currentSession?.user) {
+        const active = await authService.fetchIsActive(currentSession.user.id);
+        if (!active) {
+          await forceSignOut();
+          setLoading(false);
+          return;
+        }
+        setSession(currentSession);
+        setUser(currentSession.user);
+        const r = await fetchRole(currentSession.user.id);
         setRole(r);
       }
       setLoading(false);
@@ -109,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const now = Date.now();
       if (now - lastRefreshAt < minMs) return;
       lastRefreshAt = now;
-      void supabase.auth.refreshSession().catch(() => {
+      void authService.refreshSession().catch(() => {
         /* يُعاد المحاولة عبر onAuthStateChange */
       });
     };
@@ -120,26 +99,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel(`profile-active-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        async (payload) => {
-          const updated = payload.new as { is_active?: boolean };
-          if (updated.is_active === false) {
-            await forceSignOut();
-          }
+    const channel = authService.subscribeToProfileActiveChanges(
+      user.id,
+      async (payload) => {
+        const updated = payload.new;
+        if (updated.is_active === false) {
+          await forceSignOut();
         }
-      )
-      .subscribe();
+      }
+    );
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { authService.removeRealtimeChannel(channel); };
   }, [forceSignOut, user]);
 
   // Re-check profile.is_active while logged in (narrows window where JWT still works after deactivation).
@@ -147,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user?.id) return;
     const tick = async () => {
       if (document.visibilityState !== 'visible') return;
-      const active = await fetchIsActive(user.id);
+      const active = await authService.fetchIsActive(user.id);
       if (!active) await forceSignOut();
     };
     const id = setInterval(tick, 120_000);
@@ -155,14 +125,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [forceSignOut, user?.id]);
 
   const signIn = async (email: string, password: string) => {
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    const { error, data } = await authService.signIn(email, password);
 
     if (error) return { error };
 
     if (data.user) {
-      const active = await fetchIsActive(data.user.id);
+      const active = await authService.fetchIsActive(data.user.id);
       if (!active) {
-        await supabase.auth.signOut();
+        await authService.signOut();
         return { error: { message: 'هذا الحساب معطّل. تواصل مع المسؤول.' } };
       }
     }
@@ -171,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await authService.signOut();
   };
 
   return (
