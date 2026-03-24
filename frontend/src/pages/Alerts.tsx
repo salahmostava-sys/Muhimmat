@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell, Search, CheckCircle, Clock, X, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@/hooks/useRealtimePostgresChanges';
 import { useToast } from '@/hooks/use-toast';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useAuth } from '@/context/AuthContext';
@@ -131,126 +132,129 @@ const Alerts = () => {
   const { settings } = useSystemSettings();
   const { user } = useAuth();
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
+  const [rtTick, setRtTick] = useState(0);
 
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      setLoading(true);
-      const today = new Date();
-      // Threshold for employees/vehicles: end of current month
-      const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
-      // Threshold for platform account iqama: configurable days from settings
-      const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
+  useRealtimePostgresChanges('alerts-page-realtime', REALTIME_TABLES_ALERTS_PAGE, () => {
+    setRtTick((n) => n + 1);
+  });
 
-      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await Promise.all([
-        supabase
-          .from('employees')
-          .select('id, name, residency_expiry, probation_end_date')
-          .eq('status', 'active')
-          .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
+  const loadAlerts = useCallback(async (silent: boolean) => {
+    if (!silent) setLoading(true);
+    const today = new Date();
+    const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
+    const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
 
-        supabase
-          .from('vehicles')
-          .select('id, plate_number, insurance_expiry, authorization_expiry')
-          .in('status', ['active', 'maintenance', 'rental'])
-          .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
+    const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await Promise.all([
+      supabase
+        .from('employees')
+        .select('id, name, residency_expiry, probation_end_date')
+        .eq('status', 'active')
+        .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
 
-        // Platform accounts with iqama expiring within configurable days
-        supabase
-          .from('platform_accounts')
-          .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
-          .eq('status', 'active')
-          .not('iqama_expiry_date', 'is', null)
-          .lte('iqama_expiry_date', iqamaThreshold),
-        supabase
-          .from('alerts')
-          .select('id, type, due_date, is_resolved, message, details')
-          .order('created_at', { ascending: false })
-          .limit(500),
-      ]);
+      supabase
+        .from('vehicles')
+        .select('id, plate_number, insurance_expiry, authorization_expiry')
+        .in('status', ['active', 'maintenance', 'rental'])
+        .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
 
-      const generatedAlerts: Alert[] = [];
+      supabase
+        .from('platform_accounts')
+        .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
+        .eq('status', 'active')
+        .not('iqama_expiry_date', 'is', null)
+        .lte('iqama_expiry_date', iqamaThreshold),
+      supabase
+        .from('alerts')
+        .select('id, type, due_date, is_resolved, message, details')
+        .order('created_at', { ascending: false })
+        .limit(500),
+    ]);
 
-      // Employee residency & probation alerts
-      (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
-        pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
-      );
+    const generatedAlerts: Alert[] = [];
 
-      // Vehicle insurance & authorization alerts
-      vehiclesRes.data?.forEach(v => {
-        if (v.insurance_expiry && v.insurance_expiry <= threshold) {
-          const days = differenceInDays(parseISO(v.insurance_expiry), today);
-          generatedAlerts.push({
-            id: `ins-${v.id}`,
-            type: 'insurance',
-            entityName: `مركبة ${v.plate_number}`,
-            dueDate: v.insurance_expiry,
-            daysLeft: days,
-            severity: getStandardSeverity(days),
-            resolved: false,
-          });
-        }
-        if (v.authorization_expiry && v.authorization_expiry <= threshold) {
-          const days = differenceInDays(parseISO(v.authorization_expiry), today);
-          generatedAlerts.push({
-            id: `auth-${v.id}`,
-            type: 'authorization',
-            entityName: `مركبة ${v.plate_number}`,
-            dueDate: v.authorization_expiry,
-            daysLeft: days,
-            severity: getStandardSeverity(days),
-            resolved: false,
-          });
-        }
-      });
+    (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
+      pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
+    );
 
-      // Platform account iqama alerts
-      ((platformAccountsRes.data ?? []) as PlatformAccountAlertRow[]).forEach((acc) => {
-        if (!acc.iqama_expiry_date) return;
-        const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
-        const appName = acc.apps?.name ?? 'منصة';
-        const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
+    vehiclesRes.data?.forEach(v => {
+      if (v.insurance_expiry && v.insurance_expiry <= threshold) {
+        const days = differenceInDays(parseISO(v.insurance_expiry), today);
         generatedAlerts.push({
-          id: `pla-${acc.id}`,
-          type: 'platform_account',
-          entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
-          dueDate: acc.iqama_expiry_date,
+          id: `ins-${v.id}`,
+          type: 'insurance',
+          entityName: `مركبة ${v.plate_number}`,
+          dueDate: v.insurance_expiry,
           daysLeft: days,
           severity: getStandardSeverity(days),
           resolved: false,
         });
-      });
-
-      // Persisted alerts from `public.alerts` table (e.g. absconded/terminated employees)
-      ((dbAlertsRes.data ?? []) as PersistedAlertRow[]).forEach((a) => {
-        const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
-        const daysLeft = differenceInDays(parseISO(dueDate), today);
-        const severity = getStandardSeverity(daysLeft);
-
-        const details = a.details ?? {};
-        const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
-        const entityName = detailsEmployeeName ?? a.message ?? '—';
-
+      }
+      if (v.authorization_expiry && v.authorization_expiry <= threshold) {
+        const days = differenceInDays(parseISO(v.authorization_expiry), today);
         generatedAlerts.push({
-          id: a.id,
-          type: a.type,
-          entityName,
-          dueDate,
-          daysLeft,
-          severity,
-          resolved: !!a.is_resolved,
+          id: `auth-${v.id}`,
+          type: 'authorization',
+          entityName: `مركبة ${v.plate_number}`,
+          dueDate: v.authorization_expiry,
+          daysLeft: days,
+          severity: getStandardSeverity(days),
+          resolved: false,
         });
+      }
+    });
+
+    ((platformAccountsRes.data ?? []) as PlatformAccountAlertRow[]).forEach((acc) => {
+      if (!acc.iqama_expiry_date) return;
+      const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
+      const appName = acc.apps?.name ?? 'منصة';
+      const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
+      generatedAlerts.push({
+        id: `pla-${acc.id}`,
+        type: 'platform_account',
+        entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
+        dueDate: acc.iqama_expiry_date,
+        daysLeft: days,
+        severity: getStandardSeverity(days),
+        resolved: false,
       });
+    });
 
-      generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
-      setLocalAlerts(generatedAlerts);
-      setLoading(false);
-    };
+    ((dbAlertsRes.data ?? []) as PersistedAlertRow[]).forEach((a) => {
+      const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
+      const daysLeft = differenceInDays(parseISO(dueDate), today);
+      const severity = getStandardSeverity(daysLeft);
 
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 60_000);
-    return () => clearInterval(interval);
+      const details = a.details ?? {};
+      const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
+      const entityName = detailsEmployeeName ?? a.message ?? '—';
+
+      generatedAlerts.push({
+        id: a.id,
+        type: a.type,
+        entityName,
+        dueDate,
+        daysLeft,
+        severity,
+        resolved: !!a.is_resolved,
+      });
+    });
+
+    generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
+    setLocalAlerts(generatedAlerts);
+    if (!silent) setLoading(false);
   }, [iqamaAlertDays]);
+
+  useEffect(() => {
+    loadAlerts(false);
+    const interval = setInterval(() => loadAlerts(true), 60_000);
+    return () => clearInterval(interval);
+  }, [iqamaAlertDays, loadAlerts]);
+
+  useEffect(() => {
+    if (rtTick === 0) return;
+    void loadAlerts(true);
+  }, [rtTick, loadAlerts]);
 
   const filtered = localAlerts.filter(a => {
     const matchType = typeFilter === 'all' || a.type === typeFilter;

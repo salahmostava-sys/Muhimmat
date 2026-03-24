@@ -1,5 +1,5 @@
 import { useState, forwardRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAppColors } from '@/hooks/useAppColors';
+import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@/hooks/useRealtimePostgresChanges';
 import { Button } from '@/components/ui/button';
 import * as XLSX from '@e965/xlsx';
 
@@ -411,6 +412,12 @@ const Dashboard = () => {
   const [topNInput, setTopNInput] = useState('5');
 
   const currentMonth = format(new Date(), 'yyyy-MM');
+  const queryClient = useQueryClient();
+
+  useRealtimePostgresChanges('dashboard-realtime', REALTIME_TABLES_DASHBOARD, () => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', currentMonth] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-analytics'] });
+  });
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['dashboard-kpis', currentMonth],

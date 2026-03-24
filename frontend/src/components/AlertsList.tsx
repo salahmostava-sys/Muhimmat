@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hooks/useRealtimePostgresChanges';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInDays, parseISO, endOfMonth, format } from 'date-fns';
@@ -34,6 +35,11 @@ interface AlertItem {
 
 const AlertsList = () => {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useRealtimePostgresChanges('dashboard-alerts-widget', REALTIME_TABLES_ALERTS_WIDGET, () => {
+    setRefreshKey((k) => k + 1);
+  });
 
   useEffect(() => {
     const fetchAlerts = async () => {
@@ -89,7 +95,7 @@ const AlertsList = () => {
     };
 
     fetchAlerts();
-  }, []);
+  }, [refreshKey]);
 
   const severityDot: Record<string, string> = {
     urgent: 'bg-destructive',
