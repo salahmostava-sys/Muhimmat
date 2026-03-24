@@ -419,10 +419,10 @@ const EmployeeTiers = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative">
+      <div className="flex items-center gap-2 flex-wrap w-full min-w-0">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="بحث بالاسم أو رقم الشريحة..." className="pr-9 h-9 w-64" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="بحث بالاسم أو رقم الشريحة..." className="pr-9 h-9 w-full" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-1">
           {[{ v: 'all', l: 'الكل' }, { v: STATUS_DELIVERED, l: 'مسلّمة' }, { v: STATUS_NOT_DELIVERED, l: 'غير مسلّمة' }].map(s => (
@@ -524,17 +524,17 @@ const EmployeeTiers = () => {
                 {/* ── Data rows ── */}
                 {filtered.length === 0 && !addingRow ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center">
-                      <Layers size={32} className="mx-auto opacity-20 mb-2" />
-                      <p className="text-sm text-muted-foreground">لا توجد شرائح — أضف شريحة جديدة</p>
+                    <td colSpan={6} className="p-0 align-middle">
+                      <div className="min-h-[min(48vh,26rem)] flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+                        <Layers size={32} className="opacity-20" />
+                        <p className="text-sm">لا توجد شرائح — أضف شريحة جديدة</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filtered.map(tier => {
                     const row   = getRow(tier);
                     const dirty = isDirty(tier);
-                    const emp   = empMap[row.employee_id];
-                    const linkedApps = apps.filter(a => (row.app_ids || []).includes(a.id));
 
                     return (
                       <tr key={tier.id} className={`border-b border-border/30 hover:bg-muted/10 transition-colors ${dirty ? 'bg-primary/5' : ''}`}>
@@ -552,34 +552,35 @@ const EmployeeTiers = () => {
                         {/* employee */}
                         <td className="px-2 py-2 min-w-0 align-top">
                           <div className="w-full min-w-0">
-                          <EmployeeSelect
-                            employees={employees}
-                            value={row.employee_id}
-                            onChange={id => {
-                              const e = employees.find(x => x.id === id);
-                              const newStatus = e?.sponsorship_status === 'absconded' ? STATUS_NOT_DELIVERED : row.delivery_status;
-                              patchRow(tier.id, { employee_id: id, delivery_status: newStatus });
-                            }}
-                          />
+                            <EmployeeSelect
+                              employees={employees}
+                              value={row.employee_id}
+                              onChange={id => {
+                                const e = employees.find(x => x.id === id);
+                                const newStatus = e?.sponsorship_status === 'absconded' ? STATUS_NOT_DELIVERED : row.delivery_status;
+                                patchRow(tier.id, { employee_id: id, delivery_status: newStatus });
+                              }}
+                            />
+                          </div>
                         </td>
 
                         {/* package_type */}
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 min-w-0 align-top">
                           <Input
                             value={row.package_type || ''}
                             onChange={e => patchRow(tier.id, { package_type: e.target.value })}
-                            className="h-8 text-xs w-32"
+                            className="h-8 text-xs w-full min-w-0"
                             placeholder="نوع الباقة"
                           />
                         </td>
 
 
                         {/* status */}
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 min-w-0 align-top">
                           <select
                             value={row.delivery_status}
                             onChange={e => patchRow(tier.id, { delivery_status: e.target.value })}
-                            className={`h-8 text-xs rounded-lg border px-2 w-28 font-medium ${row.delivery_status === STATUS_DELIVERED ? 'border-success/30 bg-success/5 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}
+                            className={`h-8 text-xs rounded-lg border px-2 w-full min-w-0 max-w-full font-medium ${row.delivery_status === STATUS_DELIVERED ? 'border-success/30 bg-success/5 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}
                           >
                             <option value={STATUS_DELIVERED}>مسلّمة</option>
                             <option value={STATUS_NOT_DELIVERED}>غير مسلم</option>
@@ -587,7 +588,7 @@ const EmployeeTiers = () => {
                         </td>
 
                         {/* apps */}
-                        <td className="px-2 py-2 min-w-[160px]">
+                        <td className="px-2 py-2 min-w-0 align-top">
                           <AppMultiSelect
                             apps={apps}
                             selected={row.app_ids || []}
@@ -596,7 +597,7 @@ const EmployeeTiers = () => {
                         </td>
 
                         {/* actions */}
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-2 text-center align-top whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
                             {dirty ? (
                               <>
