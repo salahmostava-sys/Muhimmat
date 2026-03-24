@@ -307,17 +307,40 @@ const Employees = () => {
   // ── Fetch employees ──
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
-    const { data: rows, error } = await employeeService.getAll();
-    if (!error && rows) {
-      setData(rows as Employee[]);
-    } else if (error) {
-      toast({ title: 'خطأ في تحميل البيانات', description: error.message, variant: 'destructive' });
+    try {
+      // Avoid infinite skeleton state when network stalls.
+      const result = await Promise.race([
+        employeeService.getAll(),
+        new Promise<{ data: null; error: { message: string } }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: { message: 'انتهت مهلة تحميل البيانات. حاول مرة أخرى.' } }), 12000)
+        ),
+      ]);
+
+      const { data: rows, error } = result;
+      if (!error && rows) {
+        setData(rows as Employee[]);
+      } else if (error) {
+        toast({ title: 'خطأ في تحميل البيانات', description: error.message, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'خطأ في تحميل البيانات',
+        description: err?.message || 'حدث خطأ غير متوقع أثناء تحميل الموظفين',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [toast]);
 
   useEffect(() => {
     fetchEmployees();
+  }, [fetchEmployees]);
+
+  useEffect(() => {
+    const onFocus = () => fetchEmployees();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [fetchEmployees]);
 
   // Reset page when filters/sort change
