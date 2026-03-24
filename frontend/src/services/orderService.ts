@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export interface DailyOrder {
   id: string;
@@ -32,6 +33,11 @@ type ActiveApp = {
   logo_url?: string | null;
 };
 
+type EmployeeAppRow = {
+  employee_id: string;
+  app_id: string;
+};
+
 export const orderService = {
   getOrdersByEmployeeMonth: async (employeeId: string, monthYear: string) => {
     const [year, month] = monthYear.split('-');
@@ -46,6 +52,7 @@ export const orderService = {
       .lte('date', to)
       .order('date', { ascending: true });
 
+    throwIfError(error, 'orderService.getOrdersByEmployeeMonth');
     return { data, error };
   },
 
@@ -58,6 +65,7 @@ export const orderService = {
       .select('employee_id, app_id, orders_count, apps(name, id)')
       .gte('date', from)
       .lte('date', to);
+    throwIfError(error, 'orderService.getSalaryContextOrdersByMonth');
     return { data, error };
   },
 
@@ -72,6 +80,7 @@ export const orderService = {
     if (filters.appId) query = query.eq('app_id', filters.appId);
 
     const { data, error } = await query;
+    throwIfError(error, 'orderService.getByDate');
     return { data, error };
   },
 
@@ -91,6 +100,7 @@ export const orderService = {
     if (filters.appId) query = query.eq('app_id', filters.appId);
 
     const { data, error } = await query;
+    throwIfError(error, 'orderService.getByMonth');
     return { data, error };
   },
 
@@ -103,11 +113,13 @@ export const orderService = {
       )
       .select()
       .single();
+    throwIfError(error, 'orderService.upsert');
     return { data, error };
   },
 
   delete: async (id: string) => {
     const { error } = await supabase.from('daily_orders').delete().eq('id', id);
+    throwIfError(error, 'orderService.delete');
     return { error };
   },
 
@@ -122,6 +134,7 @@ export const orderService = {
       .eq('employee_id', employeeId)
       .gte('date', from)
       .lte('date', to);
+    throwIfError(error, 'orderService.getTotalByEmployee');
 
     const total = data?.reduce((sum, row) => sum + (row.orders_count ?? 0), 0) ?? 0;
     return { total, error };
@@ -132,6 +145,7 @@ export const orderService = {
       .from('app_targets')
       .select('*, apps(name, name_en, brand_color)')
       .eq('month_year', monthYear);
+    throwIfError(error, 'orderService.getAppTargets');
     return { data, error };
   },
 
@@ -144,6 +158,7 @@ export const orderService = {
       )
       .select()
       .single();
+    throwIfError(error, 'orderService.upsertAppTarget');
     return { data, error };
   },
 
@@ -155,6 +170,7 @@ export const orderService = {
       .select('employee_id, app_id, date, orders_count')
       .gte('date', from)
       .lte('date', to);
+    throwIfError(error, 'orderService.getMonthRaw');
     return { data, error };
   },
 
@@ -179,6 +195,7 @@ export const orderService = {
       .eq('status', 'active')
       .not('sponsorship_status', 'in', '("absconded","terminated")')
       .order('name');
+    throwIfError(error, 'orderService.getActiveEmployees');
     return { data: (data || []) as ActiveEmployee[], error };
   },
 
@@ -188,7 +205,16 @@ export const orderService = {
       .select('id, name, name_en, logo_url')
       .eq('is_active', true)
       .order('name');
+    throwIfError(error, 'orderService.getActiveApps');
     return { data: (data || []) as ActiveApp[], error };
+  },
+
+  getEmployeeAppAssignments: async () => {
+    const { data, error } = await supabase
+      .from('employee_apps')
+      .select('employee_id, app_id');
+    throwIfError(error, 'orderService.getEmployeeAppAssignments');
+    return { data: (data || []) as EmployeeAppRow[], error };
   },
 
   getMonthLockStatus: async (month_year: string) => {
@@ -197,6 +223,7 @@ export const orderService = {
       .select('month_year')
       .eq('month_year', month_year)
       .maybeSingle();
+    throwIfError(error, 'orderService.getMonthLockStatus');
     return { locked: !!data, error };
   },
 
@@ -207,6 +234,7 @@ export const orderService = {
       { month_year, locked_at: new Date().toISOString(), locked_by: userId },
       { onConflict: 'month_year' }
     );
+    throwIfError(error, 'orderService.lockMonth');
     return { error };
   },
 };

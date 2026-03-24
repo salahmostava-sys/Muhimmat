@@ -11,7 +11,6 @@ import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -166,22 +165,31 @@ const SpreadsheetGrid = () => {
     Promise.all([
       orderService.getActiveEmployees(),
       orderService.getActiveApps(),
-      supabase.from('employee_apps').select('employee_id, app_id'),
-    ]).then(([empRes, appRes, empAppsRes]) => {
-      if (!isMounted) return;
-      if (empRes.data) setEmployees(empRes.data as Employee[]);
-      if (appRes.data) setApps(appRes.data as App[]);
-      if (empAppsRes.data) {
-        const map: Record<string, Set<string>> = {};
-        for (const row of empAppsRes.data) {
-          if (!map[row.app_id]) map[row.app_id] = new Set();
-          map[row.app_id].add(row.employee_id);
+      orderService.getEmployeeAppAssignments(),
+    ])
+      .then(([empRes, appRes, empAppsRes]) => {
+        if (!isMounted) return;
+        if (empRes.data) setEmployees(empRes.data as Employee[]);
+        if (appRes.data) setApps(appRes.data as App[]);
+        if (empAppsRes.data) {
+          const map: Record<string, Set<string>> = {};
+          for (const row of empAppsRes.data) {
+            if (!map[row.app_id]) map[row.app_id] = new Set();
+            map[row.app_id].add(row.employee_id);
+          }
+          setAppEmployeeIds(map);
         }
-        setAppEmployeeIds(map);
-      }
-    });
+      })
+      .catch((error: Error) => {
+        if (!isMounted) return;
+        toast({
+          title: 'فشل تحميل بيانات الطلبات',
+          description: error.message,
+          variant: 'destructive',
+        });
+      });
     return () => { isMounted = false; };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     let isMounted = true;
