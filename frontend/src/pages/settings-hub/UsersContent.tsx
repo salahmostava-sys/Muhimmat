@@ -1,7 +1,7 @@
 import UsersAndPermissions from '@/pages/UsersAndPermissions';
 
 const UsersContent = () => {
-  return <UsersAndPermissions />;
+  return <UsersAndPermissions embedded />;
 };
 
 export default UsersContent;

@@ -55,7 +55,11 @@ const tierTypeLabels: Record<TierType, string> = {
 
 const currentMonth = format(new Date(), 'yyyy-MM');
 
-const SalarySchemes = () => {
+interface SalarySchemesProps {
+  embedded?: boolean;
+}
+
+const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const { toast } = useToast();
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [tiers, setTiersMap] = useState<Record<string, Tier[]>>({});
@@ -276,12 +280,19 @@ const SalarySchemes = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Settings size={24} /> إدارة السكيمات
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">شرائح الرواتب والمكافآت — السكيمة مرتبطة بالمنصة</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Settings size={24} /> إدارة السكيمات
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">شرائح الرواتب والمكافآت — السكيمة مرتبطة بالمنصة</p>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">مخططات الرواتب</h2>
+            <p className="text-xs text-muted-foreground mt-1">إدارة الشرائح وربطها بالمنصات</p>
+          </div>
+        )}
         <Button className="gap-2" onClick={openAdd}><Plus size={16} /> إضافة سكيمة</Button>
       </div>
 

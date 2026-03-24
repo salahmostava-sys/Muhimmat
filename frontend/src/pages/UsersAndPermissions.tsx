@@ -22,7 +22,11 @@ type UserRow = {
 
 const ROLES: AppRole[] = ['admin', 'hr', 'finance', 'operations', 'viewer'];
 
-const UsersAndPermissions = () => {
+interface UsersAndPermissionsProps {
+  embedded?: boolean;
+}
+
+const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => {
   const { toast } = useToast();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +126,7 @@ const UsersAndPermissions = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
+          <h2 className={`${embedded ? 'text-lg' : 'text-xl'} font-bold flex items-center gap-2`}>
             <Shield size={18} />
             المستخدمون والصلاحيات
           </h2>

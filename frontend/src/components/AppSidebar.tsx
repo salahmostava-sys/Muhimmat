@@ -82,7 +82,7 @@ const AppSidebar = () => {
     },
     {
       key: 'settings',
-      sectionLabel: t('settings'),
+      sectionLabel: isRTL ? 'النظام' : 'System',
       items: [
         { label: t('settings'), icon: Settings2, path: '/settings' },
       ],
