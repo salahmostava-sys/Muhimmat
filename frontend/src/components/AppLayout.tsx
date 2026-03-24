@@ -25,10 +25,24 @@ interface AppLayoutProps {
 const routeTitles: Record<string, string> = {
   '/': 'dashboard',
   '/employees': 'employees',
+  '/departments': 'departments',
+  '/positions': 'positions',
   '/attendance': 'attendance',
   '/orders': 'orders',
   '/salaries': 'payroll',
-  '/settings': 'settings',
+  '/advances': 'advances',
+  '/motorcycles': 'vehicles',
+  '/vehicle-assignment': 'vehicleAssignment',
+  '/fuel': 'fuel',
+  '/apps': 'apps',
+  '/alerts': 'alerts',
+  '/reports': 'reports',
+  '/analytics': 'analytics',
+  '/violation-resolver': 'violationResolver',
+  '/activity-log': 'activityLog',
+  '/settings/schemes': 'schemes',
+  '/settings/users': 'users',
+  '/settings/general': 'generalSettings',
 };
 
 const roleLabelsMap: Record<string, string> = {

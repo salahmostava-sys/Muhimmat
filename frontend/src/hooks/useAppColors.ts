@@ -17,6 +17,13 @@ export interface AppColorData {
 
 const FALLBACK_COLORS = ['#2563eb', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#dc2626'];
 
+export const invalidateAppColorsCache = () => {
+  // Keep compatibility with pages that trigger a refresh signal after app updates.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('app-colors:invalidate'));
+  }
+};
+
 export const getAppColor = (apps: AppColorData[], appName: string) => {
   const idx = Math.max(0, apps.findIndex((a) => a.name === appName));
   const app = apps.find((a) => a.name === appName);
@@ -56,8 +63,13 @@ export const useAppColors = () => {
       setLoading(false);
     };
     run();
+    const onInvalidate = () => {
+      run();
+    };
+    window.addEventListener('app-colors:invalidate', onInvalidate);
     return () => {
       mounted = false;
+      window.removeEventListener('app-colors:invalidate', onInvalidate);
     };
   }, []);
 
