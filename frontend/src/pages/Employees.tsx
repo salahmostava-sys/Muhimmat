@@ -26,13 +26,13 @@ import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
 import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
 import { driverService } from '@/services/driverService';
-import { employeeService } from '@/services/employeeService';
 import { useToast } from '@/hooks/use-toast';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import * as XLSX from '@e965/xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useEmployees } from '@/hooks/useEmployees';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {
@@ -277,7 +277,12 @@ const Employees = () => {
   const { permissions } = usePermissions('employees');
 
   const [data, setData]       = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: employeesData = [],
+    isLoading: loading,
+    error: employeesError,
+    refetch: refetchEmployees,
+  } = useEmployees();
   const [sortField, setSortField] = useState<string | null>('name');
   const [sortDir, setSortDir]     = useState<SortDir>('asc');
 
@@ -310,38 +315,18 @@ const Employees = () => {
   const [statusDate, setStatusDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [statusDateSaving, setStatusDateSaving] = useState(false);
 
-  // ── Fetch employees ──
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Avoid infinite skeleton state when network stalls.
-      const result = await Promise.race([
-        employeeService.getAll(),
-        new Promise<{ data: null; error: { message: string } }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: { message: 'انتهت مهلة تحميل البيانات. حاول مرة أخرى.' } }), 12000)
-        ),
-      ]);
-
-      const { data: rows, error } = result;
-      if (!error && rows) {
-        setData(rows as Employee[]);
-      } else if (error) {
-        toast({ title: 'خطأ في تحميل البيانات', description: error.message, variant: 'destructive' });
-      }
-    } catch (err: any) {
-      toast({
-        title: 'خطأ في تحميل البيانات',
-        description: err?.message || 'حدث خطأ غير متوقع أثناء تحميل الموظفين',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  useEffect(() => {
+    setData(employeesData as Employee[]);
+  }, [employeesData]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    if (!employeesError) return;
+    const message =
+      employeesError instanceof Error
+        ? employeesError.message
+        : 'حدث خطأ غير متوقع أثناء تحميل الموظفين';
+    toast({ title: 'خطأ في تحميل البيانات', description: message, variant: 'destructive' });
+  }, [employeesError, toast]);
 
   // إعادة جلب البيانات فقط بعد إخفاء الصفحة فترة (أونلاين) — بدون إعادة تحميل عند كل focus لتفادي الوميض والتعارض
   useEffect(() => {
@@ -355,11 +340,11 @@ const Employees = () => {
       if (document.visibilityState !== 'visible' || hiddenAt === null) return;
       const away = Date.now() - hiddenAt;
       hiddenAt = null;
-      if (away >= minAwayMs) void fetchEmployees();
+      if (away >= minAwayMs) void refetchEmployees();
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [fetchEmployees]);
+  }, [refetchEmployees]);
 
   // Reset page when filters/sort change
   useEffect(() => { setPage(1); }, [colFilters, sortField, sortDir]);
@@ -1163,14 +1148,14 @@ const Employees = () => {
         <AddEmployeeModal
           onClose={() => { setShowAddModal(false); setEditEmployee(null); }}
           editEmployee={editEmployee}
-          onSuccess={() => { fetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
+          onSuccess={() => { void refetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
         />
       )}
 
       {showImportModal && (
         <ImportEmployeesModal
           onClose={() => setShowImportModal(false)}
-          onSuccess={() => { setShowImportModal(false); fetchEmployees(); }}
+          onSuccess={() => { setShowImportModal(false); void refetchEmployees(); }}
         />
       )}
 
