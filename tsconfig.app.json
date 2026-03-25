@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
+    "allowJs": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "lib": [
@@ -23,16 +24,16 @@
     },
     "skipLibCheck": true,
     "strict": false,
+    "strictNullChecks": false,
+    "suppressImplicitAnyIndexErrors": true,
     "target": "ES2020",
     "types": [
       "vite/client",
       "vitest/globals"
     ],
-    "useDefineForClassFields": true,
-    "ignoreDeprecations": "5.0"
+    "useDefineForClassFields": true
   },
   "include": [
     "src"
-  ],
-  "exclude": []
+  ]
 }
