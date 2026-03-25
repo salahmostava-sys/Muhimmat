@@ -22,6 +22,77 @@ export const employeeService = {
     return { data, error };
   },
 
+  /**
+   * Server-side list for large volumes (pagination + filters).
+   * Notes:
+   * - Branch filter is derived from employees.city (makkah/jeddah).
+   * - Search matches common identifiers (name, code, national_id, phone).
+   */
+  async getPaged(params: {
+    page: number; // 1-based
+    pageSize: number;
+    filters?: {
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+      status?: 'active' | 'inactive' | 'ended';
+    };
+  }) {
+    const { page, pageSize } = params;
+    const filters = params.filters ?? {};
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('employees')
+      .select(
+        'id, name, employee_code, national_id, phone, city, status, sponsorship_status, license_status, residency_expiry, join_date, job_title',
+        { count: 'exact' }
+      )
+      .order('name', { ascending: true })
+      .range(fromIdx, toIdx);
+
+    if (filters.branch) query = query.eq('city', filters.branch);
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.search?.trim()) {
+      const q = filters.search.trim();
+      query = query.or(
+        [
+          `name.ilike.%${q}%`,
+          `employee_code.ilike.%${q}%`,
+          `national_id.ilike.%${q}%`,
+          `phone.ilike.%${q}%`,
+        ].join(',')
+      );
+    }
+
+    const { data, error, count } = await query;
+    return { data: data || [], error, count: count ?? 0 };
+  },
+
+  /** Export helper for large datasets (chunked). */
+  async exportEmployees(params: {
+    filters?: {
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+      status?: 'active' | 'inactive' | 'ended';
+    };
+    chunkSize?: number;
+    maxRows?: number;
+  }) {
+    const filters = params.filters ?? {};
+    const chunkSize = params.chunkSize ?? 1000;
+    const maxRows = params.maxRows ?? 50_000;
+
+    const all: unknown[] = [];
+    for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
+      const res = await employeeService.getPaged({ page, pageSize: chunkSize, filters });
+      if (res.error) return { data: all, error: res.error };
+      all.push(...(res.data || []));
+      if ((res.data || []).length < chunkSize) break;
+    }
+    return { data: all, error: null };
+  },
+
   async updateCity(employeeId: string, city: 'makkah' | 'jeddah') {
     const { error } = await supabase
       .from('employees')

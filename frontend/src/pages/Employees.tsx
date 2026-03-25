@@ -34,6 +34,11 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
+import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useEmployeesPaged } from '@/hooks/useEmployeesPaged';
+import { employeeService } from '@/services/employeeService';
+import { auditService } from '@/services/auditService';
 import {
   CityBadge,
   LicenseBadge,
@@ -139,6 +144,7 @@ const Employees = () => {
   const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const [data, setData]       = useState<Employee[]>([]);
+  const [viewMode, setViewMode] = useState<'detailed' | 'fast'>('detailed');
   const {
     data: employeesData = [],
     isLoading: loading,
@@ -159,6 +165,12 @@ const Employees = () => {
   // pagination
   const [page, setPage]         = useState(1);
   const [pageSize, setPageSize] = useState(50);
+
+  // fast list state (server-side)
+  const [fastPage, setFastPage] = useState(1);
+  const [fastPageSize] = useState(50);
+  const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
+  const [fastStatus, setFastStatus] = useState<'all' | 'active' | 'inactive' | 'ended'>('active');
 
   // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -412,6 +424,59 @@ const Employees = () => {
     XLSX.writeFile(wb, `بيانات_المناديب_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
+  const handleFastExport = async () => {
+    const branch = fastFilters.branch && fastFilters.branch !== 'all' ? (fastFilters.branch as Exclude<BranchKey, 'all'>) : undefined;
+    const search = fastFilters.search?.trim() || undefined;
+    const status = fastStatus !== 'all' ? fastStatus : undefined;
+
+    const res = await employeeService.exportEmployees({ filters: { branch, search, status } });
+    if (res.error) {
+      const message = res.error instanceof Error ? res.error.message : 'تعذر التصدير';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      return;
+    }
+
+    const out = (res.data || []) as Array<{
+      name: string;
+      employee_code: string | null;
+      national_id: string | null;
+      phone: string | null;
+      city: string | null;
+      status: string;
+      sponsorship_status: string | null;
+      license_status: string | null;
+      residency_expiry: string | null;
+      join_date: string | null;
+      job_title: string | null;
+    }>;
+
+    const rows = out.map((e, i) => ({
+      '#': i + 1,
+      'الكود': e.employee_code ?? '',
+      'الاسم': e.name ?? '',
+      'رقم الهوية': e.national_id ?? '',
+      'رقم الهاتف': e.phone ?? '',
+      'المدينة': e.city ?? '',
+      'الحالة': e.status ?? '',
+      'حالة الكفالة': e.sponsorship_status ?? '',
+      'حالة الرخصة': e.license_status ?? '',
+      'انتهاء الإقامة': e.residency_expiry ?? '',
+      'تاريخ الانضمام': e.join_date ?? '',
+      'المسمى الوظيفي': e.job_title ?? '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+    XLSX.writeFile(wb, `employees_fast_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+
+    await auditService.logAdminAction({
+      action: 'employees.export',
+      table_name: 'employees',
+      record_id: null,
+      meta: { total: out.length, branch: branch ?? null, status: status ?? null, search: search ?? null },
+    });
+  };
+
   const handleTemplate = () => {
     const headers = [[
       'كود الموظف', 'الاسم', 'الاسم (إنجليزي)', 'رقم الهوية', 'رقم الهاتف', 'البريد الإلكتروني',
@@ -486,6 +551,27 @@ const Employees = () => {
     }
   }
 
+  if (viewMode === 'fast') {
+    return (
+      <EmployeesFastList
+        loadingMain={loading}
+        onBackToDetailed={() => setViewMode('detailed')}
+        branch={fastFilters.branch}
+        search={fastFilters.search}
+        status={fastStatus}
+        onStatusChange={setFastStatus}
+        onFiltersChange={(next) => {
+          setFastFilters(next);
+          setFastPage(1);
+        }}
+        page={fastPage}
+        onPageChange={setFastPage}
+        pageSize={fastPageSize}
+        onExport={handleFastExport}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -499,6 +585,9 @@ const Employees = () => {
           <h1 className="page-title">الموظفين</h1>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setViewMode('fast')}>
+            <Columns size={14} /> قائمة (سريعة)
+          </Button>
           {/* Hide/show columns */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1090,3 +1179,197 @@ const Employees = () => {
 };
 
 export default Employees;
+
+function EmployeesFastList(props: {
+  loadingMain: boolean;
+  onBackToDetailed: () => void;
+  branch: BranchKey;
+  search: string;
+  status: 'all' | 'active' | 'inactive' | 'ended';
+  onStatusChange: (v: 'all' | 'active' | 'inactive' | 'ended') => void;
+  onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
+  page: number;
+  onPageChange: (p: number) => void;
+  pageSize: number;
+  onExport: () => void;
+}) {
+  const {
+    loadingMain,
+    onBackToDetailed,
+    branch,
+    search,
+    status,
+    onStatusChange,
+    onFiltersChange,
+    page,
+    onPageChange,
+    pageSize,
+    onExport,
+  } = props;
+
+  const { data, isLoading } = useEmployeesPaged({
+    page,
+    pageSize,
+    filters: { branch, search, status },
+  });
+
+  type Row = {
+    id: string;
+    name: string;
+    employee_code: string | null;
+    national_id: string | null;
+    phone: string | null;
+    city: string | null;
+    status: string;
+    sponsorship_status: string | null;
+    residency_expiry: string | null;
+    job_title: string | null;
+  };
+
+  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
+  const rows = paged?.data || [];
+  const total = paged?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return (
+    <div className="space-y-4">
+      <div className="page-header">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="page-title">الموظفين — قائمة (سريعة)</h1>
+            <p className="page-subtitle">{loadingMain ? 'جارٍ التحميل...' : `${total.toLocaleString()} نتيجة`}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onBackToDetailed}>
+              رجوع للتفصيلي
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={onExport}>
+              📊 تصدير Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ds-card p-3 space-y-3">
+        <GlobalTableFilters
+          value={{
+            ...createDefaultGlobalFilters(),
+            branch,
+            search,
+            driverId: 'all',
+            platformAppId: 'all',
+            dateFrom: '',
+            dateTo: '',
+          }}
+          onChange={(next) =>
+            onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })
+          }
+          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
+          options={{
+            enableBranch: true,
+            enableDriver: false,
+            enablePlatform: false,
+            enableDateRange: false,
+          }}
+        />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Label className="text-xs">الحالة</Label>
+          <Select value={status} onValueChange={(v) => onStatusChange(v as 'all' | 'active' | 'inactive' | 'ended')}>
+            <SelectTrigger className="h-9 w-40 text-sm">
+              <SelectValue placeholder="الحالة" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الكل</SelectItem>
+              <SelectItem value="active">نشط</SelectItem>
+              <SelectItem value="inactive">غير نشط</SelectItem>
+              <SelectItem value="ended">منتهي</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="ds-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-center font-semibold px-4 py-3">الاسم</th>
+                <th className="text-center font-semibold px-4 py-3">الكود</th>
+                <th className="text-center font-semibold px-4 py-3">رقم الهوية</th>
+                <th className="text-center font-semibold px-4 py-3">الهاتف</th>
+                <th className="text-center font-semibold px-4 py-3">الفرع</th>
+                <th className="text-center font-semibold px-4 py-3">الحالة</th>
+                <th className="text-center font-semibold px-4 py-3">انتهاء الإقامة</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading
+                ? Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                  </tr>
+                ))
+                : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                      لا توجد نتائج
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r) => (
+                    <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-semibold">{r.name}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.employee_code ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs font-mono">{r.national_id ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs font-mono">{r.phone ?? '—'}</td>
+                      <td className="px-4 py-3">{r.city === 'makkah' ? 'مكة' : r.city === 'jeddah' ? 'جدة' : '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
+                          {r.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono">{r.residency_expiry ?? '—'}</td>
+                    </tr>
+                  ))
+                )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
+          <div className="text-muted-foreground">{total.toLocaleString()} نتيجة</div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onPageChange(Math.max(1, page - 1))}
+              disabled={page <= 1}
+            >
+              السابق
+            </Button>
+            <span className="tabular-nums text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages}
+            >
+              التالي
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
