@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { validateUploadFile } from '@/lib/validation';
 import { settingsHubService } from '@/services/settingsHubService';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
