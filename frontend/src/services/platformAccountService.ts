@@ -47,7 +47,7 @@ export const platformAccountService = {
   getEmployees: async () =>
     supabase
       .from('employees')
-      .select('id, name, national_id, residency_expiry')
+      .select('id, name, national_id, residency_expiry, sponsorship_status')
       .eq('status', 'active')
       .order('name'),
 

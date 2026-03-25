@@ -202,7 +202,6 @@ export const orderService = {
       .from('employees')
       .select('id, name, salary_type, status, sponsorship_status')
       .eq('status', 'active')
-      .not('sponsorship_status', 'in', '("absconded","terminated")')
       .order('name');
     throwIfError(error, 'orderService.getActiveEmployees');
     return { data: (data || []) as ActiveEmployee[], error };

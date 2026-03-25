@@ -13,6 +13,8 @@ import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import { alertsService } from '@/services/alertsService';
 import { escapeHtml } from '@/lib/security';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO, addDays } from 'date-fns';
 
@@ -285,6 +287,9 @@ const Alerts = () => {
   const { settings } = useSystemSettings();
   const { user } = useAuth();
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
   const [rtTick, setRtTick] = useState(0);
 
   useRealtimePostgresChanges('alerts-page-realtime', REALTIME_TABLES_ALERTS_PAGE, () => {
@@ -298,6 +303,7 @@ const Alerts = () => {
     refetch: refetchAlerts,
   } = useQuery({
     queryKey: ['alerts', 'page-data', iqamaAlertDays],
+    enabled: !!activeIdsData,
     queryFn: async () => {
       const today = new Date();
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -308,7 +314,14 @@ const Alerts = () => {
         iqamaThreshold,
         FETCH_ALERTS_TIMEOUT_MS
       );
-      return buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
+      const employeesVisibleRes = {
+        ...employeesRes,
+        data: filterVisibleEmployeesInMonth(
+          (employeesRes.data ?? []) as unknown as { id: string; sponsorship_status?: string | null }[],
+          activeEmployeeIdsInMonth
+        ),
+      };
+      return buildAlertsFromResponses(employeesVisibleRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
     },
     retry: 2,
     staleTime: 30_000,

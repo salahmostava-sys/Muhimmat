@@ -36,9 +36,8 @@ export const attendanceService = {
     const [employeesRes, attendanceRes] = await Promise.all([
       supabase
         .from('employees')
-        .select('id, name, national_id, salary_type, base_salary')
+        .select('id, name, national_id, salary_type, base_salary, sponsorship_status')
         .eq('status', 'active')
-        .not('sponsorship_status', 'in', '("absconded","terminated")')
         .order('name'),
       supabase
         .from('attendance')

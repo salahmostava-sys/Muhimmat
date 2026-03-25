@@ -3,6 +3,8 @@ import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hoo
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
 import { alertsService } from '@/services/alertsService';
 import { differenceInDays, parseISO, format } from 'date-fns';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 
 const typeLabels: Record<string, string> = {
   residency: 'إقامة',
@@ -36,6 +38,9 @@ interface AlertItem {
 const AlertsList = () => {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   useRealtimePostgresChanges('dashboard-alerts-widget', REALTIME_TABLES_ALERTS_WIDGET, () => {
     setRefreshKey((k) => k + 1);
@@ -48,10 +53,14 @@ const AlertsList = () => {
       const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
       const [empRes, vehicleRes] = await alertsService.fetchNotificationAlertsData(threshold);
+      const employeesVisible = filterVisibleEmployeesInMonth(
+        (empRes.data ?? []) as unknown as { id: string; sponsorship_status?: string | null }[],
+        activeEmployeeIdsInMonth
+      );
 
       const generated: AlertItem[] = [];
 
-      empRes.data?.forEach(emp => {
+      employeesVisible.forEach(emp => {
         const daysLeft = differenceInDays(parseISO(emp.residency_expiry!), today);
         generated.push({
           id: `res-${emp.id}`,
@@ -81,7 +90,7 @@ const AlertsList = () => {
     };
 
     fetchAlerts();
-  }, [refreshKey]);
+  }, [refreshKey, activeEmployeeIdsInMonth]);
 
   const severityDot: Record<string, string> = {
     urgent: 'bg-destructive',

@@ -9,7 +9,7 @@ export const alertsService = {
     const fetchAll = Promise.all([
       supabase
         .from('employees')
-        .select('id, name, residency_expiry, probation_end_date')
+        .select('id, name, residency_expiry, probation_end_date, sponsorship_status')
         .eq('status', 'active')
         .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
       supabase
@@ -41,7 +41,7 @@ export const alertsService = {
     Promise.all([
       supabase
         .from('employees')
-        .select('id, name, residency_expiry, probation_end_date')
+        .select('id, name, residency_expiry, probation_end_date, sponsorship_status')
         .eq('status', 'active')
         .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
       supabase

@@ -15,6 +15,8 @@ import { fuelService } from '@/services/fuelService';
 import { usePermissions } from '@/hooks/usePermissions';
 import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -377,12 +379,15 @@ const FuelPage = () => {
     staleTime: 60_000,
   });
 
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthYear);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
+
   useEffect(() => {
     if (!fuelBaseData) return;
-    setEmployees(fuelBaseData.employees);
+    setEmployees(filterVisibleEmployeesInMonth(fuelBaseData.employees, activeEmployeeIdsInMonth));
     setApps(fuelBaseData.apps);
     setEmployeeAppLinks(fuelBaseData.links);
-  }, [fuelBaseData]);
+  }, [fuelBaseData, activeEmployeeIdsInMonth]);
 
   useEffect(() => {
     if (!fuelBaseError) return;

@@ -70,7 +70,7 @@ export const employeeService = {
   async getActiveForSalaryContext() {
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
+      .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone, sponsorship_status')
       .eq('status', 'active')
       .order('name');
     return { data, error };

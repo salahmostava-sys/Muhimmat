@@ -20,6 +20,8 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -77,6 +79,9 @@ const PlatformAccounts = () => {
   const { permissions: perms } = usePermissions('platform_accounts');
   const { settings } = useSystemSettings();
   const alertDays = settings?.iqama_alert_days ?? 90;
+  const monthYearNow = format(new Date(), 'yyyy-MM');
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthYearNow);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [apps, setApps] = useState<App[]>([]);
@@ -89,7 +94,6 @@ const PlatformAccounts = () => {
   } = useQuery({
     queryKey: ['platform-accounts', 'page-data'],
     queryFn: async () => {
-      const monthYearNow = format(new Date(), 'yyyy-MM');
       const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
         platformAccountService.getApps(),
         platformAccountService.getEmployees(),
@@ -160,9 +164,9 @@ const PlatformAccounts = () => {
   useEffect(() => {
     if (!pageData) return;
     setApps(pageData.appsData);
-    setEmployees(pageData.empData);
+    setEmployees(filterVisibleEmployeesInMonth(pageData.empData, activeEmployeeIdsInMonth));
     setAccounts(pageData.enriched);
-  }, [pageData]);
+  }, [pageData, activeEmployeeIdsInMonth]);
 
   useEffect(() => {
     if (!pageDataError) return;

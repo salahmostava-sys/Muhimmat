@@ -16,6 +16,8 @@ import { OrdersCellPopover, type OrdersPopoverState } from '@/components/orders/
 import { OrdersMonthNavigator } from '@/components/orders/OrdersMonthNavigator';
 import { OrdersSummaryTable } from '@/components/orders/OrdersSummaryTable';
 import { cn } from '@/lib/utils';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -96,6 +98,9 @@ const SpreadsheetGrid = () => {
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [lockingMonth, setLockingMonth] = useState(false);
   const canEditMonth = permissions.can_edit && !isMonthLocked;
+  const monthKey = monthYear(year, month);
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const {
     data: spreadsheetBaseData,
@@ -151,10 +156,10 @@ const SpreadsheetGrid = () => {
 
   useEffect(() => {
     if (!spreadsheetBaseData) return;
-    setEmployees(spreadsheetBaseData.employees);
+    setEmployees(filterVisibleEmployeesInMonth(spreadsheetBaseData.employees, activeEmployeeIdsInMonth));
     setApps(spreadsheetBaseData.apps);
     setAppEmployeeIds(buildAppEmployeeIdsMap(spreadsheetBaseData.employeeApps));
-  }, [spreadsheetBaseData]);
+  }, [spreadsheetBaseData, activeEmployeeIdsInMonth]);
 
   useEffect(() => {
     setData(buildDailyDataMap(spreadsheetMonthRows));
@@ -535,6 +540,9 @@ const MonthSummary = () => {
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const monthKey = monthYear(year, month);
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const {
     data: summaryBaseData,
@@ -599,9 +607,9 @@ const MonthSummary = () => {
 
   useEffect(() => {
     if (!summaryBaseData) return;
-    setEmployees(summaryBaseData.employees);
+    setEmployees(filterVisibleEmployeesInMonth(summaryBaseData.employees, activeEmployeeIdsInMonth));
     setApps(summaryBaseData.apps);
-  }, [summaryBaseData]);
+  }, [summaryBaseData, activeEmployeeIdsInMonth]);
 
   // Load targets when month changes
   useEffect(() => {

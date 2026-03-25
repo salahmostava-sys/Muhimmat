@@ -12,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import attendanceService from "@/services/attendanceService";
+import { useMonthlyActiveEmployeeIds } from "@/hooks/useMonthlyActiveEmployeeIds";
+import { filterVisibleEmployeesInMonth } from "@/lib/employeeVisibility";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "sick" | "late";
 
@@ -61,6 +63,9 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { permissions } = usePermissions("attendance");
   const dateLocale = ar;
   const statusLabels = STATUS_LABELS_AR;
+  const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const [date, setDate] = useState<Date>(() => {
     const d = new Date();
@@ -110,7 +115,6 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           .from("employees")
           .select("id, name, salary_type, job_title, sponsorship_status")
           .eq("status", "active")
-          .not("sponsorship_status", "in", '("absconded","terminated")')
           .order("name"),
         supabase
           .from("apps")
@@ -122,7 +126,10 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           .select("employee_id, app_id"),
       ]);
 
-      if (empRes.data) setAllEmployees(empRes.data as Employee[]);
+      if (empRes.data) {
+        const rows = empRes.data as Employee[];
+        setAllEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+      }
       if (appRes.data) setApps(appRes.data as App[]);
 
       // Build map: appId → Set<employeeId>
@@ -137,7 +144,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
       setLoading(false);
     };
     fetchBase();
-  }, []);
+  }, [activeEmployeeIdsInMonth]);
 
   // ── Derive displayed employees based on platform filter ──
   const employees = selectedAppId

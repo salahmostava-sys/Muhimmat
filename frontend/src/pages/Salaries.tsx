@@ -19,6 +19,8 @@ import { employeeService } from '@/services/employeeService';
 import { salaryService, type PricingRule, type SalarySchemeTier } from '@/services/salaryService';
 import { salaryDataService } from '@/services/salaryDataService';
 import { salarySlipService } from '@/services/salarySlipService';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -541,6 +543,8 @@ const Salaries = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(months[0].v);
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(selectedMonth);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
   const [rows, setRows] = useState<SalaryRow[]>([]);
   // empPlatformScheme[employeeId][platformName] = scheme
   const [empPlatformScheme, setEmpPlatformScheme] = useState<Record<string, Record<string, SchemeData | null>>>({});
@@ -726,7 +730,10 @@ const Salaries = () => {
       }
       if (cancelled) return;
 
-      const employees = empRes.data || [];
+      const employees = filterVisibleEmployeesInMonth(
+        (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
+        activeEmployeeIdsInMonth
+      );
       const missingPreviewEmployees = employees.filter((emp) => !previewMap[emp.id]);
       if (missingPreviewEmployees.length > 0) {
         throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
@@ -947,7 +954,15 @@ const Salaries = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth, salariesDraftKey, salaryBaseContext, salaryBaseContextError, salaryBaseContextLoading, toast]);
+  }, [
+    selectedMonth,
+    salariesDraftKey,
+    salaryBaseContext,
+    salaryBaseContextError,
+    salaryBaseContextLoading,
+    activeEmployeeIdsInMonth,
+    toast,
+  ]);
 
   // Auto-save editable salary draft per month/user.
   useEffect(() => {

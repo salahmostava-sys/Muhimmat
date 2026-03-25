@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/context/LanguageContext";
 import { ChevronLeft, Archive } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMonthlyActiveEmployeeIds } from "@/hooks/useMonthlyActiveEmployeeIds";
+import { filterVisibleEmployeesInMonth } from "@/lib/employeeVisibility";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -43,6 +45,11 @@ const ArchiveAttendance = () => {
   const [employees, setEmployees]       = useState<Employee[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading]           = useState(false);
+  const monthKey = selected
+    ? `${selected.year}-${String(selected.month + 1).padStart(2, "0")}`
+    : null;
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey ?? undefined);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   useEffect(() => {
     if (!selected) return;
@@ -58,7 +65,6 @@ const ArchiveAttendance = () => {
           .from("employees")
           .select("id, name, national_id, salary_type, base_salary")
           .eq("status", "active")
-          .not("sponsorship_status", "in", '("absconded","terminated")')
           .order("name"),
         supabase
           .from("attendance")
@@ -67,12 +73,15 @@ const ArchiveAttendance = () => {
           .lte("date", endDate),
       ]);
 
-      if (empRes.data)  setEmployees(empRes.data as Employee[]);
+      if (empRes.data) {
+        const rows = empRes.data as Employee[];
+        setEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+      }
       if (attRes.data)  setAttendanceRows(attRes.data as AttendanceRow[]);
       setLoading(false);
     };
     fetchData();
-  }, [selected]);
+  }, [selected, activeEmployeeIdsInMonth]);
 
   const daysInMonth = selected ? new Date(selected.year, selected.month + 1, 0).getDate() : 0;
 
