@@ -81,6 +81,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
   const pageKey = routeTitles[location.pathname] || 'dashboard';
   const pageTitle = t(pageKey);
+  const isDashboardRoute = location.pathname === '/';
 
   useEffect(() => {
     document.title = `${projectName} | ${pageTitle}`;
@@ -164,9 +165,16 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                 🚀
               </div>
             )}
-            <span className="hidden sm:inline font-bold text-foreground text-sm sm:text-base truncate max-w-[9rem] sm:max-w-[14rem]">
-              {projectName}
-            </span>
+            <div className="hidden sm:flex flex-col min-w-0 text-start leading-tight">
+              <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[9rem] sm:max-w-[14rem]">
+                {projectName}
+              </span>
+              {projectSubtitle ? (
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground/90 truncate max-w-[9rem] sm:max-w-[14rem]">
+                  {projectSubtitle}
+                </span>
+              ) : null}
+            </div>
           </Link>
 
           {/* بحث في الوسط */}
@@ -193,12 +201,24 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
             </button>
 
             <div
-              className="hidden md:flex items-center gap-1.5 text-[11px] min-w-0 max-w-[200px] lg:max-w-[240px] px-2 py-1 rounded-lg bg-muted/50 border border-border/50"
+              className="hidden md:flex items-center gap-1.5 text-[11px] min-w-0 max-w-[220px] lg:max-w-[280px] px-2.5 py-1 rounded-lg bg-muted/50 border border-border/50"
               style={{ color: 'var(--ds-on-surface-variant)' }}
+              aria-label="مسار الصفحة الحالية"
             >
-              <span className="font-semibold truncate" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
-              <Sep size={11} className="opacity-40 flex-shrink-0" />
-              <span className="truncate opacity-80">{projectName}</span>
+              {isDashboardRoute ? null : (
+                <>
+                  <Link
+                    to="/"
+                    className="truncate opacity-80 hover:opacity-100 hover:text-foreground transition-colors shrink-0"
+                  >
+                    {t('dashboard')}
+                  </Link>
+                  <Sep size={11} className="opacity-40 flex-shrink-0" aria-hidden />
+                </>
+              )}
+              <span className="font-semibold truncate" style={{ color: 'var(--ds-on-surface)' }}>
+                {pageTitle}
+              </span>
             </div>
 
             <button

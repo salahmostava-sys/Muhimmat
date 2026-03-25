@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react';
 import {
-  Plus, FolderOpen, Eye, Edit, Trash2,
+  Plus, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
   Columns, Filter, X, ChevronDown as FilterIcon, CalendarDays,
   ChevronLeft, ChevronRight
@@ -23,7 +23,13 @@ import {
 import { differenceInDays, parseISO, format } from 'date-fns';
 import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
-import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
+import { DataTableActions } from '@/components/table/DataTableActions';
+import {
+  EMPLOYEE_TEMPLATE_AR_HEADERS,
+  parseEmployeeArabicWorkbook,
+  upsertEmployeeArabicRows,
+} from '@/lib/employeeArabicTemplateImport';
+import { printHtmlTable } from '@/lib/printTable';
 import { driverService } from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
@@ -178,7 +184,7 @@ const Employees = () => {
   const [editEmployee, setEditEmployee]     = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [deleting, setDeleting]             = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Status-date dialog (absconded / terminated)
   const [statusDateDialog, setStatusDateDialog] = useState<{
@@ -475,19 +481,11 @@ const Employees = () => {
       record_id: null,
       meta: { total: out.length, branch: branch ?? null, status: status ?? null, search: search ?? null },
     });
+    toast({ title: `Success: ${out.length} rows processed` });
   };
 
   const handleTemplate = () => {
-    const headers = [[
-      'كود الموظف', 'الاسم', 'الاسم (إنجليزي)', 'رقم الهوية', 'رقم الهاتف', 'البريد الإلكتروني',
-      'المدينة (makkah/jeddah)', 'الجنسية', 'المسمى الوظيفي',
-      'تاريخ الانضمام', 'تاريخ الميلاد', 'انتهاء فترة التجربة', 'انتهاء الإقامة',
-      'انتهاء التأمين الصحي', 'انتهاء الرخصة',
-      'حالة الرخصة (has_license/no_license/applied)',
-      'حالة الكفالة (sponsored/not_sponsored/absconded/terminated)',
-      'رقم الحساب البنكي', 'IBAN',
-      'نوع الراتب (orders/shift)', 'الحالة (active/inactive/ended)',
-    ]];
+    const headers = [Array.from(EMPLOYEE_TEMPLATE_AR_HEADERS)];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'القالب');
@@ -499,35 +497,101 @@ const Employees = () => {
   const handlePrint = () => {
     const table = tableRef.current;
     if (!table) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8"/>
-        <title>بيانات الموظفين</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; font-size: 11px; direction: rtl; color: #111; background: white; }
-          h2 { text-align: center; margin-bottom: 8px; font-size: 15px; }
-          p.subtitle { text-align: center; color: #666; font-size: 11px; margin-bottom: 12px; }
-          table { width: 100%; border-collapse: collapse; }
-          th { background: #1e3a5f; color: white; padding: 6px 8px; text-align: right; font-size: 10px; white-space: nowrap; }
-          td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; text-align: right; white-space: nowrap; vertical-align: middle; }
-          tr:nth-child(even) td { background: #f9f9f9; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        </style>
-      </head>
-      <body>
-        <h2>بيانات الموظفين</h2>
-        <p class="subtitle">المجموع: ${filtered.length} موظف — ${new Date().toLocaleDateString('ar-SA')}</p>
-    `);
-    if (!printWindow.document.body) return;
-    // Append the live DOM table node to avoid string-interpolating table HTML.
-    printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script></body></html>`);
-    printWindow.document.close();
+    printHtmlTable(table, {
+      title: 'بيانات الموظفين',
+      subtitle: `المجموع: ${filtered.length} موظف — ${new Date().toLocaleDateString('ar-SA')}`,
+    });
+  };
+
+  const runExportDetailed = async () => {
+    setActionLoading(true);
+    try {
+      handleExport();
+      toast({ title: `Success: ${filtered.length} rows processed` });
+    } catch (e: unknown) {
+      toast({
+        title: 'Error',
+        description: e instanceof Error ? e.message : 'Error: Invalid file format',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const runTemplateDownload = async () => {
+    setActionLoading(true);
+    try {
+      handleTemplate();
+      toast({ title: 'Success: template downloaded' });
+    } catch (e: unknown) {
+      toast({
+        title: 'Error',
+        description: e instanceof Error ? e.message : 'Export failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const runPrintDetailed = async () => {
+    setActionLoading(true);
+    try {
+      handlePrint();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const runImportFile = async (file: File) => {
+    if (!permissions.can_edit) return;
+    setActionLoading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const { rows, headerErrors } = parseEmployeeArabicWorkbook(buf);
+      if (rows.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Error: Invalid file format',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { processed, failures } = await upsertEmployeeArabicRows(rows);
+      await refetchEmployees();
+      await auditService.logAdminAction({
+        action: 'employees.import_arabic_template',
+        table_name: 'employees',
+        record_id: null,
+        meta: { processed, failed: failures.length, headerWarnings: headerErrors.length },
+      });
+      toast({ title: `Success: ${processed} rows processed` });
+      if (failures.length > 0) {
+        toast({
+          title: 'Error',
+          description: `${failures.length} row(s) failed`,
+          variant: 'destructive',
+        });
+      }
+    } catch (e: unknown) {
+      toast({
+        title: 'Error',
+        description: e instanceof Error ? e.message : 'Error: Invalid file format',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const runFastExportWrapped = async () => {
+    setActionLoading(true);
+    try {
+      await handleFastExport();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // ── active cols (ordered) ──
@@ -567,7 +631,11 @@ const Employees = () => {
         page={fastPage}
         onPageChange={setFastPage}
         pageSize={fastPageSize}
-        onExport={handleFastExport}
+        onExport={runFastExportWrapped}
+        onDownloadTemplate={runTemplateDownload}
+        onImportFile={runImportFile}
+        actionLoading={actionLoading}
+        canEdit={permissions.can_edit}
       />
     );
   }
@@ -616,30 +684,23 @@ const Employees = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Data management */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <FolderOpen size={14} /> ملفات
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
-              {permissions.can_edit && (
-                <DropdownMenuItem onClick={() => setShowImportModal(true)}>📥 استيراد Excel</DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {permissions.can_edit && (
             <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
               <Plus size={15} /> إضافة موظف
             </Button>
           )}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
+        <DataTableActions
+          loading={actionLoading}
+          onExport={runExportDetailed}
+          onDownloadTemplate={runTemplateDownload}
+          onPrint={runPrintDetailed}
+          onImportFile={runImportFile}
+          hideImport={!permissions.can_edit}
+        />
       </div>
 
       {/* Active filters summary */}
@@ -1104,13 +1165,6 @@ const Employees = () => {
         />
       )}
 
-      {showImportModal && (
-        <ImportEmployeesModal
-          onClose={() => setShowImportModal(false)}
-          onSuccess={() => { setShowImportModal(false); void refetchEmployees(); }}
-        />
-      )}
-
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteEmployee} onOpenChange={open => !open && setDeleteEmployee(null)}>
         <AlertDialogContent>
@@ -1191,7 +1245,11 @@ function EmployeesFastList(props: {
   page: number;
   onPageChange: (p: number) => void;
   pageSize: number;
-  onExport: () => void;
+  onExport: () => void | Promise<void>;
+  onDownloadTemplate: () => void | Promise<void>;
+  onImportFile: (file: File) => void | Promise<void>;
+  actionLoading: boolean;
+  canEdit: boolean;
 }) {
   const {
     loadingMain,
@@ -1205,7 +1263,13 @@ function EmployeesFastList(props: {
     onPageChange,
     pageSize,
     onExport,
+    onDownloadTemplate,
+    onImportFile,
+    actionLoading,
+    canEdit,
   } = props;
+
+  const fastTableRef = useRef<HTMLTableElement>(null);
 
   const { data, isLoading } = useEmployeesPaged({
     page,
@@ -1231,6 +1295,15 @@ function EmployeesFastList(props: {
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const handleFastPrint = () => {
+    const table = fastTableRef.current;
+    if (!table) return;
+    printHtmlTable(table, {
+      title: 'الموظفين — قائمة سريعة',
+      subtitle: `إجمالي النتائج: ${total.toLocaleString()} — ${new Date().toLocaleDateString('ar-SA')}`,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="page-header">
@@ -1243,11 +1316,19 @@ function EmployeesFastList(props: {
             <Button variant="outline" size="sm" onClick={onBackToDetailed}>
               رجوع للتفصيلي
             </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={onExport}>
-              📊 تصدير Excel
-            </Button>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
+        <DataTableActions
+          loading={actionLoading}
+          onExport={onExport}
+          onDownloadTemplate={onDownloadTemplate}
+          onPrint={handleFastPrint}
+          onImportFile={onImportFile}
+          hideImport={!canEdit}
+        />
       </div>
 
       <div className="ds-card p-3 space-y-3">
@@ -1291,7 +1372,7 @@ function EmployeesFastList(props: {
 
       <div className="ds-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table ref={fastTableRef} className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-center font-semibold px-4 py-3">الاسم</th>

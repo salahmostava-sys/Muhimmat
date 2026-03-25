@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation';
 
 export interface SalaryRecordPayload {
   employee_id: string;
@@ -186,6 +187,12 @@ export const salaryService = {
     manualDeduction = 0,
     manualDeductionNote: string | null = null
   ) => {
+    if (!isEmployeeIdUuid(employeeId) || !isValidSalaryMonthYear(monthYear)) {
+      return {
+        data: null,
+        error: new Error('Invalid employee_id or month_year'),
+      };
+    }
     const { data, error } = await supabase.rpc('calculate_salary', {
       p_employee_id: employeeId,
       p_month_year: monthYear,
@@ -197,6 +204,9 @@ export const salaryService = {
   },
 
   calculateSalaryForMonth: async ({ monthYear, paymentMethod = 'cash' }: SalaryRpcParams) => {
+    if (!isValidSalaryMonthYear(monthYear)) {
+      return { data: null, error: new Error('Invalid month_year') };
+    }
     const { data, error } = await supabase.rpc('calculate_salary_for_month', {
       p_month_year: monthYear,
       p_payment_method: paymentMethod,
@@ -205,10 +215,14 @@ export const salaryService = {
   },
 
   getSalaryPreviewForMonth: async (monthYear: string) => {
+    const my = String(monthYear ?? '').trim();
+    if (!isValidSalaryMonthYear(my)) {
+      return { data: [], error: null };
+    }
     const { data, error } = await supabase.functions.invoke('salary-engine', {
       body: {
         mode: 'month_preview',
-        month_year: monthYear,
+        month_year: my,
       },
     });
     if (error) return { data: null, error };

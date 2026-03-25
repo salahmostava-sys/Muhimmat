@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
+import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -24,6 +24,10 @@ import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { TableActions } from '@/components/table/TableActions';
+import { SALARY_IMPORT_TEMPLATE_HEADERS, parseSalaryImportWorkbook } from '@/lib/salaryExcelImport';
+import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation';
+import { printHtmlTable } from '@/lib/printTable';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
 import { auditService } from '@/services/auditService';
 import html2canvas from 'html2canvas';
@@ -394,103 +398,6 @@ const EditableCell = ({
   );
 };
 
-const ImportModal = ({ onClose }: { onClose: () => void }) => {
-  const { toast } = useToast();
-  const [preview, setPreview] = useState<Record<string, string>[]>([]);
-  const [errors, setErrors] = useState<Record<number, string>>({});
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const wb = XLSX.read(e.target?.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
-      const errs: Record<number, string> = {};
-      rows.forEach((row, i) => {
-        const missing = [];
-        if (!row['اسم المندوب'] && !row['الاسم']) missing.push('الاسم');
-        if (!row['رقم الهوية']) missing.push('رقم الهوية');
-        if (missing.length) errs[i] = `الحقول المطلوبة مفقودة: ${missing.join(', ')}`;
-      });
-      setErrors(errs);
-      setPreview(rows.slice(0, 20));
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{
-      'اسم المندوب': '', 'رقم الهوية': '', 'هنقرستيشن': '', 'جاهز': '',
-      'كيتا': '', 'توبو': '', 'نينجا': '', 'تويو': '', 'أمازون': '',
-      'الحوافز': '', 'بدل مرضي': '', 'المخالفات': '',
-    }]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'رواتب');
-    XLSX.writeFile(wb, 'نموذج_استيراد_الرواتب.xlsx');
-  };
-
-  const confirmImport = () => {
-    const validCount = preview.filter((_, i) => !errors[i]).length;
-    toast({ title: `✅ تم استيراد ${validCount} سجل بنجاح` });
-    onClose();
-  };
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent dir="rtl" className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>استيراد بيانات الرواتب</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex gap-3">
-            <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
-              <Download size={14} /> تحميل النموذج
-            </Button>
-            <Button className="gap-2" onClick={() => fileRef.current?.click()}>
-              <Upload size={14} /> رفع ملف Excel
-            </Button>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-              onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-          </div>
-          {preview.length > 0 && (
-            <>
-              <p className="text-sm text-muted-foreground">{preview.length} سطر — {Object.keys(errors).length} أخطاء</p>
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-muted/40 border-b border-border">
-                      {Object.keys(preview[0]).map(k => (
-                        <th key={k} className="p-2 text-center font-semibold text-muted-foreground whitespace-nowrap">{k}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((row, i) => (
-                      <tr key={i} className={`border-b border-border/30 ${errors[i] ? 'bg-destructive/10' : ''}`}>
-                        {Object.values(row).map((v, j) => (
-                          <td key={j} className="p-2 whitespace-nowrap">{String(v)}</td>
-                        ))}
-                        {errors[i] && <td className="p-2 text-destructive text-xs">{errors[i]}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={onClose}>إلغاء</Button>
-                <Button onClick={confirmImport} disabled={Object.keys(errors).length === preview.length}>
-                  تأكيد الاستيراد ({preview.filter((_, i) => !errors[i]).length} سجل)
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 // ─── Salary breakdown tooltip ─────────────────────────────────────
 interface SalaryBreakdownProps {
   orders: number;
@@ -557,7 +464,8 @@ const Salaries = () => {
   // empPlatformScheme[employeeId][platformName] = scheme
   const [empPlatformScheme, setEmpPlatformScheme] = useState<Record<string, Record<string, SchemeData | null>>>({});
   const [payslipRow, setPayslipRow] = useState<SalaryRow | null>(null);
-  const [showImport, setShowImport] = useState(false);
+  const [salaryActionLoading, setSalaryActionLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -626,7 +534,7 @@ const Salaries = () => {
     isLoading: salaryBaseContextLoading,
   } = useQuery({
     queryKey: ['salaries', uid, 'base-context', selectedMonth],
-    enabled,
+    enabled: enabled && isValidSalaryMonthYear(selectedMonth),
     queryFn: async () => {
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -1125,6 +1033,14 @@ const Salaries = () => {
   const approveRow = async (id: string) => {
     const row = rows.find(r => r.id === id);
     if (!row) return;
+    if (!isEmployeeIdUuid(row.employeeId) || !isValidSalaryMonthYear(selectedMonth)) {
+      toast({
+        title: 'تعذّر الاعتماد',
+        description: 'معرف الموظف أو الشهر غير صالح',
+        variant: 'destructive',
+      });
+      return;
+    }
     const manualDeduction = getManualDeductionTotal(row);
     const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
       row.employeeId,
@@ -1174,6 +1090,14 @@ const Salaries = () => {
 
   // ── Mark as PAID: save to salary_records + update installments + complete advance ──
   const markAsPaid = async (row: SalaryRow) => {
+    if (!isEmployeeIdUuid(row.employeeId) || !isValidSalaryMonthYear(selectedMonth)) {
+      toast({
+        title: 'تعذّر الصرف',
+        description: 'معرف الموظف أو الشهر غير صالح',
+        variant: 'destructive',
+      });
+      return;
+    }
     setMarkingPaid(row.id);
     try {
       const manualDeduction = getManualDeductionTotal(row);
@@ -1248,6 +1172,10 @@ const Salaries = () => {
   const approveAll = async () => {
     const pendingRows = filtered.filter(r => r.status === 'pending');
     if (pendingRows.length === 0) return;
+    if (!isValidSalaryMonthYear(selectedMonth)) {
+      toast({ title: 'خطأ', description: 'الشهر المحدد غير صالح', variant: 'destructive' });
+      return;
+    }
 
     const { data: monthCalcData, error: monthCalcError } = await salaryDataService.calculateSalaryForMonth(selectedMonth);
     if (monthCalcError) {
@@ -1542,6 +1470,64 @@ const Salaries = () => {
       win.document.close();
       win.focus();
       setTimeout(() => { win.print(); }, 500);
+    }
+  };
+
+  const downloadSalaryTemplate = () => {
+    const headers = [Array.from(SALARY_IMPORT_TEMPLATE_HEADERS)];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'رواتب');
+    XLSX.writeFile(wb, 'قالب_استيراد_الرواتب.xlsx');
+  };
+
+  const handleSalaryImportFile = async (file: File) => {
+    setSalaryActionLoading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const { rows: parsed, parseErrors } = parseSalaryImportWorkbook(buf, { defaultMonthYear: selectedMonth });
+      if (parsed.length === 0) {
+        toast({
+          title: 'بيانات ناقصة في ملف الإكسيل',
+          description: parseErrors.slice(0, 5).join(' · ') || 'لا توجد صفوف صالحة',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const records = parsed.map((p) => p.record);
+      const { error } = await salaryDataService.upsertSalaryRecords(records);
+      if (error) throw error;
+      await auditService.logAdminAction({
+        action: 'salary_records.import_excel',
+        table_name: 'salary_records',
+        record_id: null,
+        meta: { count: parsed.length, month: selectedMonth },
+      });
+      await queryClient.invalidateQueries({ queryKey: ['salaries', uid, 'base-context', selectedMonth] });
+      toast({ title: `تم استيراد ${parsed.length} سجل بنجاح` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'فشل الاستيراد';
+      toast({ title: 'فشل الاستيراد', description: msg, variant: 'destructive' });
+    } finally {
+      setSalaryActionLoading(false);
+    }
+  };
+
+  const runExportExcel = async () => {
+    setSalaryActionLoading(true);
+    try {
+      exportExcel();
+    } finally {
+      setSalaryActionLoading(false);
+    }
+  };
+
+  const runPrintTable = async () => {
+    setSalaryActionLoading(true);
+    try {
+      handlePrintTable();
+    } finally {
+      setSalaryActionLoading(false);
     }
   };
 
@@ -1916,6 +1902,9 @@ const Salaries = () => {
         pageSize={fastPageSize}
         onPageChange={setFastPage}
         onBack={() => setPageMode('detailed')}
+        onSalaryTemplate={downloadSalaryTemplate}
+        onSalaryImport={handleSalaryImportFile}
+        salaryActionLoading={salaryActionLoading}
       />
     );
   }
@@ -2100,10 +2089,9 @@ const Salaries = () => {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 h-9"><FolderOpen size={14} /> ملفات</Button>
+              <Button size="sm" variant="outline" className="gap-1.5 h-9"><FolderOpen size={14} /> أدوات إضافية</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportExcel}>📊 تصدير Excel</DropdownMenuItem>
               <DropdownMenuItem
                 onClick={startBatchZipExport}
                 disabled={batchQueue.length > 0}
@@ -2114,17 +2102,19 @@ const Salaries = () => {
               <DropdownMenuItem onClick={exportMergedPDF}>
                 <FileText size={13} className="ml-2" /> PDF مدمج للكل
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowImport(true)}>
-                <FileUp size={13} className="ml-2" /> استيراد Excel
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handlePrintTable}>
-                <Printer size={13} className="ml-2" /> طباعة جدول الرواتب
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
+        <TableActions
+          loading={salaryActionLoading}
+          onDownloadTemplate={downloadSalaryTemplate}
+          onImportFile={handleSalaryImportFile}
+          onExport={runExportExcel}
+          onPrint={runPrintTable}
+        />
       </div>
 
       {/* Progress bar for batch ZIP export */}
@@ -2540,7 +2530,6 @@ const Salaries = () => {
           onApprove={() => { approveRow(payslipRow.id); setPayslipRow(null); }}
         />
       )}
-      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
 
       {/* Employee Detail Dialog */}
       {detailRow && (() => {
@@ -2788,10 +2777,28 @@ function SalariesFastList(props: {
   pageSize: number;
   onPageChange: (p: number) => void;
   onBack: () => void;
+  onSalaryTemplate: () => void;
+  onSalaryImport: (file: File) => void | Promise<void>;
+  salaryActionLoading: boolean;
 }) {
   const { toast } = useToast();
-  const { monthYear, branch, search, approved, onApprovedChange, onFiltersChange, page, pageSize, onPageChange, onBack } = props;
+  const {
+    monthYear,
+    branch,
+    search,
+    approved,
+    onApprovedChange,
+    onFiltersChange,
+    page,
+    pageSize,
+    onPageChange,
+    onBack,
+    onSalaryTemplate,
+    onSalaryImport,
+    salaryActionLoading,
+  } = props;
   const [exporting, setExporting] = useState(false);
+  const fastTableRef = useRef<HTMLTableElement>(null);
 
   const { data, isLoading } = useSalaryRecordsPaged({
     monthYear,
@@ -2818,6 +2825,15 @@ function SalariesFastList(props: {
   const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const handleFastPrint = () => {
+    const table = fastTableRef.current;
+    if (!table) return;
+    printHtmlTable(table, {
+      title: `سجلات الرواتب — ${monthYear}`,
+      subtitle: `إجمالي النتائج: ${total.toLocaleString()}`,
+    });
+  };
 
   const exportExcel = async () => {
     setExporting(true);
@@ -2875,11 +2891,18 @@ function SalariesFastList(props: {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={onBack}>رجوع</Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={exportExcel} disabled={exporting}>
-              <Download size={14} /> تصدير Excel
-            </Button>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
+        <TableActions
+          loading={salaryActionLoading || exporting}
+          onDownloadTemplate={onSalaryTemplate}
+          onImportFile={onSalaryImport}
+          onExport={exportExcel}
+          onPrint={handleFastPrint}
+        />
       </div>
 
       <div className="ds-card p-3 space-y-3">
@@ -2920,7 +2943,7 @@ function SalariesFastList(props: {
 
       <div className="ds-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table ref={fastTableRef} className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-center font-semibold px-4 py-3">الموظف</th>

@@ -120,19 +120,28 @@ describe('salaryService', () => {
   });
 
   it('rpc salary calculation paths', async () => {
+    const empId = '550e8400-e29b-41d4-a716-446655440000';
     hoisted.rpcResult = { data: null, error: { message: 'rpc' } };
-    expect((await salaryService.calculateSalaryForEmployeeMonth('e', '2026-03')).error).toBeTruthy();
+    expect((await salaryService.calculateSalaryForEmployeeMonth(empId, '2026-03')).error).toBeTruthy();
     hoisted.rpcResult = { data: { ok: true }, error: null };
-    const emp = await salaryService.calculateSalaryForEmployeeMonth('e', '2026-03');
+    const emp = await salaryService.calculateSalaryForEmployeeMonth(empId, '2026-03');
     expect(emp.data).toEqual({ ok: true });
+
+    expect((await salaryService.calculateSalaryForEmployeeMonth(empId, '2026-13')).error).toBeTruthy();
 
     hoisted.rpcResult = { data: { ok: 'month' }, error: null };
     const month = await salaryService.calculateSalaryForMonth({ monthYear: '2026-03' });
     expect(month.data).toEqual({ ok: 'month' });
 
+    const invalidMonth = await salaryService.calculateSalaryForMonth({ monthYear: '2026-13' });
+    expect(invalidMonth.error).toBeTruthy();
+
     hoisted.fnInvoke = { data: { data: [] as { employee_id: string }[] }, error: null };
     const prev = await salaryService.getSalaryPreviewForMonth('2026-03');
     expect(prev.data).toEqual([]);
+
+    const noInvoke = await salaryService.getSalaryPreviewForMonth('invalid-month');
+    expect(noInvoke.data).toEqual([]);
   });
 
   it('salary_records and employees helpers', async () => {

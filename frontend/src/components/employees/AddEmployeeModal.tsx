@@ -201,29 +201,6 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     return APP_COLOR_FALLBACKS[appName] || { bg: '#6366f1', fg: '#ffffff' };
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([
-      employeeService.getActiveSalarySchemes(),
-      employeeService.getActiveApps(),
-    ]).then(([schemesRes, appsRes]) => {
-      if (!isMounted) return;
-      if (schemesRes.data) setSchemes(schemesRes.data);
-      if (appsRes.data) setAvailableApps(appsRes.data);
-    });
-
-    if (editEmployee) {
-      employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
-        if (!isMounted || !data) return;
-        formApi.setValue('selected_apps', data, { shouldDirty: false });
-      });
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [editEmployee]);
-
   const formApi = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
@@ -257,6 +234,28 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const errors = formState.errors as Record<string, { message?: string }>;
   const form = watch();
 
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      employeeService.getActiveSalarySchemes(),
+      employeeService.getActiveApps(),
+    ]).then(([schemesRes, appsRes]) => {
+      if (!isMounted) return;
+      if (schemesRes.data) setSchemes(schemesRes.data);
+      if (appsRes.data) setAvailableApps(appsRes.data);
+    });
+
+    if (editEmployee) {
+      employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
+        if (!isMounted || !data) return;
+        setValue('selected_apps', data, { shouldDirty: false });
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editEmployee, setValue]);
 
   const [files, setFiles] = useState<{ personal: File | null; id: File | null; license: File | null }>({
     personal: null, id: null, license: null,
