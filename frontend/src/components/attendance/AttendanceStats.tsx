@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-import { useLanguage } from '@/context/LanguageContext';
 import attendanceService from '@/services/attendanceService';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, Cell
+  ResponsiveContainer, Legend
 } from 'recharts';
 
 interface Props {
@@ -46,7 +45,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
-  const { isRTL } = useLanguage();
   const [data, setData] = useState<DayStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalEmployees, setTotalEmployees] = useState(0);

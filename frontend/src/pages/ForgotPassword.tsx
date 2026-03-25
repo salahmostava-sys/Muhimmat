@@ -76,10 +76,11 @@ const ForgotPassword = () => {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
               <div>
-                <label className="block text-sm text-muted-foreground mb-1.5">البريد الإلكتروني</label>
+                <label htmlFor="forgot-email" className="block text-sm text-muted-foreground mb-1.5">البريد الإلكتروني</label>
                 <div className="relative">
                   <Mail size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
                   <Input
+                    id="forgot-email"
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}

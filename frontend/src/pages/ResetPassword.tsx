@@ -9,7 +9,7 @@ function calcStrength(pw: string): 0 | 1 | 2 | 3 {
   if (!pw) return 0;
   let score = 0;
   if (pw.length >= 8) score++;
-  if (/[0-9]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
   if (/[^a-zA-Z0-9]/.test(pw)) score++;
   return score as 0 | 1 | 2 | 3;
 }
@@ -33,7 +33,7 @@ const ResetPassword = () => {
   const strength = calcStrength(password);
 
   useEffect(() => {
-    const hash = window.location.hash;
+    const hash = globalThis.location.hash;
     if (hash.includes('type=recovery')) {
       setIsRecovery(true);
       authService.getSession().then(({ session }) => {
@@ -126,10 +126,11 @@ const ResetPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
               {/* New password */}
               <div>
-                <label className="block text-sm text-muted-foreground mb-1.5">كلمة المرور الجديدة</label>
+                <label htmlFor="reset-password" className="block text-sm text-muted-foreground mb-1.5">كلمة المرور الجديدة</label>
                 <div className="relative">
                   <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
                   <Input
+                    id="reset-password"
                     type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
@@ -156,10 +157,11 @@ const ResetPassword = () => {
 
               {/* Confirm password */}
               <div>
-                <label className="block text-sm text-muted-foreground mb-1.5">تأكيد كلمة المرور</label>
+                <label htmlFor="reset-password-confirm" className="block text-sm text-muted-foreground mb-1.5">تأكيد كلمة المرور</label>
                 <div className="relative">
                   <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
                   <Input
+                    id="reset-password-confirm"
                     type={showCf ? 'text' : 'password'}
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
@@ -192,7 +194,7 @@ const ResetPassword = () => {
               {/* Requirements */}
               <div className="bg-muted/60 rounded-xl p-3 text-xs text-muted-foreground space-y-1" dir="rtl">
                 <p className={password.length >= 8 ? 'text-green-400' : ''}>✓ 8 أحرف على الأقل</p>
-                <p className={/[0-9]/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رقم</p>
+                <p className={/\d/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رقم</p>
                 <p className={/[^a-zA-Z0-9]/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رمز خاص</p>
               </div>
 
