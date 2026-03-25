@@ -1,13 +1,26 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, loading, signOut, recoverSessionSilently } = useAuth();
+  const [checkingRecovery, setCheckingRecovery] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    if (loading || user) return;
+    let mounted = true;
+    setCheckingRecovery(true);
+    void recoverSessionSilently().finally(() => {
+      if (mounted) setCheckingRecovery(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [loading, recoverSessionSilently, user]);
+
+  if (loading || checkingRecovery) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 size={32} className="animate-spin text-primary" />

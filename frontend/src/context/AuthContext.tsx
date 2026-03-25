@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { authService } from '@/services/authService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   loading: boolean;
+  recoverSessionSilently: (opts?: { refetchActiveQueries?: boolean }) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
   signOut: () => Promise<void>;
 }
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  const recoverInFlightRef = useRef<Promise<boolean> | null>(null);
 
   const forceSignOut = useCallback(async () => {
     const { user: currentUser } = await authService.getCurrentUser();
@@ -43,6 +45,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user?.id]);
 
   const isAuthed = useMemo(() => !!(user && session), [session, user]);
+
+  const recoverSessionSilently = useCallback(async (opts?: { refetchActiveQueries?: boolean }) => {
+    if (recoverInFlightRef.current) return recoverInFlightRef.current;
+
+    const task = (async () => {
+      setRefreshing(true);
+      try {
+        const { session: current } = await authService.getSession();
+        if (current?.user) {
+          if (opts?.refetchActiveQueries) {
+            await queryClient.refetchQueries({ type: 'active' });
+          }
+          return true;
+        }
+
+        const { error } = await authService.refreshSession();
+        if (error) return false;
+
+        const { session: after } = await authService.getSession();
+        if (after?.user) {
+          if (opts?.refetchActiveQueries) {
+            await queryClient.refetchQueries({ type: 'active' });
+          }
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      } finally {
+        setRefreshing(false);
+      }
+    })();
+
+    recoverInFlightRef.current = task;
+    return task.finally(() => {
+      recoverInFlightRef.current = null;
+    });
+  }, [queryClient]);
 
   useEffect(() => {
     const subscription = authService.onAuthStateChange(async (_event, nextSession) => {
@@ -84,41 +124,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, [forceSignOut]);
 
-  // عند العودة للتبويب: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل بيانات React Query
+  // عند العودة للتبويب/الاتصال: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل البيانات
   useEffect(() => {
     let lastRefreshAt = 0;
     const minMs = 45_000;
-    const onVisibility = async () => {
+    const onWake = async () => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
       if (now - lastRefreshAt < minMs) return;
       lastRefreshAt = now;
-      // If we're already logged in (or we were recently), keep the app on-screen and recover silently.
-      if (isAuthed) setRefreshing(true);
-      try {
-        const { session: current } = await authService.getSession();
-        if (current?.user) {
-          // If we got a session back, React Query can refetch normally on focus.
-          await queryClient.refetchQueries({ type: 'active' });
-          return;
-        }
-
-        // No session (or in limbo). Try a silent refresh once.
-        const { error } = await authService.refreshSession();
-        if (error) return;
-
-        // Confirm we have a session after refresh, then refetch.
-        const { session: after } = await authService.getSession();
-        if (after?.user) await queryClient.refetchQueries({ type: 'active' });
-      } catch {
-        // silent
-      } finally {
-        setRefreshing(false);
-      }
+      await recoverSessionSilently({ refetchActiveQueries: true });
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [isAuthed, queryClient]);
+    const onFocus = () => {
+      void onWake();
+    };
+    const onOnline = () => {
+      void onWake();
+    };
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [recoverSessionSilently]);
 
   useEffect(() => {
     if (!user) return;
@@ -169,7 +200,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading: loading || refreshing, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading: loading || refreshing, recoverSessionSilently, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
