@@ -11,6 +11,9 @@ import { employeeService, type EmployeeAppOption } from '@/services/employeeServ
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import { validateUploadFile } from '@/lib/validation';
 import { auditService } from '@/services/auditService';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 
 interface EmployeeData {
@@ -124,12 +127,59 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
   );
 };
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, 'رقم الهاتف مطلوب')
+  .regex(/^(05|966)\d{8,9}$/, 'رقم هاتف غير صحيح');
+
+const nationalIdSchema = z
+  .string()
+  .trim()
+  .min(1, 'رقم الهوية مطلوب')
+  .regex(/^[12]\d{9}$/, 'رقم هوية غير صحيح (10 أرقام)');
+
+const employeeFormSchema = z
+  .object({
+    name: z.string().trim().min(2, 'الاسم مطلوب'),
+    employee_code: z.string().trim().optional().or(z.literal('')),
+    job_title: z.string().trim().optional().or(z.literal('')),
+    phone: phoneSchema,
+    email: z.string().trim().email('بريد غير صحيح').optional().or(z.literal('')),
+    national_id: nationalIdSchema,
+    nationality: z.string().trim().optional().or(z.literal('')),
+    bank_account_number: z.string().trim().optional().or(z.literal('')),
+    city: z.enum(['makkah', 'jeddah']).optional().or(z.literal('')),
+    join_date: z.string().optional().or(z.literal('')),
+    birth_date: z.string().optional().or(z.literal('')),
+    residency_expiry: z.string().trim().min(1, 'تاريخ انتهاء الإقامة مطلوب'),
+    health_insurance_expiry: z.string().optional().or(z.literal('')),
+    probation_end_date: z.string().optional().or(z.literal('')),
+    probation_months: z.string().optional().or(z.literal('')),
+    license_status: z.enum(['has_license', 'no_license', 'applied']),
+    sponsorship_status: z.enum(['sponsored', 'not_sponsored', 'absconded', 'terminated']),
+    salary_type: z.enum(['orders', 'shift']),
+    base_salary: z.string().optional().or(z.literal('')),
+    selected_apps: z.array(z.string()).default([]),
+    app_schemes: z.record(z.string()).default({}),
+    preferred_language: z.enum(['ar', 'en', 'ur']).default('ar'),
+  })
+  .superRefine((val, ctx) => {
+    if (val.salary_type === 'shift') {
+      const n = Number(val.base_salary || 0);
+      if (!n || n <= 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['base_salary'], message: 'الراتب مطلوب' });
+      }
+    }
+  });
+
+type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
+
 const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const isEdit = !!editEmployee;
   const [step, setStep] = useState(0);
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
   const [availableApps, setAvailableApps] = useState<EmployeeAppOption[]>([]);
 
@@ -164,7 +214,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     if (editEmployee) {
       employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
         if (!isMounted || !data) return;
-        setForm((f) => ({ ...f, selected_apps: data }));
+        formApi.setValue('selected_apps', data, { shouldDirty: false });
       });
     }
 
@@ -173,67 +223,45 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     };
   }, [editEmployee]);
 
-  const [form, setForm] = useState({
-    name: '',
-    employee_code: '',
-    job_title: '',
-    phone: '',
-    email: '',
-    national_id: '',
-    nationality: '',
-    bank_account_number: '',
-    city: '' as 'makkah' | 'jeddah' | '',
-    join_date: '',
-    birth_date: '',
-    residency_expiry: '',
-    health_insurance_expiry: '',
-    probation_end_date: '',
-    probation_months: '' as string,
-    license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
-    sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
-    salary_type: 'orders' as 'orders' | 'shift',
-    base_salary: '',
-    selected_apps: [] as string[],
-    app_schemes: {} as Record<string, string>,
-    preferred_language: 'ar' as 'ar' | 'en' | 'ur',
+  const formApi = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeFormSchema),
+    defaultValues: {
+      name: editEmployee?.name || '',
+      employee_code: editEmployee?.employee_code || '',
+      job_title: editEmployee?.job_title || '',
+      phone: editEmployee?.phone || '',
+      email: editEmployee?.email || '',
+      national_id: editEmployee?.national_id || '',
+      nationality: editEmployee?.nationality || '',
+      bank_account_number: editEmployee?.bank_account_number || '',
+      city: (editEmployee?.city as 'makkah' | 'jeddah' | '') || '',
+      join_date: editEmployee?.join_date || '',
+      birth_date: editEmployee?.birth_date || '',
+      residency_expiry: editEmployee?.residency_expiry || '',
+      health_insurance_expiry: editEmployee?.health_insurance_expiry || '',
+      probation_end_date: editEmployee?.probation_end_date || '',
+      probation_months: '',
+      license_status: (editEmployee?.license_status as EmployeeFormValues['license_status']) || 'no_license',
+      sponsorship_status: (editEmployee?.sponsorship_status as EmployeeFormValues['sponsorship_status']) || 'not_sponsored',
+      salary_type: (editEmployee?.salary_type as EmployeeFormValues['salary_type']) || 'orders',
+      base_salary: editEmployee?.base_salary ? String(editEmployee.base_salary) : '',
+      selected_apps: [],
+      app_schemes: {},
+      preferred_language: (editEmployee?.preferred_language as EmployeeFormValues['preferred_language']) || 'ar',
+    },
+    mode: 'onBlur',
   });
 
+  const { trigger, setValue, getValues, watch, formState } = formApi;
+  const errors = formState.errors as Record<string, { message?: string }>;
+  const form = watch();
 
-  // Pre-fill form when editing
-  useEffect(() => {
-    if (editEmployee) {
-      setForm({
-        name: editEmployee.name || '',
-        employee_code: editEmployee.employee_code || '',
-        job_title: editEmployee.job_title || '',
-        phone: editEmployee.phone || '',
-        email: editEmployee.email || '',
-        national_id: editEmployee.national_id || '',
-        nationality: editEmployee.nationality || '',
-        bank_account_number: editEmployee.bank_account_number || '',
-        city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
-        join_date: editEmployee.join_date || '',
-        birth_date: editEmployee.birth_date || '',
-        residency_expiry: editEmployee.residency_expiry || '',
-        health_insurance_expiry: editEmployee.health_insurance_expiry || '',
-        probation_end_date: editEmployee.probation_end_date || '',
-        probation_months: '',
-        license_status: (editEmployee.license_status as 'has_license' | 'no_license' | 'applied') || 'no_license',
-        sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
-        salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
-        base_salary: editEmployee.base_salary ? String(editEmployee.base_salary) : '',
-        selected_apps: [],
-        app_schemes: {},
-        preferred_language: (editEmployee.preferred_language as 'ar' | 'en' | 'ur') || 'ar',
-      });
-    }
-  }, [editEmployee]);
 
   const [files, setFiles] = useState<{ personal: File | null; id: File | null; license: File | null }>({
     personal: null, id: null, license: null,
   });
 
-  const setField = useCallback((k: string, v: any) => setForm(f => ({ ...f, [k]: v })), []);
+  const setField = useCallback((k: keyof EmployeeFormValues, v: any) => setValue(k, v, { shouldDirty: true }), [setValue]);
 
   const resStatus = (() => {
     if (!form.residency_expiry) return null;
@@ -244,56 +272,51 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   })();
 
   const toggleApp = (app: string) => {
-    setForm(f => ({
-      ...f,
-      selected_apps: f.selected_apps.includes(app) ? f.selected_apps.filter(a => a !== app) : [...f.selected_apps, app],
-    }));
+    const cur = getValues('selected_apps') || [];
+    const next = cur.includes(app) ? cur.filter((a) => a !== app) : [...cur, app];
+    setValue('selected_apps', next, { shouldDirty: true });
   };
 
-  const validateStep = (s: number) => {
-    const errs: Record<string, string> = {};
-    if (s === 0) {
-      if (!form.name || form.name.trim().length < 2) errs.name = 'الاسم مطلوب';
-      if (!form.phone || !/^(05|966)\d{8,9}$/.test(form.phone)) errs.phone = 'رقم هاتف غير صحيح';
-      if (!form.national_id || !/^[12]\d{9}$/.test(form.national_id)) errs.national_id = 'رقم هوية غير صحيح (10 أرقام)';
-    }
-    if (s === 1) {
-      if (!form.residency_expiry) errs.residency_expiry = 'تاريخ انتهاء الإقامة مطلوب';
-    }
-    if (s === 2) {
-      if (form.salary_type === 'shift' && (!form.base_salary || parseFloat(form.base_salary) <= 0)) errs.base_salary = 'الراتب مطلوب';
-    }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+  const validateStep = async (s: number) => {
+    if (s === 0) return await trigger(['name', 'phone', 'national_id']);
+    if (s === 1) return await trigger(['residency_expiry']);
+    if (s === 2) return await trigger(['salary_type', 'base_salary']);
+    return true;
   };
 
-  const next = () => { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)); };
+  const next = async () => {
+    const ok = await validateStep(step);
+    if (!ok) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
   const back = () => setStep(s => Math.max(s - 1, 0));
 
   const save = async () => {
-    if (!validateStep(step)) return;
+    const ok = await validateStep(step);
+    if (!ok) return;
     setSaving(true);
     try {
+      const v = getValues();
       const payload: any = {
-        name: form.name,
-        employee_code: form.employee_code || null,
-        job_title: form.job_title || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        national_id: form.national_id || null,
-        nationality: form.nationality || null,
-        bank_account_number: form.bank_account_number || null,
-        city: form.city || null,
-        join_date: form.join_date || null,
-        birth_date: form.birth_date || null,
-        residency_expiry: form.residency_expiry || null,
-        health_insurance_expiry: form.health_insurance_expiry || null,
-        probation_end_date: form.probation_end_date || null,
-        license_status: form.license_status,
-        sponsorship_status: form.sponsorship_status,
-        salary_type: form.salary_type,
-        base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
-        preferred_language: form.preferred_language,
+        name: v.name,
+        employee_code: v.employee_code || null,
+        job_title: v.job_title || null,
+        phone: v.phone || null,
+        email: v.email || null,
+        national_id: v.national_id || null,
+        nationality: v.nationality || null,
+        bank_account_number: v.bank_account_number || null,
+        city: v.city || null,
+        join_date: v.join_date || null,
+        birth_date: v.birth_date || null,
+        residency_expiry: v.residency_expiry || null,
+        health_insurance_expiry: v.health_insurance_expiry || null,
+        probation_end_date: v.probation_end_date || null,
+        license_status: v.license_status,
+        sponsorship_status: v.sponsorship_status,
+        salary_type: v.salary_type,
+        base_salary: v.salary_type === 'shift' ? Number(v.base_salary || 0) : 0,
+        preferred_language: v.preferred_language,
       };
 
       let empId: string;
@@ -350,14 +373,14 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       }
 
       // Sync employee_apps: delete old, insert new
-      const appIds = form.selected_apps
+      const appIds = (v.selected_apps || [])
         .map((appName) => availableApps.find((a) => a.name === appName)?.id)
         .filter((id): id is string => Boolean(id));
       await employeeService.replaceEmployeeApps(empId, appIds);
 
       toast({
         title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',
-        description: form.name,
+        description: v.name,
       });
 
       if (onSuccess) onSuccess();
@@ -403,7 +426,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
           {step === 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2"><SectionTitle title="── البيانات الأساسية ──" /></div>
-              <F label="الاسم الكامل" required error={errors.name}>
+              <F label="الاسم الكامل" required error={errors.name?.message}>
                 <Input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="أحمد محمد العمري" />
               </F>
               <F label="كود الموظف">
@@ -412,13 +435,13 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="المسمى الوظيفي">
                 <Input value={form.job_title} onChange={e => setField('job_title', e.target.value)} placeholder="مندوب توصيل" />
               </F>
-              <F label="رقم الهاتف" required error={errors.phone}>
+              <F label="رقم الهاتف" required error={errors.phone?.message}>
                 <Input value={form.phone} onChange={e => setField('phone', e.target.value)} placeholder="0551234567" dir="ltr" />
               </F>
               <F label="البريد الإلكتروني">
                 <Input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="example@email.com" dir="ltr" />
               </F>
-              <F label="رقم الهوية الوطنية" required error={errors.national_id}>
+              <F label="رقم الهوية الوطنية" required error={errors.national_id?.message}>
                 <Input value={form.national_id} onChange={e => setField('national_id', e.target.value)} placeholder="2xxxxxxxxx" dir="ltr" />
               </F>
               <F label="الجنسية">
@@ -507,7 +530,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2"><SectionTitle title="── الإقامة والوثائق ──" /></div>
               <div className="sm:col-span-2">
-                <F label="تاريخ انتهاء الإقامة" required error={errors.residency_expiry}>
+                <F label="تاريخ انتهاء الإقامة" required error={errors.residency_expiry?.message}>
                   <Input type="date" value={form.residency_expiry} onChange={e => setField('residency_expiry', e.target.value)} />
                 </F>
                 {resStatus && (
@@ -560,7 +583,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 ))}
               </div>
               {form.salary_type === 'shift' && (
-                <F label="الراتب الشهري (ر.س)" required error={errors.base_salary}>
+                <F label="الراتب الشهري (ر.س)" required error={errors.base_salary?.message}>
                   <Input type="number" value={form.base_salary} onChange={e => setField('base_salary', e.target.value)} />
                 </F>
               )}
@@ -592,7 +615,13 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                       >
                         {app}
                       </span>
-                      <Select value={form.app_schemes[app] || ''} onValueChange={v => setForm(f => ({ ...f, app_schemes: { ...f.app_schemes, [app]: v } }))}>
+                      <Select
+                        value={form.app_schemes?.[app] || ''}
+                        onValueChange={(v) => {
+                          const cur = getValues('app_schemes') || {};
+                          setValue('app_schemes', { ...cur, [app]: v }, { shouldDirty: true });
+                        }}
+                      >
                         <SelectTrigger className="flex-1 h-8 text-xs">
                           <SelectValue placeholder="اختر السكيمة" />
                         </SelectTrigger>
