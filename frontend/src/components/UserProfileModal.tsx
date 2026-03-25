@@ -19,7 +19,7 @@ const getStrength = (pw: string) => {
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
   return Math.min(3, Math.floor(score * 3 / 5));
 };
@@ -35,12 +35,52 @@ const strengthColor = (s: number) => {
   return 'bg-success';
 };
 
+type PwFieldId = 'current' | 'next' | 'confirm';
+type PwFieldProps = Readonly<{
+  id: PwFieldId;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+}>;
+
+const PwField = ({
+  id,
+  label,
+  value,
+  onChange,
+  show,
+  onToggle,
+}: PwFieldProps) => (
+  <div>
+    <Label htmlFor={id} className="text-sm mb-1.5 block text-foreground/80">{label}</Label>
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="pe-10"
+        dir="ltr"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      >
+        {show ? <EyeOff size={15} /> : <Eye size={15} />}
+      </button>
+    </div>
+  </div>
+);
+
 interface Props { onClose: () => void; }
 
 const UserProfileModal = ({ onClose }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +97,19 @@ const UserProfileModal = ({ onClose }: Props) => {
   const [pwError, setPwError] = useState('');
 
   const strength = getStrength(pw.next);
+
+  const saveProfileLoadingText = isRtl ? 'جاري الحفظ...' : 'Saving...';
+  const saveProfileReadyText = isRtl ? 'حفظ التغييرات' : 'Save Changes';
+
+  let strengthTextClass = 'text-success';
+  if (strength === 1) strengthTextClass = 'text-destructive';
+  else if (strength === 2) strengthTextClass = 'text-warning';
+
+  const matchOkText = isRtl ? 'كلمتا المرور متطابقتان' : 'Passwords match';
+  const matchBadText = isRtl ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match';
+
+  const changePwLoadingText = isRtl ? 'جاري التغيير...' : 'Changing...';
+  const changePwReadyText = isRtl ? 'تغيير كلمة المرور' : 'Change Password';
 
   // Load current profile
   useEffect(() => {
@@ -142,37 +195,6 @@ const UserProfileModal = ({ onClose }: Props) => {
 
   const avatarSrc = previewUrl || profile.avatar_url || null;
   const initial = (profile.name || user?.email || 'U').charAt(0).toUpperCase();
-
-  const PwField = ({
-    id, label, value, onChange, show, onToggle,
-  }: {
-    id: 'current' | 'next' | 'confirm';
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    show: boolean;
-    onToggle: () => void;
-  }) => (
-    <div>
-      <Label className="text-sm mb-1.5 block text-foreground/80">{label}</Label>
-      <div className="relative">
-        <Input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className="pe-10"
-          dir="ltr"
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-        >
-          {show ? <EyeOff size={15} /> : <Eye size={15} />}
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -271,10 +293,12 @@ const UserProfileModal = ({ onClose }: Props) => {
             </div>
 
             <Button onClick={saveProfile} disabled={savingProfile} className="w-full gap-2">
-              {savingProfile
-                ? (isRtl ? 'جاري الحفظ...' : 'Saving...')
-                : <><Check size={15} /> {isRtl ? 'حفظ التغييرات' : 'Save Changes'}</>
-              }
+              {savingProfile ? saveProfileLoadingText : (
+                <>
+                  <Check size={15} />
+                  {saveProfileReadyText}
+                </>
+              )}
             </Button>
           </div>
 
@@ -314,7 +338,7 @@ const UserProfileModal = ({ onClose }: Props) => {
                     />
                   ))}
                 </div>
-                <p className={cn('text-xs font-medium', strength === 1 ? 'text-destructive' : strength === 2 ? 'text-warning' : 'text-success')}>
+                <p className={cn('text-xs font-medium', strengthTextClass)}>
                   {strengthLabel(strength, isRtl)}
                 </p>
               </div>
@@ -334,10 +358,17 @@ const UserProfileModal = ({ onClose }: Props) => {
               <p className={cn('text-xs flex items-center gap-1',
                 pw.next === pw.confirm ? 'text-success' : 'text-destructive'
               )}>
-                {pw.next === pw.confirm
-                  ? <><Check size={11} /> {isRtl ? 'كلمتا المرور متطابقتان' : 'Passwords match'}</>
-                  : <><AlertCircle size={11} /> {isRtl ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match'}</>
-                }
+                {pw.next === pw.confirm ? (
+                  <>
+                    <Check size={11} />
+                    {matchOkText}
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={11} />
+                    {matchBadText}
+                  </>
+                )}
               </p>
             )}
 
@@ -353,10 +384,7 @@ const UserProfileModal = ({ onClose }: Props) => {
               disabled={savingPw || !pw.next || !pw.confirm}
               className="w-full gap-2"
             >
-              {savingPw
-                ? (isRtl ? 'جاري التغيير...' : 'Changing...')
-                : (isRtl ? 'تغيير كلمة المرور' : 'Change Password')
-              }
+              {savingPw ? changePwLoadingText : changePwReadyText}
             </Button>
           </div>
         </div>

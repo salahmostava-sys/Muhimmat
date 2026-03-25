@@ -16,7 +16,7 @@ const getStrength = (pw: string) => {
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
   return Math.min(3, Math.floor(score * 3 / 5));
 };
@@ -30,7 +30,7 @@ const strengthColor = (s: number) => {
   return 'bg-success';
 };
 
-const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
+const SectionHeader = ({ icon, title, subtitle }: Readonly<{ icon: React.ReactNode; title: string; subtitle?: string }>) => (
   <div className="flex items-center gap-3 pb-4 mb-5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
       style={{ background: 'rgba(38,66,230,0.08)', color: '#2642e6' }}>
@@ -43,12 +43,34 @@ const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title
   </div>
 );
 
+type PwFieldId = 'next' | 'confirm';
+type PwFieldProps = Readonly<{
+  id: PwFieldId;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+}>;
+
+const PwField = ({ id, label, value, onChange, show, onToggle }: PwFieldProps) => (
+  <div>
+    <Label htmlFor={id} className="text-sm mb-1.5 block" style={{ color: 'var(--ds-on-surface-variant)' }}>{label}</Label>
+    <div className="relative">
+      <Input id={id} type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} className="pe-10" dir="ltr" />
+      <button type="button" onClick={onToggle} className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+        {show ? <EyeOff size={15} /> : <Eye size={15} />}
+      </button>
+    </div>
+  </div>
+);
+
 interface ProfileSettingsContentProps {
   /** إخفاء عنوان القسم العلوي (عند عرض الصفحة المستقلة التي تحتوي على h1) */
   omitPageHeading?: boolean;
 }
 
-export default function ProfileSettingsContent({ omitPageHeading = false }: ProfileSettingsContentProps) {
+export default function ProfileSettingsContent({ omitPageHeading = false }: Readonly<ProfileSettingsContentProps>) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isRTL } = useLanguage();
@@ -65,6 +87,18 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
   const [pwError, setPwError] = useState('');
 
   const strength = getStrength(pw.next);
+  const saveProfileLoadingText = isRTL ? 'جاري الحفظ...' : 'Saving...';
+  const saveProfileReadyText = isRTL ? 'حفظ التغييرات' : 'Save Changes';
+  const changePwLoadingText = isRTL ? 'جاري التغيير...' : 'Changing...';
+  const changePwReadyText = isRTL ? 'تغيير كلمة المرور' : 'Change Password';
+
+  let strengthTextClass = 'text-success';
+  if (strength === 1) strengthTextClass = 'text-destructive';
+  else if (strength === 2) strengthTextClass = 'text-warning';
+
+  const passwordsMatch = pw.next === pw.confirm;
+  const matchOkText = isRTL ? 'كلمتا المرور متطابقتان' : 'Passwords match';
+  const matchBadText = isRTL ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match';
 
   useEffect(() => {
     if (!user) return;
@@ -148,27 +182,6 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
   const avatarSrc = previewUrl || profile.avatar_url || null;
   const initial = (profile.name || user?.email || 'U').charAt(0).toUpperCase();
 
-  const PwField = ({
-    id, label, value, onChange, show, onToggle,
-  }: {
-    id: 'next' | 'confirm';
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    show: boolean;
-    onToggle: () => void;
-  }) => (
-    <div>
-      <Label className="text-sm mb-1.5 block" style={{ color: 'var(--ds-on-surface-variant)' }}>{label}</Label>
-      <div className="relative">
-        <Input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} className="pe-10" dir="ltr" />
-        <button type="button" onClick={onToggle} className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-          {show ? <EyeOff size={15} /> : <Eye size={15} />}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-8 max-w-xl" dir={isRTL ? 'rtl' : 'ltr'}>
       {!omitPageHeading && (
@@ -235,9 +248,12 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
           </p>
         </div>
         <Button onClick={saveProfile} disabled={savingProfile} className="w-full gap-2">
-          {savingProfile
-            ? (isRTL ? 'جاري الحفظ...' : 'Saving...')
-            : <><Check size={15} /> {isRTL ? 'حفظ التغييرات' : 'Save Changes'}</>}
+          {savingProfile ? saveProfileLoadingText : (
+            <>
+              <Check size={15} />
+              {saveProfileReadyText}
+            </>
+          )}
         </Button>
       </div>
 
@@ -261,7 +277,7 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
                 <div key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors', strength >= i ? strengthColor(strength) : 'bg-muted')} />
               ))}
             </div>
-            <p className={cn('text-xs font-medium', strength === 1 ? 'text-destructive' : strength === 2 ? 'text-warning' : 'text-success')}>
+            <p className={cn('text-xs font-medium', strengthTextClass)}>
               {strengthLabel(strength, isRTL)}
             </p>
           </div>
@@ -275,10 +291,18 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
           onToggle={() => setShowPw(s => ({ ...s, confirm: !s.confirm }))}
         />
         {pw.confirm && pw.next && (
-          <p className={cn('text-xs flex items-center gap-1', pw.next === pw.confirm ? 'text-success' : 'text-destructive')}>
-            {pw.next === pw.confirm
-              ? <><Check size={11} /> {isRTL ? 'كلمتا المرور متطابقتان' : 'Passwords match'}</>
-              : <><AlertCircle size={11} /> {isRTL ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match'}</>}
+          <p className={cn('text-xs flex items-center gap-1', passwordsMatch ? 'text-success' : 'text-destructive')}>
+            {passwordsMatch ? (
+              <>
+                <Check size={11} />
+                {matchOkText}
+              </>
+            ) : (
+              <>
+                <AlertCircle size={11} />
+                {matchBadText}
+              </>
+            )}
           </p>
         )}
         {pwError && (
@@ -287,9 +311,7 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
           </p>
         )}
         <Button variant="outline" onClick={changePassword} disabled={savingPw || !pw.next || !pw.confirm} className="w-full gap-2">
-          {savingPw
-            ? (isRTL ? 'جاري التغيير...' : 'Changing...')
-            : (isRTL ? 'تغيير كلمة المرور' : 'Change Password')}
+          {savingPw ? changePwLoadingText : changePwReadyText}
         </Button>
       </div>
     </div>
