@@ -25,11 +25,14 @@
     "strict": false,
     "target": "ES2020",
     "types": [
+      "vite/client",
       "vitest/globals"
     ],
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "ignoreDeprecations": "5.0"
   },
   "include": [
     "src"
-  ]
+  ],
+  "exclude": []
 }
