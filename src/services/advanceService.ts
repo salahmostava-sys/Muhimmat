@@ -120,7 +120,8 @@ export const advanceService = {
   },
 
   createInstallments: async (installments: Record<string, unknown>[]) => {
-    const { error } = await supabase.from('advance_installments').insert(installments as unknown[]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from('advance_installments').insert(installments as unknown as any);
     return { error };
   },
 

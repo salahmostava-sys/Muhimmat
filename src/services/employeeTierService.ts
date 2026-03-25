@@ -6,8 +6,11 @@ export const employeeTierService = {
   getActiveApps: async () =>
     supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
   updateTier: async (id: string, payload: Record<string, unknown>) =>
-    supabase.from('employee_tiers').update(payload).eq('id', id),
-  createTier: async (payload: Record<string, unknown>) => supabase.from('employee_tiers').insert(payload),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('employee_tiers').update(payload as unknown as any).eq('id', id),
+  createTier: async (payload: Record<string, unknown>) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('employee_tiers').insert(payload as unknown as any),
   deleteTier: async (id: string) => supabase.from('employee_tiers').delete().eq('id', id),
   getActiveAssignmentWithVehicleByEmployee: async (employeeId: string) =>
     supabase
