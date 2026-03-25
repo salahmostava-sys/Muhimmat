@@ -3,7 +3,7 @@
 -- 1) Do not auto-assign "viewer" on signup — admin assigns role after activation.
 -- 2) Remove viewer from employees SELECT — viewer must not read full employee PII via API.
 -- ============================================================
-
+--
 -- 1) New users: no default role row (admin assigns role when activating the account).
 CREATE OR REPLACE FUNCTION public.handle_new_user_role()
 RETURNS trigger
@@ -29,3 +29,4 @@ CREATE POLICY "Role scoped select employees"
       has_role(auth.uid(), 'finance'::app_role)
     )
   );
+

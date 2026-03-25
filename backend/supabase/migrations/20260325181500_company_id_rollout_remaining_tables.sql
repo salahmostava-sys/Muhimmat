@@ -146,10 +146,10 @@ WHERE sms.scheme_id = ss.id
 UPDATE public.app_targets at
 SET company_id = d.company_id
 FROM (
-  SELECT do.app_id, e.company_id
-  FROM public.daily_orders do
-  JOIN public.employees e ON e.id = do.employee_id
-  GROUP BY do.app_id, e.company_id
+  SELECT dorders.app_id, e.company_id
+  FROM public.daily_orders dorders
+  JOIN public.employees e ON e.id = dorders.employee_id
+  GROUP BY dorders.app_id, e.company_id
 ) AS d
 WHERE at.app_id = d.app_id
   AND at.company_id IS NULL
