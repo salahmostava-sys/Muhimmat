@@ -33,7 +33,14 @@ const Login = () => {
 
   useEffect(() => {
     dashboardService.getSystemSettings().then(({ data }) => {
-      if (data) setSettings(data as SystemSettings);
+      if (!data) return;
+      setSettings({
+        project_name_ar: data.project_name_ar ?? '',
+        project_name_en: data.project_name_en ?? '',
+        project_subtitle_ar: data.project_subtitle_ar ?? '',
+        project_subtitle_en: data.project_subtitle_en ?? '',
+        logo_url: data.logo_url ?? null,
+      });
     });
   }, []);
 
@@ -105,8 +112,8 @@ const Login = () => {
         </button>
       </div>
 
-      <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-400">
-        <header className="flex flex-col items-center justify-center text-center mb-8 px-4 w-full">
+      <div className="w-full max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-400">
+        <header className="flex flex-col items-center justify-center text-center mb-8 px-4 w-full mx-auto">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
@@ -184,7 +191,7 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} w-full ps-[5.25rem] pe-5`}
+                  className={`${inputClass} w-full ps-28 pe-5`}
                 />
               </div>
             </div>
@@ -218,7 +225,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-base text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
+              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-[16px] text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
