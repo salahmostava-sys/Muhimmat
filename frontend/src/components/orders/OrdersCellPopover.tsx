@@ -58,7 +58,7 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
     mode: 'onBlur',
   });
 
-  const { register, handleSubmit, reset, formState } = formApi;
+  const { register, reset, formState, getValues } = formApi;
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: state.y + 6, left: state.x });
 
@@ -84,10 +84,13 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
     reset(defaultValues as FormValues);
   }, [defaultValues, reset]);
 
-  const handleApply = handleSubmit((v) => {
-    onApply(state.empId, state.day, v.vals);
+  const handleApply = () => {
+    const raw = getValues();
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) return;
+    onApply(state.empId, state.day, parsed.data.vals);
     onClose();
-  });
+  };
 
   return (
     <div

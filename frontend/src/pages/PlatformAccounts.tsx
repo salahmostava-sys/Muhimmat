@@ -25,6 +25,9 @@ import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
 import { usePlatformAccountsPaged } from '@/hooks/usePlatformAccountsPaged';
 import { Skeleton } from '@/components/ui/skeleton';
+import { auditService } from '@/services/auditService';
+import * as XLSX from '@e965/xlsx';
+import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -259,8 +262,30 @@ const PlatformAccounts = () => {
     let error;
     if (editingAccount) {
       ({ error } = await platformAccountService.updateAccount(editingAccount.id, payload));
+      if (!error) {
+        await auditService.logAdminAction({
+          action: 'platform_accounts.update',
+          table_name: 'platform_accounts',
+          record_id: editingAccount.id,
+          meta: { fields: Object.keys(payload), app_id: payload.app_id, status: payload.status },
+        });
+      }
     } else {
-      ({ error } = await platformAccountService.createAccount(payload));
+      const res = await platformAccountService.createAccount(payload);
+      error = res.error;
+      const createdId =
+        Array.isArray(res.data) && typeof (res.data as unknown[])[0] === 'object' && (res.data as unknown[])[0] !== null
+          ? (res.data as Array<{ id?: unknown }>)[0]?.id
+          : null;
+      const createdIdStr = typeof createdId === 'string' ? createdId : null;
+      if (!error) {
+        await auditService.logAdminAction({
+          action: 'platform_accounts.create',
+          table_name: 'platform_accounts',
+          record_id: createdIdStr,
+          meta: { account_username: payload.account_username, app_id: payload.app_id, status: payload.status },
+        });
+      }
     }
 
     setSavingAccount(false);
@@ -322,6 +347,18 @@ const PlatformAccounts = () => {
       return;
     }
 
+    await auditService.logAdminAction({
+      action: 'platform_account_assignments.create',
+      table_name: 'platform_accounts',
+      record_id: assignTarget!.id,
+      meta: {
+        employee_id: assignForm.employee_id,
+        start_date: assignForm.start_date,
+        month_year: monthYear,
+        notes: assignForm.notes?.trim() || null,
+      },
+    });
+
     setSavingAssign(false);
     toast({ title: 'تم التعيين', description: 'تم تعيين المندوب بنجاح' });
     setAssignDialog(false);
@@ -336,6 +373,12 @@ const PlatformAccounts = () => {
     setHistoryLoading(true);
 
     const { data } = await accountAssignmentService.getHistoryByAccountId(account.id);
+    await auditService.logAdminAction({
+      action: 'platform_account_assignments.view_history',
+      table_name: 'platform_accounts',
+      record_id: account.id,
+      meta: { count: Array.isArray(data) ? data.length : 0 },
+    });
 
     const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
     const assignments: AssignmentWithName[] = ((data ?? []) as Assignment[]).map(r => ({
@@ -866,7 +909,7 @@ function PlatformAccountsFastList(props: {
   filters: {
     driverId?: string;
     platformAppId?: string;
-    branch?: 'all' | 'makkah' | 'jeddah';
+    branch?: BranchKey;
     search?: string;
     status?: 'all' | 'active' | 'inactive';
   };
@@ -881,16 +924,76 @@ function PlatformAccountsFastList(props: {
     filters: {
       driverId: filters.driverId,
       platformAppId: filters.platformAppId,
-      branch: filters.branch as any,
+      branch: filters.branch,
       search: filters.search,
       status: filters.status,
     },
   });
 
-  const paged = data as unknown as { data?: any[]; count?: number } | undefined;
-  const rows = (paged?.data || []) as any[];
+  type PagedRow = {
+    id: string;
+    app_id: string;
+    employee_id: string | null;
+    account_username: string;
+    account_id_on_platform: string | null;
+    iqama_number: string | null;
+    iqama_expiry_date: string | null;
+    status: 'active' | 'inactive';
+    notes: string | null;
+    created_at: string;
+    apps?: { id: string; name: string; brand_color: string | null; text_color: string | null } | null;
+    employees?: { id: string; name: string; city: string | null } | null;
+  };
+  const paged = data as unknown as { data?: PagedRow[]; count?: number } | undefined;
+  const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const [exporting, setExporting] = useState(false);
+
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const res = await platformAccountService.exportAccounts({
+        filters: {
+          employeeId: filters.driverId,
+          appId: filters.platformAppId,
+          branch: filters.branch && filters.branch !== 'all' ? filters.branch : undefined,
+          status: filters.status && filters.status !== 'all' ? filters.status : undefined,
+          search: filters.search,
+        },
+      });
+      if (res.error) throw res.error;
+
+      const out = (res.data || []) as PagedRow[];
+      const sheet = out.map((r) => ({
+        'اسم الحساب': r.account_username ?? '',
+        'المنصة': r.apps?.name ?? '',
+        'المندوب': r.employees?.name ?? '',
+        'الفرع': r.employees?.city ?? '',
+        'رقم الحساب على المنصة': r.account_id_on_platform ?? '',
+        'رقم الإقامة': r.iqama_number ?? '',
+        'انتهاء الإقامة': r.iqama_expiry_date ?? '',
+        'الحالة': r.status ?? '',
+        'ملاحظات': r.notes ?? '',
+        'تاريخ الإنشاء': r.created_at ?? '',
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sheet);
+      XLSX.utils.book_append_sheet(wb, ws, 'PlatformAccounts');
+      XLSX.writeFile(wb, `platform-accounts_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+      await auditService.logAdminAction({
+        action: 'platform_accounts.export',
+        table_name: 'platform_accounts',
+        record_id: null,
+        meta: { total: out.length, filters },
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -900,7 +1003,7 @@ function PlatformAccountsFastList(props: {
             ...createDefaultGlobalFilters(),
             driverId: filters.driverId || '',
             platformAppId: filters.platformAppId || '',
-            branch: (filters.branch as any) || 'all',
+            branch: filters.branch || 'all',
             search: filters.search || '',
           }}
           onChange={(next) => onFiltersChange(next)}
@@ -914,6 +1017,14 @@ function PlatformAccountsFastList(props: {
             enableDateRange: false,
           }}
         />
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-xs text-muted-foreground">{total.toLocaleString()} نتيجة</div>
+        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={exportExcel} disabled={exporting}>
+          {exporting && <Loader2 size={14} className="animate-spin" />}
+          تصدير Excel
+        </Button>
       </div>
 
       <div className="ds-card overflow-hidden">

@@ -105,6 +105,36 @@ export const platformAccountService = {
     return { data: data || [], error, count: count ?? 0 };
   },
 
+  /** Export helper for large datasets (chunked). */
+  exportAccounts: async (params: {
+    filters?: {
+      employeeId?: string;
+      appId?: string;
+      status?: 'active' | 'inactive';
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+    };
+    chunkSize?: number;
+    maxRows?: number;
+  }) => {
+    const filters = params.filters ?? {};
+    const chunkSize = params.chunkSize ?? 1000;
+    const maxRows = params.maxRows ?? 20_000;
+
+    const all: unknown[] = [];
+    for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
+      const res = await platformAccountService.getAccountsPaged({
+        page,
+        pageSize: chunkSize,
+        filters,
+      });
+      if (res.error) return { data: all, error: res.error };
+      all.push(...(res.data || []));
+      if ((res.data || []).length < chunkSize) break;
+    }
+    return { data: all, error: null };
+  },
+
   createAccount: async (payload: PlatformAccountWritePayload) =>
     supabase.from('platform_accounts').insert(payload),
 
