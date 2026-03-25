@@ -134,7 +134,8 @@ export const vehicleService = {
   createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .insert(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as unknown as any)
       .select()
       .single();
     return { data, error };
@@ -143,7 +144,8 @@ export const vehicleService = {
   updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .update(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as unknown as any)
       .eq('id', id)
       .select()
       .single();
