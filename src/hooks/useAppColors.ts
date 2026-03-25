@@ -34,6 +34,8 @@ export const getAppColor = (apps: AppColorData[], appName: string) => {
     text: brand,
     solid: brand,
     solidText: text,
+    cellBg: `${brand}11`,
+    val: brand,
   };
 };
 
@@ -57,7 +59,7 @@ export const useAppColors = () => {
         brand_color: app.brand_color || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
         text_color: app.text_color || '#ffffff',
         is_active: app.is_active ?? true,
-        custom_columns: Array.isArray(app.custom_columns) ? app.custom_columns : [],
+        custom_columns: Array.isArray(app.custom_columns) ? (app.custom_columns as unknown as CustomColumn[]) : [],
       })) as AppColorData[];
       setApps(normalized);
       setLoading(false);

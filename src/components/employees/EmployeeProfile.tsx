@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';

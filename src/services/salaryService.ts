@@ -113,7 +113,8 @@ export const salaryService = {
   },
 
   getPricingRules: async (appId: string) => {
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('pricing_rules')
       .select('id, app_id, min_orders, max_orders, rule_type, rate_per_order, fixed_salary, is_active, priority')
       .eq('app_id', appId)
@@ -264,7 +265,8 @@ export const salaryService = {
   upsertMany: async (records: Record<string, unknown>[]) => {
     const { error } = await supabase
       .from('salary_records')
-      .upsert(records, { onConflict: 'employee_id,month_year' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(records as unknown as any, { onConflict: 'employee_id,month_year' });
     return { error };
   },
 

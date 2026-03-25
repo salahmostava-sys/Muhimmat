@@ -50,8 +50,10 @@ export const userPermissionService = {
       return { error: existingError };
     }
     if (existing?.id) {
-      return supabase.from('user_roles').update({ role }).eq('id', existing.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return supabase.from('user_roles').update({ role } as any).eq('id', existing.id);
     }
-    return supabase.from('user_roles').insert({ user_id: userId, role });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return supabase.from('user_roles').insert({ user_id: userId, role } as any);
   },
 };

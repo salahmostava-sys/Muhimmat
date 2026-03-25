@@ -82,7 +82,8 @@ export const vehicleService = {
   create: async (payload: VehiclePayload) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .insert(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as unknown as any)
       .select()
       .single();
     return { data, error };
@@ -91,7 +92,8 @@ export const vehicleService = {
   update: async (id: string, payload: Partial<VehiclePayload>) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .update(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as unknown as any)
       .eq('id', id)
       .select()
       .single();
@@ -101,7 +103,8 @@ export const vehicleService = {
   upsert: async (payload: Partial<VehiclePayload> & { plate_number: string }) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .upsert(payload as Record<string, unknown>, { onConflict: 'plate_number' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(payload as unknown as any, { onConflict: 'plate_number' })
       .select()
       .single();
     return { data, error };
@@ -131,7 +134,8 @@ export const vehicleService = {
   createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .insert(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as unknown as any)
       .select()
       .single();
     return { data, error };
@@ -140,7 +144,8 @@ export const vehicleService = {
   updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
     const { data, error } = await supabase
       .from('maintenance_logs')
-      .update(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as unknown as any)
       .eq('id', id)
       .select()
       .single();
