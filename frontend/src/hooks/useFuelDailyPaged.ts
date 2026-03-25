@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { fuelService } from '@/services/fuelService';
-import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export type FuelDailyPagedFilters = {
   driverId?: string;
@@ -29,7 +29,7 @@ export function useFuelDailyPaged(params: {
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const search = filters.search?.trim() || undefined;
 
-  return useQuery<PagedResult>({
+  const q = useQuery<PagedResult>({
     queryKey: ['fuel', uid, 'daily', 'paged', monthStart, monthEnd, page, pageSize, employeeId ?? null, branch ?? null, search ?? null] as const,
     queryFn: async () => {
       const res = await fuelService.getDailyMileagePaged({
@@ -44,8 +44,9 @@ export function useFuelDailyPaged(params: {
     },
     retry: 1,
     staleTime: 15_000,
-    onError: (err) => toastQueryError(err, 'تعذر تحميل بيانات الوقود'),
     enabled,
   });
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل بيانات الوقود');
+  return q;
 }
 

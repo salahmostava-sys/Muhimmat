@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { employeeService } from '@/services/employeeService';
-import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export type EmployeesPagedFilters = {
   branch?: BranchKey;
@@ -27,7 +27,7 @@ export function useEmployeesPaged(params: {
   const status = filters.status && filters.status !== 'all' ? filters.status : undefined;
   const search = filters.search?.trim() || undefined;
 
-  return useQuery<PagedResult>({
+  const q = useQuery<PagedResult>({
     queryKey: ['employees', uid, 'paged', page, pageSize, branch ?? null, status ?? null, search ?? null] as const,
     queryFn: async () => {
       const res = await employeeService.getPaged({ page, pageSize, filters: { branch, status, search } });
@@ -36,8 +36,9 @@ export function useEmployeesPaged(params: {
     },
     retry: 1,
     staleTime: 15_000,
-    onError: (err) => toastQueryError(err, 'تعذر تحميل الموظفين'),
     enabled,
   });
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الموظفين');
+  return q;
 }
 

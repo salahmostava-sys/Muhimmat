@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@/services/orderService';
-import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export type OrdersPagedFilters = {
   driverId?: string | 'all';
@@ -25,7 +25,7 @@ export function useOrdersMonthPaged(params: {
   const branch = filters.branch && filters.branch !== 'all' ? (filters.branch as 'makkah' | 'jeddah') : undefined;
   const search = filters.search?.trim() ? filters.search.trim() : undefined;
 
-  return useQuery({
+  const q = useQuery({
     queryKey: ['orders', uid, 'month-paged', monthYear, page, pageSize, driverId ?? null, appId ?? null, branch ?? null, search ?? null] as const,
     queryFn: async () => {
       const res = await orderService.getMonthPaged({
@@ -38,8 +38,9 @@ export function useOrdersMonthPaged(params: {
     },
     retry: 1,
     staleTime: 15_000,
-    onError: (err) => toastQueryError(err, 'تعذر تحميل الطلبات'),
     enabled,
   });
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الطلبات');
+  return q;
 }
 

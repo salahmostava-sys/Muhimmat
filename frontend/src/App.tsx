@@ -14,6 +14,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import DashboardLayout from '@/components/AppLayout';
 import AuthLayout from "@/layouts/AuthLayout";
 import Loading from "@/components/Loading";
+import { defaultQueryRetry } from "@/lib/query";
 import "@/i18n";
 
 const Login = lazy(() => import("./pages/Login"));
@@ -55,12 +56,7 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: (failureCount, error: unknown) => {
-        if (error == null || typeof error !== 'object') return failureCount < 2;
-        const status = (error as { status?: number }).status;
-        if (status === 401 || status === 403) return false;
-        return failureCount < 2;
-      },
+      retry: defaultQueryRetry,
     },
   },
 });

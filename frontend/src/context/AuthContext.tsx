@@ -91,8 +91,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const subscription = authService.onAuthStateChange(async (event, nextSession) => {
       if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-        await queryClient.cancelQueries();
-        queryClient.clear();
+        try {
+          await queryClient.cancelQueries();
+          queryClient.clear();
+        } catch (e) {
+          console.error('[Auth] queryClient cancel/clear failed', e);
+        }
+        setRefreshing(false);
         setLoading(false);
       }
       if (nextSession?.user) {

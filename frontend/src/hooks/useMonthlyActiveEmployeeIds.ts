@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export type MonthlyActiveEmployeeIdsResult = {
   monthKey: string; // YYYY-MM
@@ -27,7 +28,7 @@ export function useMonthlyActiveEmployeeIds(monthKey?: string) {
   const mk = monthKey ?? toMonthKey(new Date());
   const { start, end } = monthStartEnd(mk);
 
-  return useQuery({
+  const q = useQuery({
     queryKey: ['employees', uid, 'active-ids', mk] as const,
     queryFn: async (): Promise<MonthlyActiveEmployeeIdsResult> => {
       const [ordersRes, attendanceRes, salariesRes] = await Promise.all([
@@ -59,8 +60,9 @@ export function useMonthlyActiveEmployeeIds(monthKey?: string) {
       return { monthKey: mk, employeeIds: ids };
     },
     staleTime: 60_000,
-    retry: 1,
     enabled,
   });
+  useQueryErrorToast(q.isError, q.error);
+  return q;
 }
 
