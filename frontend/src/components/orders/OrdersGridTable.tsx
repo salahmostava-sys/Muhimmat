@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
 import { ColorBadge } from '@/components/ui/ColorBadge';
+import { ColorDot } from '@/components/ui/ColorDot';
 
 type Employee = { id: string; name: string };
 type App = { id: string; name: string };
@@ -178,7 +179,7 @@ export const OrdersGridTable = ({
                                   <div className="flex gap-0.5 mt-0.5">
                                     {dayApps.slice(0, 3).map(a => {
                                       const c = getAppColor(appColorsList, a.name);
-                                      return <span key={a.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.bg }} />;
+                                      return <ColorDot key={a.id} color={c.solid} />;
                                     })}
                                   </div>
                                 )}
@@ -202,10 +203,15 @@ export const OrdersGridTable = ({
                   {isExpanded && activeApps.map(app => {
                     const c = getAppColor(appColorsList, app.name);
                     const appTotal = empAppMonthTotal(emp.id, app.id);
+                    const rowStyle = { '--rowbg': c.cellBg, '--cval': c.text } as React.CSSProperties;
                     return (
-                      <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                        <td className="sticky right-0 z-[12] border-l border-border" style={{ backgroundColor: c.cellBg, minWidth: seqColMin, width: seqColMin }} aria-hidden />
-                        <td className="sticky z-[11] px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, right: seqColMin, minWidth: repColMin }}>
+                      <tr
+                        key={`${emp.id}-${app.id}`}
+                        className="border-b border-border/20 bg-[var(--rowbg)]"
+                        style={rowStyle}
+                      >
+                        <td className="sticky right-0 z-[12] border-l border-border bg-[var(--rowbg)]" style={{ minWidth: seqColMin, width: seqColMin }} aria-hidden />
+                        <td className="sticky z-[11] px-1.5 py-1 border-l-2 border-border bg-[var(--rowbg)]" style={{ right: seqColMin, minWidth: repColMin }}>
                           <div className="flex items-center gap-2 pr-8">
                             <ColorBadge label={app.name} bg={c.solid} fg={c.solidText} className="text-[10px]" />
                           </div>
@@ -218,13 +224,13 @@ export const OrdersGridTable = ({
                           const isToday = d === today;
                           return (
                             <td key={d} className={`text-center p-0 border-l border-border/20 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-muted/20 opacity-70' : isThursday ? 'bg-muted/10' : ''}`} style={{ minWidth: 36 }}>
-                              <div className="h-6 flex items-center justify-center font-medium text-[10px]" style={{ color: val > 0 ? c.val : undefined }}>
+                              <div className={`h-6 flex items-center justify-center font-medium text-[10px] ${val > 0 ? 'text-[var(--cval)]' : ''}`}>
                                 {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
                               </div>
                             </td>
                           );
                         })}
-                        <td className="sticky left-0 z-10 text-center px-1 py-1 font-bold border-r-2 border-border text-[10px] bg-muted" style={{ color: c.val, minWidth: 64 }}>
+                        <td className="sticky left-0 z-10 text-center px-1 py-1 font-bold border-r-2 border-border text-[10px] bg-muted text-[var(--cval)]" style={{ minWidth: 64 }}>
                           {appTotal > 0 ? appTotal : '—'}
                         </td>
                       </tr>
