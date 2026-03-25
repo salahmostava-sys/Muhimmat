@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
+import { ColorBadge } from '@/components/ui/ColorBadge';
 
 type Employee = { id: string; name: string };
 type App = { id: string; name: string };
@@ -143,9 +144,7 @@ export const OrdersGridTable = ({
                           {activeApps.slice(0, 3).map(a => {
                             const c = getAppColor(appColorsList, a.name);
                             return (
-                              <span key={a.id} className="text-[9px] px-1 rounded font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
-                                {a.name.slice(0, 4)}
-                              </span>
+                              <ColorBadge key={a.id} label={a.name.slice(0, 4)} bg={c.solid} fg={c.solidText} className="text-[9px] px-1 py-0 rounded" />
                             );
                           })}
                           {activeApps.length > 3 && <span className="text-[9px] text-muted-foreground">+{activeApps.length - 3}</span>}
@@ -208,9 +207,7 @@ export const OrdersGridTable = ({
                         <td className="sticky right-0 z-[12] border-l border-border" style={{ backgroundColor: c.cellBg, minWidth: seqColMin, width: seqColMin }} aria-hidden />
                         <td className="sticky z-[11] px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, right: seqColMin, minWidth: repColMin }}>
                           <div className="flex items-center gap-2 pr-8">
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
-                              {app.name}
-                            </span>
+                            <ColorBadge label={app.name} bg={c.solid} fg={c.solidText} className="text-[10px]" />
                           </div>
                         </td>
                         {dayArr.map(d => {

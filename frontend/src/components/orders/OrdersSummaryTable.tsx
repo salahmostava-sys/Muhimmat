@@ -1,4 +1,5 @@
 import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
+import { ColorBadge } from '@/components/ui/ColorBadge';
 
 type Employee = { id: string; name: string };
 type App = { id: string; name: string };
@@ -62,9 +63,11 @@ export const OrdersSummaryTable = ({
                 key={app.id}
                 onClick={() => onSort(appField)}
                 className="text-center p-3 font-semibold min-w-[90px] border-l border-border/50 cursor-pointer"
-                style={{ backgroundColor: `${c.bg}22`, color: c.val }}
               >
-                {app.name} <SortIcon active={sortField === appField} dir={sortDir} />
+                <div className="flex items-center justify-center gap-1.5">
+                  <ColorBadge label={app.name} bg={c.bg} fg={c.text} />
+                  <SortIcon active={sortField === appField} dir={sortDir} />
+                </div>
               </th>
             );
           })}
