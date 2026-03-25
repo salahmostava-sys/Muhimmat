@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { validateUploadFile } from '@/lib/validation';
 import { settingsHubService } from '@/services/settingsHubService';
 import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ export default function ProjectSettings() {
   const { settings, refresh } = useSystemSettings();
   const { toast } = useToast();
   const { isAdmin } = usePermissions('settings');
+  const queryClient = useQueryClient();
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
@@ -64,24 +66,15 @@ export default function ProjectSettings() {
     setLogoPreview(URL.createObjectURL(file));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       let logo_url = settings?.logo_url ?? null;
 
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const path = `${user?.id}/project-logo.${ext}`;
         const { error: upErr } = await settingsHubService.uploadCompanyLogo(path, logoFile);
-        if (upErr) {
-          setSaving(false);
-          toast({
-            title: isRTL ? 'فشل رفع الشعار' : 'Logo upload failed',
-            description: upErr.message,
-            variant: 'destructive',
-          });
-          return;
-        }
+        if (upErr) throw new Error(upErr.message || 'فشل رفع الشعار');
         const { data: { publicUrl } } = settingsHubService.getCompanyLogoPublicUrl(path);
         logo_url = publicUrl;
       }
@@ -97,24 +90,31 @@ export default function ProjectSettings() {
       };
 
       if (settings?.id) {
-        const { error } = await supabase
-          .from('system_settings')
-          .update(payload)
-          .eq('id', settings.id);
-        if (error) throw error;
+        const { error } = await supabase.from('system_settings').update(payload).eq('id', settings.id);
+        if (error) throw new Error(error.message || 'تعذر حفظ الإعدادات');
       } else {
-        const { error } = await supabase
-          .from('system_settings')
-          .insert(payload);
-        if (error) throw error;
+        const { error } = await supabase.from('system_settings').insert(payload);
+        if (error) throw new Error(error.message || 'تعذر حفظ الإعدادات');
       }
-
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['system-settings'] });
       await refresh();
-      toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
-    }
-    setSaving(false);
+      toast({
+        title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
+        description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated',
+      });
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: message, variant: 'destructive' });
+    },
+    onSettled: () => setSaving(false),
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveMutation.mutateAsync();
   };
 
   // ── Backup Handler ──

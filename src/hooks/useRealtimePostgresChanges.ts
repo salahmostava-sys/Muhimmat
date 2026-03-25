@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 
 /** Tables backing Dashboard KPIs + analytics (invalidate on change; read-heavy). */
 export const REALTIME_TABLES_DASHBOARD = [
@@ -21,14 +22,22 @@ export const REALTIME_TABLES_ALERTS_WIDGET = ['employees', 'vehicles'] as const;
 export function useRealtimePostgresChanges(
   channelName: string,
   tables: readonly string[],
-  onEvent: () => void
+  onEvent: () => void,
+  options?: { invalidateQueryKeys?: QueryKey[] }
 ): void {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const channel = supabase.channel(channelName);
-    const handler = () => onEventRef.current();
+    const handler = () => {
+      onEventRef.current();
+      const keys = options?.invalidateQueryKeys ?? [];
+      keys.forEach((queryKey) => {
+        void queryClient.invalidateQueries({ queryKey });
+      });
+    };
     tables.forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, handler);
     });
@@ -36,5 +45,5 @@ export function useRealtimePostgresChanges(
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [channelName, tables]);
+  }, [channelName, tables, options?.invalidateQueryKeys, queryClient]);
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -285,11 +285,14 @@ const Alerts = () => {
   const { settings } = useSystemSettings();
   const { user } = useAuth();
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
-  const [rtTick, setRtTick] = useState(0);
+  const queryClient = useQueryClient();
 
-  useRealtimePostgresChanges('alerts-page-realtime', REALTIME_TABLES_ALERTS_PAGE, () => {
-    setRtTick((n) => n + 1);
-  });
+  useRealtimePostgresChanges(
+    'alerts-page-realtime',
+    REALTIME_TABLES_ALERTS_PAGE,
+    () => {},
+    { invalidateQueryKeys: [['alerts', 'page-data', iqamaAlertDays]] }
+  );
 
   const {
     data: alertsData = [],
@@ -325,25 +328,22 @@ const Alerts = () => {
     toast({ title: 'تعذر تحميل التنبيهات', description: msg, variant: 'destructive' });
   }, [alertsError, toast]);
 
-  useEffect(() => {
-    if (rtTick === 0) return;
-    void refetchAlerts();
-  }, [rtTick, refetchAlerts]);
-
   /** عند العودة للتبويب بعد إبقائه في الخلفية (يثبّت الجلسة ويعيد جلب التنبيهات بصمت) */
   useEffect(() => {
     let debounce: ReturnType<typeof setTimeout>;
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
       clearTimeout(debounce);
-      debounce = setTimeout(() => void refetchAlerts(), 400);
+      debounce = setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ['alerts', 'page-data', iqamaAlertDays] });
+      }, 400);
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
       clearTimeout(debounce);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [refetchAlerts]);
+  }, [queryClient, iqamaAlertDays]);
 
   const filtered = localAlerts.filter(a =>
     isUnresolvedAlertMatchingFilters(a, typeFilter, severityFilter, search)
