@@ -62,42 +62,50 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
-      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(daysInMonth)}`;
+      try {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const from = `${selectedYear}-${pad(selectedMonth + 1)}-01`;
+        const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+        const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(daysInMonth)}`;
 
-      const [attRes, empRes] = await Promise.all([
-        attendanceService.getAttendanceStatusRange(from, to),
-        attendanceService.getActiveEmployeesCount(),
-      ]);
+        const [attRes, empRes] = await Promise.all([
+          attendanceService.getAttendanceStatusRange(from, to),
+          attendanceService.getActiveEmployeesCount(),
+        ]);
 
-      setTotalEmployees(empRes.count || 0);
+        setTotalEmployees(empRes.count || 0);
+        if (!attRes.data) {
+          setData([]);
+          return;
+        }
 
-      if (!attRes.data) { setLoading(false); return; }
+        // Group by day
+        const byDay: Record<number, Record<string, number>> = {};
+        for (let d = 1; d <= daysInMonth; d++) byDay[d] = { present: 0, absent: 0, leave: 0, sick: 0, late: 0 };
 
-      // Group by day
-      const byDay: Record<number, Record<string, number>> = {};
-      for (let d = 1; d <= daysInMonth; d++) byDay[d] = { present: 0, absent: 0, leave: 0, sick: 0, late: 0 };
+        attRes.data.forEach(r => {
+          const d = new Date(r.date).getDate();
+          const s = r.status;
+          if (byDay[d] && s && s in byDay[d]) byDay[d][s]++;
+        });
 
-      attRes.data.forEach(r => {
-        const d = new Date(r.date).getDate();
-        const s = r.status;
-        if (byDay[d] && s && s in byDay[d]) byDay[d][s]++;
-      });
+        const result: DayStats[] = Array.from({ length: daysInMonth }, (_, i) => ({
+          day: String(i + 1),
+          dayNum: i + 1,
+          present: byDay[i + 1].present,
+          absent: byDay[i + 1].absent,
+          leave: byDay[i + 1].leave,
+          sick: byDay[i + 1].sick,
+          late: byDay[i + 1].late,
+        })).filter(d => d.present + d.absent + d.leave + d.sick + d.late > 0);
 
-      const result: DayStats[] = Array.from({ length: daysInMonth }, (_, i) => ({
-        day: String(i + 1),
-        dayNum: i + 1,
-        present: byDay[i + 1].present,
-        absent:  byDay[i + 1].absent,
-        leave:   byDay[i + 1].leave,
-        sick:    byDay[i + 1].sick,
-        late:    byDay[i + 1].late,
-      })).filter(d => d.present + d.absent + d.leave + d.sick + d.late > 0);
-
-      setData(result);
-      setLoading(false);
+        setData(result);
+      } catch (err) {
+        console.error('[AttendanceStats] fetch failed', err);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetch();
   }, [selectedMonth, selectedYear]);

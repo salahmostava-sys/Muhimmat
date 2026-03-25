@@ -55,30 +55,37 @@ const ArchiveAttendance = () => {
     if (!selected) return;
     const fetchData = async () => {
       setLoading(true);
-      const monthStr   = String(selected.month + 1).padStart(2, "0");
-      const startDate  = `${selected.year}-${monthStr}-01`;
-      const daysInMonth = new Date(selected.year, selected.month + 1, 0).getDate();
-      const endDate    = `${selected.year}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
+      try {
+        const monthStr = String(selected.month + 1).padStart(2, "0");
+        const startDate = `${selected.year}-${monthStr}-01`;
+        const daysInMonth = new Date(selected.year, selected.month + 1, 0).getDate();
+        const endDate = `${selected.year}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const [empRes, attRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, name, national_id, salary_type, base_salary")
-          .eq("status", "active")
-          .order("name"),
-        supabase
-          .from("attendance")
-          .select("employee_id, status")
-          .gte("date", startDate)
-          .lte("date", endDate),
-      ]);
+        const [empRes, attRes] = await Promise.all([
+          supabase
+            .from("employees")
+            .select("id, name, national_id, salary_type, base_salary")
+            .eq("status", "active")
+            .order("name"),
+          supabase
+            .from("attendance")
+            .select("employee_id, status")
+            .gte("date", startDate)
+            .lte("date", endDate),
+        ]);
 
-      if (empRes.data) {
-        const rows = empRes.data as Employee[];
-        setEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+        if (empRes.data) {
+          const rows = empRes.data as Employee[];
+          setEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+        }
+        if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);
+      } catch (err) {
+        console.error('[ArchiveAttendance] fetch failed', err);
+        setEmployees([]);
+        setAttendanceRows([]);
+      } finally {
+        setLoading(false);
       }
-      if (attRes.data)  setAttendanceRows(attRes.data as AttendanceRow[]);
-      setLoading(false);
     };
     fetchData();
   }, [selected, activeEmployeeIdsInMonth]);

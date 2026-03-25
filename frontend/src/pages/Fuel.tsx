@@ -437,87 +437,104 @@ const FuelPage = () => {
 
   const fetchMonthly = useCallback(async () => {
     setLoading(true);
-    const ms = `${monthYear}-01`;
-    const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
-      fuelService.getMonthlyDailyMileage(ms, me),
-      fuelService.getMonthlyOrders(ms, me),
-      fuelService.getActiveVehicleAssignments(),
-    ]);
+    try {
+      const ms = `${monthYear}-01`;
+      const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
+      const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
+        fuelService.getMonthlyDailyMileage(ms, me),
+        fuelService.getMonthlyOrders(ms, me),
+        fuelService.getActiveVehicleAssignments(),
+      ]);
+      if (dailyRes.error) throw dailyRes.error;
+      if (ordersRes.error) throw ordersRes.error;
+      if (assignmentsRes.error) throw assignmentsRes.error;
 
-    const orderMap: Record<string, number> = {};
-    (ordersRes.data || []).forEach((o: { employee_id: string; orders_count: number }) => {
-      orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
-    });
+      const orderMap: Record<string, number> = {};
+      (ordersRes.data || []).forEach((o: { employee_id: string; orders_count: number }) => {
+        orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
+      });
 
-    const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
-    (assignmentsRes.data || []).forEach((a: { employee_id: string; vehicles?: { plate_number: string; type: string; brand?: string | null; model?: string | null } }) => {
-      if (!vehicleMap[a.employee_id] && a.vehicles) vehicleMap[a.employee_id] = a.vehicles;
-    });
+      const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
+      (assignmentsRes.data || []).forEach((a: { employee_id: string; vehicles?: { plate_number: string; type: string; brand?: string | null; model?: string | null } }) => {
+        if (!vehicleMap[a.employee_id] && a.vehicles) vehicleMap[a.employee_id] = a.vehicles;
+      });
 
-    const aggMap: Record<string, { km: number; fuel: number; count: number; name: string; photo?: string | null }> = {};
-    (dailyRes.data || []).forEach((r: {
-      employee_id: string; km_total: number; fuel_cost: number;
-      employees?: { name: string; personal_photo_url?: string | null };
-    }) => {
-      if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(r.employee_id)) return;
-      const emp = r.employees;
-      if (!aggMap[r.employee_id]) {
-        aggMap[r.employee_id] = { km: 0, fuel: 0, count: 0, name: emp?.name || '', photo: emp?.personal_photo_url };
-      }
-      aggMap[r.employee_id].km += Number(r.km_total) || 0;
-      aggMap[r.employee_id].fuel += Number(r.fuel_cost) || 0;
-      aggMap[r.employee_id].count += 1;
-    });
+      const aggMap: Record<string, { km: number; fuel: number; count: number; name: string; photo?: string | null }> = {};
+      (dailyRes.data || []).forEach((r: {
+        employee_id: string; km_total: number; fuel_cost: number;
+        employees?: { name: string; personal_photo_url?: string | null };
+      }) => {
+        if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(r.employee_id)) return;
+        const emp = r.employees;
+        if (!aggMap[r.employee_id]) {
+          aggMap[r.employee_id] = { km: 0, fuel: 0, count: 0, name: emp?.name || '', photo: emp?.personal_photo_url };
+        }
+        aggMap[r.employee_id].km += Number(r.km_total) || 0;
+        aggMap[r.employee_id].fuel += Number(r.fuel_cost) || 0;
+        aggMap[r.employee_id].count += 1;
+      });
 
-    const empById: Record<string, Employee> = {};
-    employees.forEach((e) => { empById[e.id] = e; });
-    const allEmployeeIds = new Set<string>([
-      ...Object.keys(aggMap),
-      ...Object.keys(orderMap).filter((id) => (orderMap[id] || 0) > 0),
-    ]);
+      const empById: Record<string, Employee> = {};
+      employees.forEach((e) => { empById[e.id] = e; });
+      const allEmployeeIds = new Set<string>([
+        ...Object.keys(aggMap),
+        ...Object.keys(orderMap).filter((id) => (orderMap[id] || 0) > 0),
+      ]);
 
-    const rows: MonthlyRow[] = Array.from(allEmployeeIds).map((emp_id) => {
-      const agg = aggMap[emp_id];
-      const emp = empById[emp_id];
-      return {
-        employee_id: emp_id,
-        employee_name: agg?.name || emp?.name || '—',
-        personal_photo_url: agg?.photo || emp?.personal_photo_url || null,
-        km_total: agg?.km || 0,
-        fuel_cost: agg?.fuel || 0,
-        orders_count: orderMap[emp_id] || 0,
-        vehicle: vehicleMap[emp_id] || null,
-        daily_count: agg?.count || 0,
-      };
-    }).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
+      const rows: MonthlyRow[] = Array.from(allEmployeeIds).map((emp_id) => {
+        const agg = aggMap[emp_id];
+        const emp = empById[emp_id];
+        return {
+          employee_id: emp_id,
+          employee_name: agg?.name || emp?.name || '—',
+          personal_photo_url: agg?.photo || emp?.personal_photo_url || null,
+          km_total: agg?.km || 0,
+          fuel_cost: agg?.fuel || 0,
+          orders_count: orderMap[emp_id] || 0,
+          vehicle: vehicleMap[emp_id] || null,
+          daily_count: agg?.count || 0,
+        };
+      }).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
 
-    setMonthlyRows(rows);
-    setLoading(false);
+      setMonthlyRows(rows);
+    } catch (err) {
+      console.error('[Fuel] fetchMonthly failed', err);
+      const message = err instanceof Error ? err.message : 'تعذر جلب البيانات الشهرية';
+      toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
+      setMonthlyRows([]);
+    } finally {
+      setLoading(false);
+    }
   }, [monthYear, employeeIdsOnPlatform, employees]);
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);
-    const ms = `${monthYear}-01`;
-    const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
-    if (error) {
-      toast({ title: 'خطأ في جلب البيانات', description: error.message, variant: 'destructive' });
-    }
-    let mapped = ((data || []) as unknown as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
-    if (selectedEmployee && selectedEmployee !== '_all_') {
-      mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
-    } else if (employeeIdsOnPlatform) {
-      const ids = Array.from(employeeIdsOnPlatform);
-      if (ids.length === 0) {
-        setDailyRows([]);
-        setLoading(false);
-        return;
+    try {
+      const ms = `${monthYear}-01`;
+      const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
+      const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
+      if (error) throw error;
+
+      let mapped = ((data || []) as unknown as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
+      if (selectedEmployee && selectedEmployee !== '_all_') {
+        mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
+      } else if (employeeIdsOnPlatform) {
+        const ids = Array.from(employeeIdsOnPlatform);
+        if (ids.length === 0) {
+          setDailyRows([]);
+          return;
+        }
+        mapped = mapped.filter((r) => ids.includes(r.employee_id));
       }
-      mapped = mapped.filter((r) => ids.includes(r.employee_id));
+      setDailyRows(mapped as DailyRow[]);
+    } catch (err) {
+      console.error('[Fuel] fetchDaily failed', err);
+      const message = err instanceof Error ? err.message : 'تعذر جلب البيانات اليومية';
+      toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
+      setDailyRows([]);
+    } finally {
+      setLoading(false);
     }
-    setDailyRows(mapped as DailyRow[]);
-    setLoading(false);
   }, [monthYear, selectedEmployee, employeeIdsOnPlatform, toast]);
 
   useEffect(() => {

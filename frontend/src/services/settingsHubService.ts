@@ -2,6 +2,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { validateUploadFile } from '@/lib/validation';
 import { authService } from '@/services/authService';
 
+const EXPORT_TABLE_ALLOWLIST = new Set([
+  'audit_log',
+  'admin_action_log',
+  'profiles',
+  'employees',
+  'vehicles',
+  'apps',
+  'daily_orders',
+  'attendance',
+  'advances',
+  'salary_records',
+  'trade_registers',
+  'system_settings',
+]);
+
 export const settingsHubService = {
   getAuditLogs: async (from: number, to: number, filterAction: string, filterTable: string, search: string) => {
     let query = supabase
@@ -53,6 +68,10 @@ export const settingsHubService = {
   createTradeRegister: async (payload: Record<string, unknown>) =>
     supabase.from('trade_registers').insert(payload).select().single(),
 
-  exportTableRows: async (table: string) =>
-    supabase.from(table).select('*'),
+  exportTableRows: async (table: string) => {
+    if (!EXPORT_TABLE_ALLOWLIST.has(table)) {
+      throw new Error('Table is not allowed for export');
+    }
+    return supabase.from(table).select('*');
+  },
 };

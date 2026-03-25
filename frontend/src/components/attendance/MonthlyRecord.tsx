@@ -50,17 +50,24 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const monthStr = String(selectedMonth + 1).padStart(2, "0");
-      const startDate = `${selectedYear}-${monthStr}-01`;
-      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
+      try {
+        const monthStr = String(selectedMonth + 1).padStart(2, "0");
+        const startDate = `${selectedYear}-${monthStr}-01`;
+        const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+        const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const { employeesRes: empRes, attendanceRes: attRes } =
-        await attendanceService.getMonthlyEmployeesAndAttendance(startDate, endDate);
+        const { employeesRes: empRes, attendanceRes: attRes } =
+          await attendanceService.getMonthlyEmployeesAndAttendance(startDate, endDate);
 
-      if (empRes.data) setEmployees(empRes.data as Employee[]);
-      if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);
-      setLoading(false);
+        if (empRes.data) setEmployees(empRes.data as Employee[]);
+        if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);
+      } catch (err) {
+        console.error('[MonthlyRecord] fetch failed', err);
+        setEmployees([]);
+        setAttendanceRows([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [selectedMonth, selectedYear]);

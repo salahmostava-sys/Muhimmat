@@ -26,33 +26,37 @@ export default function GlobalSearch() {
   const search = useCallback(async (q: string) => {
     if (!q.trim() || q.length < 2) { setResults([]); return; }
     setLoading(true);
+    try {
+      const { employees, vehicles } = await searchService.searchEmployeesAndVehicles(q);
+      const out: SearchResult[] = [];
 
-    const { employees, vehicles } = await searchService.searchEmployeesAndVehicles(q);
-
-    const out: SearchResult[] = [];
-
-    employees.forEach(e => {
-      out.push({
-        id: e.id,
-        label: e.name,
-        sub: e.phone || undefined,
-        type: 'employee',
-        href: '/employees',
+      employees.forEach(e => {
+        out.push({
+          id: e.id,
+          label: e.name,
+          sub: e.phone || undefined,
+          type: 'employee',
+          href: '/employees',
+        });
       });
-    });
 
-    vehicles.forEach(v => {
-      out.push({
-        id: v.id,
-        label: v.plate_number,
-        sub: [v.brand, v.model].filter(Boolean).join(' ') || undefined,
-        type: 'vehicle',
-        href: '/motorcycles',
+      vehicles.forEach(v => {
+        out.push({
+          id: v.id,
+          label: v.plate_number,
+          sub: [v.brand, v.model].filter(Boolean).join(' ') || undefined,
+          type: 'vehicle',
+          href: '/motorcycles',
+        });
       });
-    });
 
-    setResults(out);
-    setLoading(false);
+      setResults(out);
+    } catch (err) {
+      console.error('[GlobalSearch] search failed', err);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

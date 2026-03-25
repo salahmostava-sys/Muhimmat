@@ -45,22 +45,27 @@ export const useAppColors = () => {
     let mounted = true;
     const run = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('apps')
-        .select('id, name, brand_color, text_color, is_active, custom_columns')
-        .order('name');
-
-      if (!mounted) return;
-      const normalized = (data || []).map((app, index) => ({
-        id: app.id,
-        name: app.name,
-        brand_color: app.brand_color || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
-        text_color: app.text_color || '#ffffff',
-        is_active: app.is_active ?? true,
-        custom_columns: Array.isArray(app.custom_columns) ? app.custom_columns : [],
-      })) as AppColorData[];
-      setApps(normalized);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('apps')
+          .select('id, name, brand_color, text_color, is_active, custom_columns')
+          .order('name');
+        if (error) throw error;
+        if (!mounted) return;
+        const normalized = (data || []).map((app, index) => ({
+          id: app.id,
+          name: app.name,
+          brand_color: app.brand_color || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+          text_color: app.text_color || '#ffffff',
+          is_active: app.is_active ?? true,
+          custom_columns: Array.isArray(app.custom_columns) ? app.custom_columns : [],
+        })) as AppColorData[];
+        setApps(normalized);
+      } catch (err) {
+        console.error('[useAppColors] load failed', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
     void run();
     const onInvalidate = () => {

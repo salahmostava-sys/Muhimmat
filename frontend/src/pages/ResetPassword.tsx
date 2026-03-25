@@ -62,14 +62,19 @@ const ResetPassword = () => {
     }
 
     setLoading(true);
-    const { error: err } = await authService.updatePassword(password);
-    setLoading(false);
-
-    if (err) {
-      setError(err.message || 'حدث خطأ أثناء تحديث كلمة المرور');
-    } else {
-      setSuccess(true);
-      setTimeout(() => navigate('/'), 2500);
+    try {
+      const { error: err } = await authService.updatePassword(password);
+      if (err) {
+        setError(err.message || 'حدث خطأ أثناء تحديث كلمة المرور');
+      } else {
+        setSuccess(true);
+        setTimeout(() => navigate('/'), 2500);
+      }
+    } catch (err) {
+      console.error('[ResetPassword] updatePassword failed', err);
+      setError('حدث خطأ أثناء تحديث كلمة المرور');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -130,7 +135,7 @@ const ResetPassword = () => {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    className="focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10"
+                    className="focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px]"
                   />
                   <button type="button" onClick={() => setShowPw(v => !v)}
                     className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">
@@ -160,7 +165,7 @@ const ResetPassword = () => {
                     onChange={e => setConfirm(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    className={`focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 ${confirm && confirm !== password ? 'border-red-600' : confirm && confirm === password ? 'border-green-600' : ''}`}
+                    className={`focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px] ${confirm && confirm !== password ? 'border-red-600' : confirm && confirm === password ? 'border-green-600' : ''}`}
                   />
                   <button type="button" onClick={() => setShowCf(v => !v)}
                     className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">

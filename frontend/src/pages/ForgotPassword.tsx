@@ -21,13 +21,18 @@ const ForgotPassword = () => {
     }
 
     setLoading(true);
-    const { error: err } = await authService.sendPasswordReset(email);
-    setLoading(false);
-
-    if (err) {
+    try {
+      const { error: err } = await authService.sendPasswordReset(email);
+      if (err) {
+        setError('حدث خطأ، يرجى المحاولة مجدداً');
+      } else {
+        setSuccess(true);
+      }
+    } catch (err) {
+      console.error('[ForgotPassword] sendPasswordReset failed', err);
       setError('حدث خطأ، يرجى المحاولة مجدداً');
-    } else {
-      setSuccess(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,7 +86,7 @@ const ForgotPassword = () => {
                     placeholder="example@company.com"
                     dir="ltr"
                     autoComplete="email"
-                    className="focus:border-primary focus:ring-ring/20 h-11 pr-9"
+                    className="focus:border-primary focus:ring-ring/20 h-11 pr-9 text-[16px] md:text-[16px]"
                   />
                 </div>
               </div>

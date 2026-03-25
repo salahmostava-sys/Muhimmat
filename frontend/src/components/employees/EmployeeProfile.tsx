@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+import { supabase } from '@/integrations/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -212,33 +213,48 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
   // Fetch related data when tabs accessed
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      supabase
-        .from('advances')
-        .select('*, advance_installments(*)')
-        .eq('employee_id', employee.id)
-        .order('disbursement_date', { ascending: false }),
-      supabase
-        .from('salary_records')
-        .select('*')
-        .eq('employee_id', employee.id)
-        .order('month_year', { ascending: false }),
-      supabase
-        .from('employee_apps')
-        .select('*, apps(name)')
-        .eq('employee_id', employee.id),
-      supabase
-        .from('daily_orders')
-        .select('id, date, orders_count, app_id, apps(name, brand_color)')
-        .eq('employee_id', employee.id)
-        .order('date', { ascending: false }),
-    ]).then(([advRes, salRes, appRes, ordRes]) => {
-      if (advRes.data) setAdvances(advRes.data as Advance[]);
-      if (salRes.data) setSalaries(salRes.data as SalaryRecord[]);
-      if (appRes.data) setEmployeeApps(appRes.data as EmployeeApp[]);
-      if (ordRes.data) setDailyOrders(ordRes.data as DailyOrder[]);
-      setLoading(false);
-    });
+    void (async () => {
+      try {
+        const [advRes, salRes, appRes, ordRes] = await Promise.all([
+          supabase
+            .from('advances')
+            .select('*, advance_installments(*)')
+            .eq('employee_id', employee.id)
+            .order('disbursement_date', { ascending: false }),
+          supabase
+            .from('salary_records')
+            .select('*')
+            .eq('employee_id', employee.id)
+            .order('month_year', { ascending: false }),
+          supabase
+            .from('employee_apps')
+            .select('*, apps(name)')
+            .eq('employee_id', employee.id),
+          supabase
+            .from('daily_orders')
+            .select('id, date, orders_count, app_id, apps(name, brand_color)')
+            .eq('employee_id', employee.id)
+            .order('date', { ascending: false }),
+        ]);
+        if (advRes.error) throw advRes.error;
+        if (salRes.error) throw salRes.error;
+        if (appRes.error) throw appRes.error;
+        if (ordRes.error) throw ordRes.error;
+
+        if (advRes.data) setAdvances(advRes.data as Advance[]);
+        if (salRes.data) setSalaries(salRes.data as SalaryRecord[]);
+        if (appRes.data) setEmployeeApps(appRes.data as EmployeeApp[]);
+        if (ordRes.data) setDailyOrders(ordRes.data as DailyOrder[]);
+      } catch (err) {
+        console.error('[EmployeeProfile] fetch failed', err);
+        setAdvances([]);
+        setSalaries([]);
+        setEmployeeApps([]);
+        setDailyOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [employee.id]);
 
   return (
