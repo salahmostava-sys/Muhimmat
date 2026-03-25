@@ -16,8 +16,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    // Keep this in UI only; production users can screenshot the message.
-    // eslint-disable-next-line no-console
     console.error('App crashed:', error);
   }
 

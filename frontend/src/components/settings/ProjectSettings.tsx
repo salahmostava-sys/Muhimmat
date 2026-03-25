@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@/context/LanguageContext';
@@ -110,8 +109,9 @@ export default function ProjectSettings() {
 
       await refresh();
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[ProjectSettings] save failed', err);
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -138,7 +138,7 @@ export default function ProjectSettings() {
         'alerts',
       ] as const;
 
-      const results: Record<string, any[]> = {};
+      const results: Record<string, unknown[]> = {};
 
       await Promise.all(
         tables.map(async (table) => {
@@ -179,8 +179,9 @@ export default function ProjectSettings() {
           ? `تم تصدير ${exportedCount} جدول — JSON + Excel`
           : `Exported ${exportedCount} tables — JSON + Excel`,
       });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[ProjectSettings] backup export failed', err);
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setBackupLoading(false);
   };

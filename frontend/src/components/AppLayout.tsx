@@ -89,8 +89,12 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
   useEffect(() => {
     if (!user?.id) return;
     profileService.getProfileName(user.id)
-      .then(({ data }) => { if (data?.name) setProfileName(data.name); })
-      .catch(() => {});
+      .then(({ data }) => {
+        if (data?.name) setProfileName(data.name);
+      })
+      .catch((e: unknown) => {
+        console.error('[AppLayout] getProfileName failed', e);
+      });
   }, [user?.id]);
 
   const Sep = isRTL ? ChevronLeft : ChevronRight;

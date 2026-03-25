@@ -55,9 +55,10 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: (failureCount, error: any) => {
-        if (!error) return false;
-        if (error.status === 401 || error.status === 403) return false;
+      retry: (failureCount, error: unknown) => {
+        if (error == null || typeof error !== 'object') return failureCount < 2;
+        const status = (error as { status?: number }).status;
+        if (status === 401 || status === 403) return false;
         return failureCount < 2;
       },
     },

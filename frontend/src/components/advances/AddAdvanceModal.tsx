@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { advanceService } from '@/services/advanceService';
+import { getErrorMessage } from '@/lib/query';
 
 interface Props {
   onClose: () => void;
@@ -108,8 +108,9 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
         toast({ title: 'تم إضافة السلفة ✅' });
       }
       onClose();
-    } catch (err: any) {
-      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[AddAdvanceModal] save failed', err);
+      toast({ title: 'خطأ', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSaving(false);
   };

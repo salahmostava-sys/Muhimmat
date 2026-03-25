@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Building2, Save, Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { settingsHubService } from '@/services/settingsHubService';
 import { validateUploadFile } from '@/lib/validation';
+import { getErrorMessage } from '@/lib/query';
 
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
   <div className="flex items-center gap-3 pb-4 mb-5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
@@ -86,8 +86,9 @@ export default function CompanySettingsContent() {
       await refresh();
       setLogoFile(null);
       toast({ title: isRTL ? 'تم حفظ الشعار ✓' : 'Logo saved ✓' });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[CompanySettings] save logo failed', err);
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSavingLogo(false);
   };
@@ -116,8 +117,9 @@ export default function CompanySettingsContent() {
         if (data) setRecordId(data.id);
       }
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث بيانات المنشأة' : 'Organization info updated' });
-    } catch (err: any) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[CompanySettings] save trade register failed', err);
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSaving(false);
   };

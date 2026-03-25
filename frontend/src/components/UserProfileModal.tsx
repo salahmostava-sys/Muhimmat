@@ -10,6 +10,7 @@ import { profileService } from '@/services/profileService';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { validateUploadFile } from '@/lib/validation';
+import { getErrorMessage } from '@/lib/query';
 
 // ─── Password strength ────────────────────────────────────────────────────────
 const getStrength = (pw: string) => {
@@ -64,7 +65,9 @@ const UserProfileModal = ({ onClose }: Props) => {
       .then(({ data }) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        console.error('[UserProfileModal] load profile failed', e);
+      });
   }, [user]);
 
   // Handle file pick
@@ -103,8 +106,13 @@ const UserProfileModal = ({ onClose }: Props) => {
       setProfile(p => ({ ...p, avatar_url }));
       setAvatarFile(null);
       toast({ title: isRtl ? 'تم حفظ التغييرات' : 'Changes saved' });
-    } catch (err: any) {
-      toast({ title: isRtl ? 'خطأ في الحفظ' : 'Save failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[UserProfileModal] save profile failed', err);
+      toast({
+        title: isRtl ? 'خطأ في الحفظ' : 'Save failed',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      });
     } finally {
       setSavingProfile(false);
     }

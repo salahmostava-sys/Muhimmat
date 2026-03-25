@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { employeeService } from '@/services/employeeService';
 import * as XLSX from '@e965/xlsx';
+import { getErrorMessage } from '@/lib/query';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ParsedEmployee {
@@ -248,8 +249,9 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
         setParsed(employees);
         setSummary(sum);
         setStep(2);
-      } catch (err: any) {
-        toast({ title: 'خطأ في قراءة الملف', description: err.message, variant: 'destructive' });
+      } catch (err: unknown) {
+        console.error('[ImportEmployeesModal] parse file failed', err);
+        toast({ title: 'خطأ في قراءة الملف', description: getErrorMessage(err), variant: 'destructive' });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -322,8 +324,8 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
             const appId = appsMap[emp.platform];
             await employeeService.upsertEmployeeApp(empId, appId);
           }
-        } catch (err: any) {
-          importErrors.push({ name: emp.name, error: err.message });
+        } catch (err: unknown) {
+          importErrors.push({ name: emp.name, error: getErrorMessage(err) });
         }
 
         done++;

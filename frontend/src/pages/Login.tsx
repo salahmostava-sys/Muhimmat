@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Sun, Moon, Rocket, AlertCircle } from 'lucide-react';
 import { dashboardService } from '@/services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
+import { AUTH_FORM_INPUT_BASE, AUTH_FORM_LABEL_CLASS } from '@/lib/formFieldClasses';
 import './login.css';
 
 interface SystemSettings {
@@ -88,8 +89,7 @@ const Login = () => {
     }
   };
 
-  const inputClass =
-    'min-h-[56px] py-4 px-4 text-lg md:text-lg font-semibold leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30 [&::placeholder]:text-base [&::placeholder]:font-normal [&::placeholder]:opacity-70';
+  const inputClass = AUTH_FORM_INPUT_BASE;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10" dir="rtl">
@@ -136,7 +136,7 @@ const Login = () => {
 
           <form onSubmit={handleLogin} className="space-y-6" noValidate aria-describedby={loginError ? 'login-error' : undefined}>
             <div className="space-y-2">
-              <label htmlFor="login-email" className="block text-[16px] font-semibold text-foreground text-start">
+              <label htmlFor="login-email" className={AUTH_FORM_LABEL_CLASS}>
                 البريد الإلكتروني
               </label>
               <Input
@@ -157,7 +157,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="login-password" className="block text-[16px] font-semibold text-foreground text-start">
+              <label htmlFor="login-password" className={AUTH_FORM_LABEL_CLASS}>
                 كلمة المرور
               </label>
               {/* dir=ltr: toggle على اليسار البصري، والنص يبدأ بعد مساحة الأيقونة */}

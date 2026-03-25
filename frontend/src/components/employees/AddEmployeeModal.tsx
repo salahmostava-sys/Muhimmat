@@ -14,6 +14,7 @@ import { auditService } from '@/services/auditService';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { getErrorMessage } from '@/lib/query';
 
 
 interface EmployeeData {
@@ -388,8 +389,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
 
       if (onSuccess) onSuccess();
       else onClose();
-    } catch (err: any) {
-      toast({ title: 'خطأ في الحفظ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      console.error('[AddEmployeeModal] save failed', err);
+      toast({ title: 'خطأ في الحفظ', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
