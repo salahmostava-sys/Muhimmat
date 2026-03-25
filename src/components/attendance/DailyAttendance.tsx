@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { CalendarIcon, UserCheck, Save } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import attendanceService from "@/services/attendanceService";
+import { useAttendanceBaseData, useAttendanceDay } from "@/hooks/useAttendanceData";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "sick" | "late";
 
@@ -62,6 +63,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { permissions } = usePermissions("attendance");
   const dateLocale = ar;
   const statusLabels = STATUS_LABELS_AR;
+  const queryClient = useQueryClient();
 
   const [date, setDate] = useState<Date>(() => {
     const d = new Date();
@@ -72,15 +74,14 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     return d;
   });
 
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
-  const [apps, setApps]                 = useState<App[]>([]);
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  // Map: appId → Set of employee IDs registered in that app
-  const [appEmployeeIds, setAppEmployeeIds] = useState<Record<string, Set<string>>>({});
 
   const [records, setRecords] = useState<Record<string, AttendanceRecord>>({});
   const [saving, setSaving]   = useState(false);
-  const [loading, setLoading] = useState(true);
+  const baseQuery = useAttendanceBaseData();
+  const allEmployees = useMemo(() => (baseQuery.data?.employees ?? []) as Employee[], [baseQuery.data?.employees]);
+  const apps = useMemo(() => (baseQuery.data?.apps ?? []) as App[], [baseQuery.data?.apps]);
+  const appEmployeeIds = baseQuery.data?.appEmployeeIds ?? {};
 
   // Custom statuses from localStorage
   const [customStatuses, setCustomStatuses] = useState<string[]>(() => {
@@ -102,72 +103,33 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     });
   }, [selectedMonth, selectedYear]);
 
-  // ── Fetch employees (active, NOT absconded/terminated) + apps ──
-  useEffect(() => {
-    const fetchBase = async () => {
-      setLoading(true);
-      const [empRes, appRes, empAppsRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, name, salary_type, job_title, sponsorship_status")
-          .eq("status", "active")
-          .not("sponsorship_status", "in", '("absconded","terminated")')
-          .order("name"),
-        supabase
-          .from("apps")
-          .select("id, name, logo_url")
-          .eq("is_active", true)
-          .order("name"),
-        supabase
-          .from("employee_apps")
-          .select("employee_id, app_id"),
-      ]);
-
-      if (empRes.data) setAllEmployees(empRes.data as Employee[]);
-      if (appRes.data) setApps(appRes.data as App[]);
-
-      // Build map: appId → Set<employeeId>
-      if (empAppsRes.data) {
-        const map: Record<string, Set<string>> = {};
-        for (const row of empAppsRes.data) {
-          if (!map[row.app_id]) map[row.app_id] = new Set();
-          map[row.app_id].add(row.employee_id);
-        }
-        setAppEmployeeIds(map);
-      }
-      setLoading(false);
-    };
-    fetchBase();
-  }, []);
-
   // ── Derive displayed employees based on platform filter ──
   const employees = selectedAppId
     ? allEmployees.filter(e => appEmployeeIds[selectedAppId]?.has(e.id))
     : allEmployees;
 
   // ── Load attendance records for selected date ──
+  const dateStr = useMemo(() => format(date, "yyyy-MM-dd"), [date]);
+  const dayQuery = useAttendanceDay(dateStr, allEmployees.length > 0);
+
   useEffect(() => {
     if (allEmployees.length === 0) return;
-    const dateStr = format(date, "yyyy-MM-dd");
-    supabase
-      .from("attendance")
-      .select("*")
-      .eq("date", dateStr)
-      .then(({ data }) => {
-        const initial: Record<string, AttendanceRecord> = {};
-        allEmployees.forEach(emp => {
-          const existing = data?.find(r => r.employee_id === emp.id);
-          initial[emp.id] = {
-            employeeId: emp.id,
-            status:   (existing?.status as AttendanceStatus) ?? null,
-            checkIn:  existing?.check_in  ?? "",
-            checkOut: existing?.check_out ?? "",
-            note:     existing?.note      ?? "",
-          };
-        });
-        setRecords(initial);
-      });
-  }, [date, allEmployees]);
+    const dayRows = dayQuery.data ?? [];
+    const initial: Record<string, AttendanceRecord> = {};
+    allEmployees.forEach(emp => {
+      const existing = dayRows.find(r => r.employee_id === emp.id);
+      initial[emp.id] = {
+        employeeId: emp.id,
+        status: (existing?.status as AttendanceStatus) ?? null,
+        checkIn: existing?.check_in ?? "",
+        checkOut: existing?.check_out ?? "",
+        note: existing?.note ?? "",
+      };
+    });
+    setRecords(initial);
+  }, [allEmployees, dayQuery.data]);
+
+  const loading = baseQuery.isLoading || dayQuery.isLoading;
 
   const updateRecord = (empId: string, field: keyof AttendanceRecord, value: string | null) => {
     setRecords(prev => ({ ...prev, [empId]: { ...prev[empId], [field]: value } }));
@@ -198,39 +160,53 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     setCustomInput("");
   };
 
-  // ── Save (unchanged logic) ──
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const toSave = Object.values(records).filter(r => r.status !== null);
+      let saved = 0;
+      const validDbStatuses: AttendanceStatus[] = ["present", "absent", "leave", "sick", "late"];
+
+      for (const r of toSave) {
+        const dbStatus: AttendanceStatus = validDbStatuses.includes(r.status as AttendanceStatus)
+          ? (r.status as AttendanceStatus)
+          : "present";
+        const noteText =
+          [r.note, !validDbStatuses.includes(r.status as AttendanceStatus) ? r.status : ""]
+            .filter(Boolean).join(" | ") || null;
+
+        const payload = {
+          employee_id: r.employeeId,
+          date: dateStr,
+          status: dbStatus,
+          check_in: r.checkIn || null,
+          check_out: r.checkOut || null,
+          note: noteText,
+        };
+        const { error } = await attendanceService.upsertDailyAttendance(payload);
+        if (error) throw new Error(error.message || "تعذر حفظ الحضور");
+        saved++;
+      }
+
+      return saved;
+    },
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({ queryKey: ["attendance", "day", dateStr] });
+      toast({
+        title: `تم حفظ حضور ${saved} مندوب بنجاح ✅`,
+        description: format(date, "dd MMMM yyyy", { locale: dateLocale }),
+      });
+    },
+    onError: (e) => {
+      const message = e instanceof Error ? e.message : "حدث خطأ غير متوقع";
+      toast({ title: "خطأ في الحفظ", description: message, variant: "destructive" });
+    },
+    onSettled: () => setSaving(false),
+  });
+
+  // ── Save ──
   const handleSave = async () => {
     setSaving(true);
-    const dateStr = format(date, "yyyy-MM-dd");
-    const toSave = Object.values(records).filter(r => r.status !== null);
-    let saved = 0;
-    const validDbStatuses: AttendanceStatus[] = ["present", "absent", "leave", "sick", "late"];
-
-    for (const r of toSave) {
-      const dbStatus: AttendanceStatus = validDbStatuses.includes(r.status as AttendanceStatus)
-        ? (r.status as AttendanceStatus)
-        : "present";
-      const noteText =
-        [r.note, !validDbStatuses.includes(r.status as AttendanceStatus) ? r.status : ""]
-          .filter(Boolean).join(" | ") || null;
-
-      const payload = {
-        employee_id: r.employeeId,
-        date:        dateStr,
-        status:      dbStatus,
-        check_in:    r.checkIn  || null,
-        check_out:   r.checkOut || null,
-        note:        noteText,
-      };
-      const { error } = await attendanceService.upsertDailyAttendance(payload);
-      if (!error) saved++;
-    }
-
-    setSaving(false);
-    toast({
-      title: `تم حفظ حضور ${saved} مندوب بنجاح ✅`,
-      description: format(date, "dd MMMM yyyy", { locale: dateLocale }),
-    });
+    await saveMutation.mutateAsync();
   };
 
   // ── Summary (of displayed employees only) ──

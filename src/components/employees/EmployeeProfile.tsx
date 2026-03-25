@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+import { useQuery } from '@tanstack/react-query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -194,13 +195,8 @@ function groupOrdersByMonth(orders: DailyOrder[]): MonthlyOrders[] {
 
 const EmployeeProfile = ({ employee, onBack }: Props) => {
   const [activeTab, setActiveTab] = useState('basic');
-  const [advances, setAdvances] = useState<Advance[]>([]);
-  const [salaries, setSalaries] = useState<SalaryRecord[]>([]);
-  const [employeeApps, setEmployeeApps] = useState<EmployeeApp[]>([]);
-  const [dailyOrders, setDailyOrders] = useState<DailyOrder[]>([]);
   const [expandedAdv, setExpandedAdv] = useState<string | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   // Signed URL for personal photo (used in profile header)
   const personalPhotoPath = extractStoragePath(employee.personal_photo_url);
@@ -210,37 +206,54 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
     ? differenceInDays(parseISO(employee.residency_expiry), new Date())
     : null;
 
-  // Fetch related data when tabs accessed
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      supabase
-        .from('advances')
-        .select('*, advance_installments(*)')
-        .eq('employee_id', employee.id)
-        .order('disbursement_date', { ascending: false }),
-      supabase
-        .from('salary_records')
-        .select('*')
-        .eq('employee_id', employee.id)
-        .order('month_year', { ascending: false }),
-      supabase
-        .from('employee_apps')
-        .select('*, apps(name)')
-        .eq('employee_id', employee.id),
-      supabase
-        .from('daily_orders')
-        .select('id, date, orders_count, app_id, apps(name, brand_color)')
-        .eq('employee_id', employee.id)
-        .order('date', { ascending: false }),
-    ]).then(([advRes, salRes, appRes, ordRes]) => {
-      if (advRes.data) setAdvances(advRes.data as Advance[]);
-      if (salRes.data) setSalaries(salRes.data as SalaryRecord[]);
-      if (appRes.data) setEmployeeApps(appRes.data as EmployeeApp[]);
-      if (ordRes.data) setDailyOrders(ordRes.data as DailyOrder[]);
-      setLoading(false);
-    });
-  }, [employee.id]);
+  const relatedQuery = useQuery({
+    queryKey: ['employee', employee.id, 'profile-related'] as const,
+    queryFn: async () => {
+      const [advRes, salRes, appRes, ordRes] = await Promise.all([
+        supabase
+          .from('advances')
+          .select('*, advance_installments(*)')
+          .eq('employee_id', employee.id)
+          .order('disbursement_date', { ascending: false }),
+        supabase
+          .from('salary_records')
+          .select('*')
+          .eq('employee_id', employee.id)
+          .order('month_year', { ascending: false }),
+        supabase
+          .from('employee_apps')
+          .select('*, apps(name)')
+          .eq('employee_id', employee.id),
+        supabase
+          .from('daily_orders')
+          .select('id, date, orders_count, app_id, apps(name, brand_color)')
+          .eq('employee_id', employee.id)
+          .order('date', { ascending: false }),
+      ]);
+
+      if (advRes.error) throw new Error(advRes.error.message || 'تعذر تحميل السلف');
+      if (salRes.error) throw new Error(salRes.error.message || 'تعذر تحميل الرواتب');
+      if (appRes.error) throw new Error(appRes.error.message || 'تعذر تحميل التطبيقات');
+      if (ordRes.error) throw new Error(ordRes.error.message || 'تعذر تحميل الطلبات');
+
+      return {
+        advances: (advRes.data ?? []) as Advance[],
+        salaries: (salRes.data ?? []) as SalaryRecord[],
+        employeeApps: (appRes.data ?? []) as EmployeeApp[],
+        dailyOrders: (ordRes.data ?? []) as DailyOrder[],
+      };
+    },
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+
+  const advances = useMemo(() => relatedQuery.data?.advances ?? [], [relatedQuery.data?.advances]);
+  const salaries = useMemo(() => relatedQuery.data?.salaries ?? [], [relatedQuery.data?.salaries]);
+  const employeeApps = useMemo(() => relatedQuery.data?.employeeApps ?? [], [relatedQuery.data?.employeeApps]);
+  const dailyOrders = useMemo(() => relatedQuery.data?.dailyOrders ?? [], [relatedQuery.data?.dailyOrders]);
+  const loading = relatedQuery.isLoading;
+
+  const monthlyData = useMemo(() => groupOrdersByMonth(dailyOrders), [dailyOrders]);
 
   return (
     <div className="space-y-5">
@@ -635,7 +648,6 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                 <p className="text-muted-foreground text-sm">لا توجد طلبات مسجلة لهذا المندوب</p>
               </div>
             ) : (() => {
-              const monthlyData = groupOrdersByMonth(dailyOrders);
               const grandTotal  = dailyOrders.reduce((s, o) => s + o.orders_count, 0);
               const avgPerMonth = Math.round(grandTotal / monthlyData.length);
               const bestMonth   = monthlyData.reduce((best, m) => m.total > best.total ? m : best, monthlyData[0]);

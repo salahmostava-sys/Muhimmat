@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { ChevronLeft, Archive } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAttendanceArchiveMonth } from "@/hooks/useAttendanceData";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -40,39 +40,13 @@ const PAST_MONTHS = buildPastMonths();
 const ArchiveAttendance = () => {
   const { isRTL } = useLanguage();
   const [selected, setSelected]         = useState<MonthOption | null>(null);
-  const [employees, setEmployees]       = useState<Employee[]>([]);
-  const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
-  const [loading, setLoading]           = useState(false);
+  const { data, isLoading } = useAttendanceArchiveMonth(
+    selected ? { year: selected.year, monthIndex0: selected.month } : null
+  );
 
-  useEffect(() => {
-    if (!selected) return;
-    const fetchData = async () => {
-      setLoading(true);
-      const monthStr   = String(selected.month + 1).padStart(2, "0");
-      const startDate  = `${selected.year}-${monthStr}-01`;
-      const daysInMonth = new Date(selected.year, selected.month + 1, 0).getDate();
-      const endDate    = `${selected.year}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
-
-      const [empRes, attRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, name, national_id, salary_type, base_salary")
-          .eq("status", "active")
-          .not("sponsorship_status", "in", '("absconded","terminated")')
-          .order("name"),
-        supabase
-          .from("attendance")
-          .select("employee_id, status")
-          .gte("date", startDate)
-          .lte("date", endDate),
-      ]);
-
-      if (empRes.data)  setEmployees(empRes.data as Employee[]);
-      if (attRes.data)  setAttendanceRows(attRes.data as AttendanceRow[]);
-      setLoading(false);
-    };
-    fetchData();
-  }, [selected]);
+  const employees = ((data?.employees ?? []) as Employee[]);
+  const attendanceRows = ((data?.rows ?? []) as AttendanceRow[]);
+  const loading = isLoading;
 
   const daysInMonth = selected ? new Date(selected.year, selected.month + 1, 0).getDate() : 0;
 
@@ -131,7 +105,7 @@ const ArchiveAttendance = () => {
       {/* Back + title */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => { setSelected(null); setEmployees([]); setAttendanceRows([]); }}
+          onClick={() => { setSelected(null); }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft size={16} />
