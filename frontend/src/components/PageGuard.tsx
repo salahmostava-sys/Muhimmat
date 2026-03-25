@@ -1,8 +1,7 @@
 import { ReactNode } from 'react';
-import { ShieldX } from 'lucide-react';
+import { Loader2, ShieldX } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
 
 interface PageGuardProps {
   pageKey: string;

@@ -12,6 +12,16 @@ import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useMobileSidebar } from '@/context/MobileSidebarContext';
 import { cn } from '@/lib/utils';
 
+function setHoverStylesIf(
+  el: HTMLElement,
+  shouldApply: boolean,
+  enter: boolean
+) {
+  if (!shouldApply) return;
+  el.style.background = enter ? 'var(--ds-surface-container)' : 'transparent';
+  el.style.color = enter ? 'var(--ds-on-surface)' : 'var(--ds-on-surface-variant)';
+}
+
 const AppSidebar = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -94,22 +104,33 @@ const AppSidebar = () => {
     if (activeGroup && !openGroups[activeGroup.key]) {
       setOpenGroups(prev => ({ ...prev, [activeGroup.key]: true }));
     }
-   
   }, [location.pathname, isActive, navGroups, openGroups]);
 
-  let mobileTranslateClass: string;
-  if (isRTL) {
-    mobileTranslateClass = isOpen ? 'translate-x-0' : 'translate-x-full';
-  } else {
-    mobileTranslateClass = isOpen ? 'translate-x-0' : '-translate-x-full';
-  }
+  const mobileTranslateClass = (
+    {
+      rtl: {
+        true: 'translate-x-0',
+        false: 'translate-x-full',
+      },
+      ltr: {
+        true: 'translate-x-0',
+        false: '-translate-x-full',
+      },
+    } as const
+  )[isRTL ? 'rtl' : 'ltr'][isOpen ? 'true' : 'false'] as string;
 
-  let CollapseChevronIcon: typeof ChevronsLeft;
-  if (collapsed) {
-    CollapseChevronIcon = isRTL ? ChevronsLeft : ChevronsRight;
-  } else {
-    CollapseChevronIcon = isRTL ? ChevronsRight : ChevronsLeft;
-  }
+  const CollapseChevronIcon = (
+    {
+      true: {
+        rtl: ChevronsLeft,
+        ltr: ChevronsRight,
+      },
+      false: {
+        rtl: ChevronsRight,
+        ltr: ChevronsLeft,
+      },
+    } as const
+  )[collapsed ? 'true' : 'false'][isRTL ? 'rtl' : 'ltr'];
 
   return (
     <>
@@ -212,16 +233,10 @@ const AppSidebar = () => {
                 : { color: 'var(--ds-on-surface-variant)' }
             }
             onMouseEnter={e => {
-              if (!isActive('/')) {
-                e.currentTarget.style.background = 'var(--ds-surface-container)';
-                e.currentTarget.style.color = 'var(--ds-on-surface)';
-              }
+              setHoverStylesIf(e.currentTarget, !isActive('/'), true);
             }}
             onMouseLeave={e => {
-              if (!isActive('/')) {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'var(--ds-on-surface-variant)';
-              }
+              setHoverStylesIf(e.currentTarget, !isActive('/'), false);
             }}
           >
             {/* Active bar indicator */}
@@ -286,16 +301,10 @@ const AppSidebar = () => {
                               : { color: 'var(--ds-on-surface-variant)', fontWeight: 400 }
                           }
                           onMouseEnter={e => {
-                            if (!active) {
-                              e.currentTarget.style.background = 'var(--ds-surface-container)';
-                              e.currentTarget.style.color = 'var(--ds-on-surface)';
-                            }
+                            setHoverStylesIf(e.currentTarget, !active, true);
                           }}
                           onMouseLeave={e => {
-                            if (!active) {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.color = 'var(--ds-on-surface-variant)';
-                            }
+                            setHoverStylesIf(e.currentTarget, !active, false);
                           }}
                           onClick={close}
                         >

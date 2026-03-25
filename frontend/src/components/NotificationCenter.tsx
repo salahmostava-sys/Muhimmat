@@ -62,8 +62,17 @@ const SEVERITY_DOT: Record<Severity, string> = {
 /* ── Helper ─────────────────────────────────────────────────── */
 
 function calcSeverity(daysLeft: number, type: string): Severity {
-  if (type === 'probation') return daysLeft < 0 ? 'info' : daysLeft <= 7 ? 'urgent' : 'warning';
-  return daysLeft < 0 ? 'urgent' : daysLeft <= 7 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info';
+  if (type === 'probation') {
+    if (daysLeft < 0) return 'info';
+    if (daysLeft <= 7) return 'urgent';
+    return 'warning';
+  }
+
+  // Residency / Insurance / Authorization share same severity windows.
+  if (daysLeft < 0) return 'urgent';
+  if (daysLeft <= 7) return 'urgent';
+  if (daysLeft <= 14) return 'warning';
+  return 'info';
 }
 
 function daysLabel(days: number, isRTL: boolean): string {
@@ -170,11 +179,12 @@ export default function NotificationCenter() {
   };
 
   /* ── Badge color ─────────────────────────────────────────── */
-  const badgeBg = hasUrgent
-    ? 'bg-destructive'
-    : hasWarning
-    ? 'bg-warning'
-    : 'bg-primary';
+  let badgeBg = 'bg-primary';
+  if (hasUrgent) {
+    badgeBg = 'bg-destructive';
+  } else if (hasWarning) {
+    badgeBg = 'bg-warning';
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>
