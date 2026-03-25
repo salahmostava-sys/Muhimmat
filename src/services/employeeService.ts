@@ -169,6 +169,31 @@ export const employeeService = {
     return { error: null };
   },
 
+  async getEmployeeScheme(employeeId: string) {
+    const { data, error } = await supabase
+      .from('employee_scheme')
+      .select('scheme_id')
+      .eq('employee_id', employeeId)
+      .order('assigned_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwIfError(error, 'employeeService.getEmployeeScheme');
+    return { data: data ? { scheme_id: data.scheme_id as string } : null, error };
+  },
+
+  async upsertEmployeeScheme(employeeId: string, schemeId: string) {
+    const row = { employee_id: employeeId, scheme_id: schemeId };
+    const { error } = await supabase.from('employee_scheme').upsert(row, { onConflict: 'employee_id' });
+    throwIfError(error, 'employeeService.upsertEmployeeScheme');
+    return { error };
+  },
+
+  async deleteEmployeeScheme(employeeId: string) {
+    const { error } = await supabase.from('employee_scheme').delete().eq('employee_id', employeeId);
+    throwIfError(error, 'employeeService.deleteEmployeeScheme');
+    return { error };
+  },
+
   async upsertEmployeeApp(employeeId: string, appId: string) {
     const { error } = await supabase
       .from('employee_apps')

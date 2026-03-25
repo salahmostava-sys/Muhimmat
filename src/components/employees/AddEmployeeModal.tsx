@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Check, Trash2, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -131,6 +130,25 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
   const [availableApps, setAvailableApps] = useState<EmployeeAppOption[]>([]);
+  const NATIONALITIES: { value: string; label: string }[] = [
+    { value: 'سعودي', label: 'سعودي' },
+    { value: 'يمني', label: 'يمني' },
+    { value: 'مصري', label: 'مصري' },
+    { value: 'سوداني', label: 'سوداني' },
+    { value: 'سوري', label: 'سوري' },
+    { value: 'أردني', label: 'أردني' },
+    { value: 'فلسطيني', label: 'فلسطيني' },
+    { value: 'لبناني', label: 'لبناني' },
+    { value: 'هندي', label: 'هندي' },
+    { value: 'باكستاني', label: 'باكستاني' },
+    { value: 'بنغلاديشي', label: 'بنغلاديشي' },
+    { value: 'فلبيني', label: 'فلبيني' },
+    { value: 'إندونيسي', label: 'إندونيسي' },
+    { value: 'نيبالي', label: 'نيبالي' },
+    { value: 'إثيوبي', label: 'إثيوبي' },
+    { value: 'إريتري', label: 'إريتري' },
+    { value: 'صومالي', label: 'صومالي' },
+  ];
 
   const APP_COLOR_FALLBACKS: Record<string, { bg: string; fg: string }> = {
     'هنقرستيشن': { bg: '#ea580c', fg: '#ffffff' },
@@ -165,6 +183,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         if (!isMounted || !data) return;
         setForm((f) => ({ ...f, selected_apps: data }));
       });
+      employeeService.getEmployeeScheme(editEmployee.id).then(({ data }) => {
+        if (!isMounted) return;
+        if (data?.scheme_id) setForm((f) => ({ ...f, scheme_id: data.scheme_id }));
+      });
     }
 
     return () => {
@@ -193,7 +215,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     salary_type: 'orders' as 'orders' | 'shift',
     base_salary: '',
     selected_apps: [] as string[],
-    app_schemes: {} as Record<string, string>,
+    scheme_id: '' as string,
     preferred_language: 'ar' as 'ar' | 'en' | 'ur',
   });
 
@@ -222,7 +244,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
         base_salary: editEmployee.base_salary ? String(editEmployee.base_salary) : '',
         selected_apps: [],
-        app_schemes: {},
+        scheme_id: '',
         preferred_language: (editEmployee.preferred_language as 'ar' | 'en' | 'ur') || 'ar',
       });
     }
@@ -232,7 +254,15 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     personal: null, id: null, license: null,
   });
 
-  const setField = useCallback((k: string, v: any) => setForm(f => ({ ...f, [k]: v })), []);
+  const setField = useCallback((k: string, v: unknown) => setForm(f => ({ ...f, [k]: v })), []);
+
+  // Auto-default scheme when salary type is per-order.
+  useEffect(() => {
+    if (form.salary_type !== 'orders') return;
+    if (form.scheme_id) return;
+    if (schemes.length === 0) return;
+    setForm((f) => ({ ...f, scheme_id: schemes[0]!.id }));
+  }, [form.salary_type, form.scheme_id, schemes]);
 
   const resStatus = (() => {
     if (!form.residency_expiry) return null;
@@ -261,6 +291,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     }
     if (s === 2) {
       if (form.salary_type === 'shift' && (!form.base_salary || parseFloat(form.base_salary) <= 0)) errs.base_salary = 'الراتب مطلوب';
+      if (form.salary_type === 'orders' && !form.scheme_id) errs.scheme_id = 'اختر السكيمة';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -273,7 +304,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     if (!validateStep(step)) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: form.name,
         employee_code: form.employee_code || null,
         job_title: form.job_title || null,
@@ -313,33 +344,42 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         { file: files.id, path: `${empId}/id_photo`, field: 'id_photo_url' },
         { file: files.license, path: `${empId}/license_photo`, field: 'license_photo_url' },
       ];
-      const updates: Record<string, string> = {};
-      for (const u of uploads) {
-        if (u.file) {
+      const uploadResults = await Promise.all(
+        uploads.map(async (u) => {
+          if (!u.file) return null;
           const validation = validateUploadFile(u.file, {
             allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
           });
-          if (!validation.valid) {
-            throw new Error(validation.error);
-          }
+          if (!validation.valid) throw new Error(validation.error);
           const ext = u.file.name.split('.').pop();
           const storagePath = `${u.path}.${ext}`;
           const { data: upData } = await employeeService.uploadEmployeeDocument(storagePath, u.file);
-          if (upData) {
-            // Store the raw storage path — NOT a public URL
-            updates[u.field] = upData.path;
-          }
-        }
-      }
-      if (Object.keys(updates).length > 0) {
-        await employeeService.updateEmployeeDocumentPaths(empId, updates);
-      }
+          return upData ? { field: u.field, path: upData.path } : null;
+        })
+      );
+
+      const updates = Object.fromEntries(
+        uploadResults.filter(Boolean).map((r) => [r!.field, r!.path])
+      ) as Record<string, string>;
 
       // Sync employee_apps: delete old, insert new
       const appIds = form.selected_apps
         .map((appName) => availableApps.find((a) => a.name === appName)?.id)
         .filter((id): id is string => Boolean(id));
-      await employeeService.replaceEmployeeApps(empId, appIds);
+
+      const postOps: Promise<unknown>[] = [];
+      if (Object.keys(updates).length > 0) {
+        postOps.push(employeeService.updateEmployeeDocumentPaths(empId, updates));
+      }
+      postOps.push(employeeService.replaceEmployeeApps(empId, appIds));
+
+      if (form.salary_type === 'orders') {
+        postOps.push(employeeService.upsertEmployeeScheme(empId, form.scheme_id));
+      } else {
+        postOps.push(employeeService.deleteEmployeeScheme(empId));
+      }
+
+      await Promise.all(postOps);
 
       toast({
         title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',
@@ -348,8 +388,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
 
       if (onSuccess) onSuccess();
       else onClose();
-    } catch (err: any) {
-      toast({ title: 'خطأ في الحفظ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -408,7 +449,18 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 <Input value={form.national_id} onChange={e => setField('national_id', e.target.value)} placeholder="2xxxxxxxxx" dir="ltr" />
               </F>
               <F label="الجنسية">
-                <Input value={form.nationality} onChange={e => setField('nationality', e.target.value)} placeholder="سعودي / يمني / باكستاني ..." />
+                <Select value={form.nationality || ''} onValueChange={v => setField('nationality', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الجنسية" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NATIONALITIES.map((n) => (
+                      <SelectItem key={n.value} value={n.value}>
+                        {n.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </F>
               <F label="رقم الحساب البنكي">
                 <Input value={form.bank_account_number} onChange={e => setField('bank_account_number', e.target.value)} dir="ltr" />
@@ -550,6 +602,22 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                   <Input type="number" value={form.base_salary} onChange={e => setField('base_salary', e.target.value)} />
                 </F>
               )}
+              {form.salary_type === 'orders' && (
+                <F label="السكيمة (بالطلب)" required error={errors.scheme_id}>
+                  <Select value={form.scheme_id || ''} onValueChange={v => setField('scheme_id', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر السكيمة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </F>
+              )}
               <SectionTitle title="── المنصات المرتبطة ──" />
               <div className="flex flex-wrap gap-2">
                 {availableApps.map(app => (
@@ -564,34 +632,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                   </button>
                 ))}
               </div>
-              {form.selected_apps.length > 0 && (
-                <div className="space-y-3 bg-muted/30 rounded-xl p-4">
-                  {form.selected_apps.map(app => (
-                    <div key={app} className="flex items-center gap-3">
-                      <span
-                        style={{
-                          backgroundColor: getAppChipColors(app).bg,
-                          color: getAppChipColors(app).fg,
-                          borderColor: getAppChipColors(app).bg,
-                        }}
-                        className="text-xs font-semibold rounded-full border px-2.5 py-1 w-fit shrink-0"
-                      >
-                        {app}
-                      </span>
-                      <Select value={form.app_schemes[app] || ''} onValueChange={v => setForm(f => ({ ...f, app_schemes: { ...f.app_schemes, [app]: v } }))}>
-                        <SelectTrigger className="flex-1 h-8 text-xs">
-                          <SelectValue placeholder="اختر السكيمة" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schemes.map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                المنصات المرتبطة تُسحب تلقائياً من قائمة التطبيقات داخل النظام.
+              </p>
             </div>
           )}
 
