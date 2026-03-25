@@ -32,6 +32,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {
@@ -274,6 +276,9 @@ const Employees = () => {
   const { isRTL } = useLanguage();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const [data, setData]       = useState<Employee[]>([]);
   const {
@@ -315,8 +320,9 @@ const Employees = () => {
   const [statusDateSaving, setStatusDateSaving] = useState(false);
 
   useEffect(() => {
-    setData(employeesData as Employee[]);
-  }, [employeesData]);
+    const rows = (employeesData as Employee[]) ?? [];
+    setData(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+  }, [employeesData, activeEmployeeIdsInMonth]);
 
   useEffect(() => {
     if (!employeesError) return;
@@ -607,14 +613,18 @@ const Employees = () => {
 
   // ── profile view ──
   if (selectedEmployee) {
-    const emp = data.find(e => e.id === selectedEmployee);
+    const emp = (employeesData as Employee[]).find(e => e.id === selectedEmployee) ?? data.find(e => e.id === selectedEmployee);
     if (emp) {
+      if (!isEmployeeVisibleInMonth(emp, activeEmployeeIdsInMonth)) {
+        setSelectedEmployee(null);
+      } else {
       return (
         <EmployeeProfile
           employee={emp as EmployeeProfileProps['employee']}
           onBack={() => setSelectedEmployee(null)}
         />
       );
+      }
     }
   }
 

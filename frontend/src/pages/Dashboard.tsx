@@ -25,6 +25,8 @@ import { useAppColors } from '@/hooks/useAppColors';
 import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@/hooks/useRealtimePostgresChanges';
 import { Button } from '@/components/ui/button';
 import * as XLSX from '@e965/xlsx';
+import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
 
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -402,6 +404,7 @@ const AnalyticsTab = () => {
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 interface EmpDetail {
+  id: string;
   city: string | null;
   license_status: string | null;
   sponsorship_status: string | null;
@@ -414,6 +417,8 @@ const Dashboard = () => {
 
   const currentMonth = format(new Date(), 'yyyy-MM');
   const queryClient = useQueryClient();
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   useRealtimePostgresChanges('dashboard-realtime', REALTIME_TABLES_DASHBOARD, () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', currentMonth] });
@@ -422,6 +427,7 @@ const Dashboard = () => {
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['dashboard-kpis', currentMonth],
+    enabled: !!activeIdsData,
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const prevMonth = format(subMonths(new Date(), 1), 'yyyy-MM');
@@ -445,7 +451,10 @@ const Dashboard = () => {
       const sickToday = todayAtt.filter(a => a.status === 'sick').length;
 
       // ── Employee details ──
-      const empDetails = empDetailsRes.data as EmpDetail[] || [];
+      const rawEmpDetails = empDetailsRes.data as EmpDetail[] || [];
+      const empDetails = rawEmpDetails.filter((e) =>
+        isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
+      );
 
       // ── Orders ──
       const appTotals: Record<string, { orders: number; appId: string; riders: Set<string>; brandColor: string; textColor: string }> = {};
@@ -485,7 +494,7 @@ const Dashboard = () => {
       const allRiders = Object.values(empOrderMap).sort((a, b) => b.orders - a.orders);
 
       const kpis = {
-        activeEmployees: empRes.count || 0,
+        activeEmployees: empDetails.length,
         presentToday, absentToday, lateToday, leaveToday, sickToday,
         totalOrders, prevMonthOrders: prevOrdersRes.data?.reduce((s, r) => s + r.orders_count, 0) || 0,
         activeVehicles: vehiclesRes.count || 0,

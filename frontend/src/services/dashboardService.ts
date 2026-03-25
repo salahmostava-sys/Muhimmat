@@ -156,7 +156,7 @@ export const dashboardService = {
   getEmployeeDistribution: async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('city, license_status, sponsorship_status')
+      .select('id, city, license_status, sponsorship_status')
       .eq('status', 'active');
     return { data, error };
   },
@@ -200,7 +200,7 @@ export const dashboardService = {
       supabase.from('daily_orders').select('orders_count').gte('date', prevStart).lte('date', prevEnd),
       supabase.from('attendance').select('date, status').gte('date', sixDaysAgo).lte('date', today),
       supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(6),
-      supabase.from('employees').select('city, license_status, sponsorship_status').eq('status', 'active'),
+      supabase.from('employees').select('id, city, license_status, sponsorship_status').eq('status', 'active'),
       supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
       supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
