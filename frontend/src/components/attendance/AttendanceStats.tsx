@@ -20,6 +20,9 @@ interface DayStats {
   sick: number;
   late: number;
 }
+const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5'] as const;
+
+const legendFormatter = (value: string) => <span style={{ color: 'hsl(var(--muted-foreground))' }}>{value}</span>;
 
 const COLORS = {
   present: '#12B76A',
@@ -119,7 +122,7 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 bg-muted/40 rounded-xl animate-pulse" />)}
+          {SKELETON_KEYS.map((k) => <div key={k} className="h-20 bg-muted/40 rounded-xl animate-pulse" />)}
         </div>
         <div className="h-72 bg-muted/40 rounded-xl animate-pulse" />
       </div>
@@ -174,7 +177,7 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
                 iconSize={8}
                 iconType="circle"
                 wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
-                formatter={(value) => <span style={{ color: 'hsl(var(--muted-foreground))' }}>{value}</span>}
+                formatter={legendFormatter}
               />
               <Bar dataKey="present" name={labels.present} fill={COLORS.present} radius={[3, 3, 0, 0]} maxBarSize={16} />
               <Bar dataKey="absent"  name={labels.absent}  fill={COLORS.absent}  radius={[3, 3, 0, 0]} maxBarSize={16} />

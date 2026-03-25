@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Loader2, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,128 @@ function calcStrength(pw: string): 0 | 1 | 2 | 3 {
 const strengthColors = ['', 'bg-red-500', 'bg-yellow-400', 'bg-green-500'];
 const strengthLabels = ['', 'ضعيفة', 'متوسطة', 'قوية'];
 const strengthTextColors = ['', 'text-red-400', 'text-yellow-400', 'text-green-400'];
+const strengthSteps = [1, 2, 3] as const;
+
+function getConfirmBorderClass(confirm: string, password: string): string {
+  if (confirm === '') return '';
+  if (confirm === password) return 'border-green-600';
+  return 'border-red-600';
+}
+
+function validatePasswordForm(password: string, confirm: string, strength: number): string | null {
+  if (password.length < 8) return 'يجب أن تكون كلمة المرور 8 أحرف على الأقل';
+  if (password !== confirm) return 'كلمة المرور وتأكيدها غير متطابقتان';
+  if (strength < 2) return 'كلمة المرور ضعيفة جداً، أضف أرقاماً أو رموزاً';
+  return null;
+}
+
+type ResetPasswordFormProps = {
+  password: string;
+  confirm: string;
+  showPw: boolean;
+  showCf: boolean;
+  error: string;
+  loading: boolean;
+  strength: 0 | 1 | 2 | 3;
+  confirmBorderClass: string;
+  setPassword: (v: string) => void;
+  setConfirm: (v: string) => void;
+  setShowPw: Dispatch<SetStateAction<boolean>>;
+  setShowCf: Dispatch<SetStateAction<boolean>>;
+  onSubmit: (e: React.FormEvent) => void;
+};
+
+function ResetPasswordForm(props: Readonly<ResetPasswordFormProps>) {
+  const {
+    password, confirm, showPw, showCf, error, loading, strength, confirmBorderClass,
+    setPassword, setConfirm, setShowPw, setShowCf, onSubmit,
+  } = props;
+  return (
+    <form onSubmit={onSubmit} className="space-y-4" dir="rtl">
+      <div>
+        <label htmlFor="reset-password" className="block text-sm text-muted-foreground mb-1.5">كلمة المرور الجديدة</label>
+        <div className="relative">
+          <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
+          <Input
+            id="reset-password"
+            type={showPw ? 'text' : 'password'}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            className="focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px]"
+          />
+          <button type="button" onClick={() => setShowPw(v => !v)}
+            className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">
+            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
+        {password && (
+          <div className="mt-2 space-y-1">
+            <div className="flex gap-1">
+              {strengthSteps.map(i => (
+                <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${strength >= i ? strengthColors[strength] : 'bg-muted'}`} />
+              ))}
+            </div>
+            <p className={`text-xs ${strengthTextColors[strength]}`}>{strengthLabels[strength]}</p>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="reset-password-confirm" className="block text-sm text-muted-foreground mb-1.5">تأكيد كلمة المرور</label>
+        <div className="relative">
+          <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
+          <Input
+            id="reset-password-confirm"
+            type={showCf ? 'text' : 'password'}
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            className={`focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px] ${confirmBorderClass}`}
+          />
+          <button type="button" onClick={() => setShowCf(v => !v)}
+            className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">
+            {showCf ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
+        {confirm && confirm !== password && (
+          <p className="text-red-400 text-xs mt-1">كلمة المرور غير متطابقة</p>
+        )}
+        {confirm && confirm === password && (
+          <p className="text-green-400 text-xs mt-1 flex items-center gap-1">
+            <CheckCircle2 size={11} /> متطابقة
+          </p>
+        )}
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
+          <span className="text-sm">⚠️</span>
+          <p className="text-destructive text-sm">{error}</p>
+        </div>
+      )}
+
+      <div className="bg-muted/60 rounded-xl p-3 text-xs text-muted-foreground space-y-1" dir="rtl">
+        <p className={password.length >= 8 ? 'text-green-400' : ''}>✓ 8 أحرف على الأقل</p>
+        <p className={/\d/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رقم</p>
+        <p className={/[^a-zA-Z0-9]/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رمز خاص</p>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className={authGradientBtn}
+        style={authBtnStyle}
+      >
+        {loading
+          ? <><Loader2 size={16} className="animate-spin" /> جاري الحفظ...</>
+          : 'تعيين كلمة المرور الجديدة'}
+      </button>
+    </form>
+  );
+}
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -31,6 +153,7 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState(false);
 
   const strength = calcStrength(password);
+  const confirmBorderClass = getConfirmBorderClass(confirm, password);
 
   useEffect(() => {
     const hash = globalThis.location.hash;
@@ -47,17 +170,9 @@ const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!password || password.length < 8) {
-      setError('يجب أن تكون كلمة المرور 8 أحرف على الأقل');
-      return;
-    }
-    if (password !== confirm) {
-      setError('كلمة المرور وتأكيدها غير متطابقتان');
-      return;
-    }
-    if (strength < 2) {
-      setError('كلمة المرور ضعيفة جداً، أضف أرقاماً أو رموزاً');
+    const validationError = validatePasswordForm(password, confirm, strength);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -123,92 +238,21 @@ const ResetPassword = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
-              {/* New password */}
-              <div>
-                <label htmlFor="reset-password" className="block text-sm text-muted-foreground mb-1.5">كلمة المرور الجديدة</label>
-                <div className="relative">
-                  <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
-                  <Input
-                    id="reset-password"
-                    type={showPw ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    className="focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px]"
-                  />
-                  <button type="button" onClick={() => setShowPw(v => !v)}
-                    className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">
-                    {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {password && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex gap-1">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${strength >= i ? strengthColors[strength] : 'bg-muted'}`} />
-                      ))}
-                    </div>
-                    <p className={`text-xs ${strengthTextColors[strength]}`}>{strengthLabels[strength]}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Confirm password */}
-              <div>
-                <label htmlFor="reset-password-confirm" className="block text-sm text-muted-foreground mb-1.5">تأكيد كلمة المرور</label>
-                <div className="relative">
-                  <Lock size={15} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
-                  <Input
-                    id="reset-password-confirm"
-                    type={showCf ? 'text' : 'password'}
-                    value={confirm}
-                    onChange={e => setConfirm(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    className={`focus:border-primary focus:ring-ring/20 h-11 pr-9 pl-10 text-[16px] md:text-[16px] ${confirm && confirm !== password ? 'border-red-600' : confirm && confirm === password ? 'border-green-600' : ''}`}
-                  />
-                  <button type="button" onClick={() => setShowCf(v => !v)}
-                    className="absolute top-1/2 -translate-y-1/2 left-3 text-muted-foreground hover:text-foreground transition-colors">
-                    {showCf ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {confirm && confirm !== password && (
-                  <p className="text-red-400 text-xs mt-1">كلمة المرور غير متطابقة</p>
-                )}
-                {confirm && confirm === password && (
-                  <p className="text-green-400 text-xs mt-1 flex items-center gap-1">
-                    <CheckCircle2 size={11} /> متطابقة
-                  </p>
-                )}
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
-                  <span className="text-sm">⚠️</span>
-                  <p className="text-destructive text-sm">{error}</p>
-                </div>
-              )}
-
-              {/* Requirements */}
-              <div className="bg-muted/60 rounded-xl p-3 text-xs text-muted-foreground space-y-1" dir="rtl">
-                <p className={password.length >= 8 ? 'text-green-400' : ''}>✓ 8 أحرف على الأقل</p>
-                <p className={/\d/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رقم</p>
-                <p className={/[^a-zA-Z0-9]/.test(password) ? 'text-green-400' : ''}>✓ تحتوي على رمز خاص</p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className={authGradientBtn}
-                style={authBtnStyle}
-              >
-                {loading
-                  ? <><Loader2 size={16} className="animate-spin" /> جاري الحفظ...</>
-                  : 'تعيين كلمة المرور الجديدة'}
-              </button>
-            </form>
+            <ResetPasswordForm
+              password={password}
+              confirm={confirm}
+              showPw={showPw}
+              showCf={showCf}
+              error={error}
+              loading={loading}
+              strength={strength}
+              confirmBorderClass={confirmBorderClass}
+              setPassword={setPassword}
+              setConfirm={setConfirm}
+              setShowPw={setShowPw}
+              setShowCf={setShowCf}
+              onSubmit={handleSubmit}
+            />
           )}
         </div>
       </div>
