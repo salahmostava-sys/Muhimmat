@@ -1,6 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format, endOfMonth } from 'date-fns';
 
+/**
+ * Dashboard exception:
+ * This module queries Supabase directly (instead of routing through feature-specific services)
+ * to keep the dashboard fast by batching many small reads in parallel and avoiding extra
+ * abstraction/transform layers. Other pages should prefer their dedicated service modules.
+ */
 export interface DashboardKPIs {
   totalOrders: number;
   totalSalaries: number;
