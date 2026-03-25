@@ -7,6 +7,7 @@ export default function Loading(props: { className?: string; minHeightClassName?
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
+    // Reset timeout state whenever navigation changes the reset key.
     setTimedOut(false);
     const id = setTimeout(() => setTimedOut(true), 10_000);
     return () => clearTimeout(id);
