@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 export const extractStoragePath = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -14,30 +14,21 @@ export const extractStoragePath = (value: string | null | undefined): string | n
 };
 
 export const useSignedUrl = (bucket: string, path: string | null | undefined) => {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: ['signed-url', bucket, path ?? null] as const,
+    enabled: !!path,
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path!, 300);
+      if (error) throw new Error(error.message || 'تعذر إنشاء رابط مؤقت');
+      return data.signedUrl;
+    },
+    staleTime: 4 * 60_000, // signed URL TTL is 5 minutes
+    gcTime: 10 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    const run = async () => {
-      if (!path) {
-        setSignedUrl(null);
-        return;
-      }
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-      if (!isMounted) return;
-      if (error) {
-        setSignedUrl(null);
-        return;
-      }
-      setSignedUrl(data.signedUrl);
-    };
-    run();
-    return () => {
-      isMounted = false;
-    };
-  }, [bucket, path]);
-
-  return signedUrl;
+  return query.data ?? null;
 };
 
 export default useSignedUrl;

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -101,43 +102,38 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
 
 export const usePermissions = (pageKey: string) => {
   const { user, role } = useAuth();
-  const [permissions, setPermissions] = useState<PagePermission>({ can_view: false, can_edit: false, can_delete: false });
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setPermissions({ can_view: false, can_edit: false, can_delete: false });
-      setLoading(false);
-      return;
-    }
-    if (!role) {
-      // Authenticated but no role assigned yet — deny until admin grants a role (matches RLS).
-      setPermissions({ can_view: false, can_edit: false, can_delete: false });
-      setLoading(false);
-      return;
-    }
+  const fallbackPermissions = useMemo<PagePermission>(() => {
+    if (!role) return { can_view: false, can_edit: false, can_delete: false };
+    const defaults = DEFAULT_PERMISSIONS[role as AppRole] || DEFAULT_PERMISSIONS.viewer;
+    return defaults[pageKey] || { can_view: false, can_edit: false, can_delete: false };
+  }, [role, pageKey]);
 
-    const fetchPermissions = async () => {
-      // Try to get custom permissions from DB
-      const { data } = await supabase
+  const query = useQuery({
+    queryKey: ['permissions', user?.id ?? null, role ?? null, pageKey] as const,
+    enabled: !!user && !!role,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('user_permissions')
         .select('can_view, can_edit, can_delete')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .eq('permission_key', pageKey)
         .maybeSingle();
 
-      if (data) {
-        setPermissions({ can_view: data.can_view, can_edit: data.can_edit, can_delete: data.can_delete });
-      } else {
-        // Fall back to role defaults
-        const defaults = DEFAULT_PERMISSIONS[role as AppRole] || DEFAULT_PERMISSIONS.viewer;
-        setPermissions(defaults[pageKey] || { can_view: false, can_edit: false, can_delete: false });
-      }
-      setLoading(false);
-    };
+      if (error) throw new Error(error.message || 'تعذر تحميل الصلاحيات');
 
-    fetchPermissions();
-  }, [user, role, pageKey]);
+      if (data) {
+        return { can_view: data.can_view, can_edit: data.can_edit, can_delete: data.can_delete } satisfies PagePermission;
+      }
+
+      return fallbackPermissions;
+    },
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+  const permissions = user && role ? (query.data ?? fallbackPermissions) : { can_view: false, can_edit: false, can_delete: false };
+  const loading = user && role ? query.isLoading : false;
 
   return { permissions, loading, isAdmin: role === 'admin' };
 };

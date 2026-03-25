@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface SystemSettings {
   id: string;
@@ -42,26 +43,26 @@ const SystemSettingsContext = createContext<SystemSettingsContextType>({
 });
 
 export const SystemSettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: ['system-settings'] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
 
-  const fetchSettings = useCallback(async () => {
-    const { data } = await supabase
-      .from('system_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-    setSettings((data as unknown as SystemSettings) ?? defaults);
-    setLoading(false);
-  }, []);
+      if (error) throw new Error(error.message || 'تعذر تحميل إعدادات النظام');
+      return (data as unknown as SystemSettings) ?? defaults;
+    },
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
-  const s = settings ?? defaults;
+  const s = query.data ?? defaults;
   const projectName = s.project_name_ar;
   const projectSubtitle = s.project_subtitle_ar;
+  const loading = query.isLoading;
 
   // Sync browser title
   useEffect(() => {
@@ -69,7 +70,7 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
   }, [projectName]);
 
   return (
-    <SystemSettingsContext.Provider value={{ settings: s, projectName, projectSubtitle, loading, refresh: fetchSettings }}>
+    <SystemSettingsContext.Provider value={{ settings: s, projectName, projectSubtitle, loading, refresh: async () => { await query.refetch(); } }}>
       {children}
     </SystemSettingsContext.Provider>
   );

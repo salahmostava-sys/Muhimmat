@@ -33,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEmployees } from '@/hooks/useEmployees';
 import { createEmployeesPageStore } from '@/stores/useEmployeesPageStore';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {
@@ -278,6 +279,7 @@ const Employees = () => {
   const { isRTL } = useLanguage();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
+  const queryClient = useQueryClient();
 
   const [data, setData]       = useState<Employee[]>([]);
   const {
@@ -367,15 +369,28 @@ const Employees = () => {
   };
 
   // ── Inline save ──
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async (args: { id: string; patch: Record<string, unknown> }) => {
+      const { error } = await driverService.update(args.id, args.patch);
+      if (error) throw new Error(error.message || 'فشل تحديث الموظف');
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+
   const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, unknown>) => {
     const prev = data.find(e => e.id === id);
+    const patch = { [field]: value, ...(extraFields || {}) };
     setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
-    const { error } = await driverService.update(id, { [field]: value, ...(extraFields || {}) });
-    if (error) {
-      setData(d => d.map(e => e.id === id ? { ...e, [field]: prev ? getEmployeeFieldValue(prev, field) : undefined } : e));
-      toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+    try {
+      await updateEmployeeMutation.mutateAsync({ id, patch });
+    } catch (e) {
+      setData(d => d.map(emp => emp.id === id ? { ...emp, [field]: prev ? getEmployeeFieldValue(prev, field) : undefined } : emp));
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     }
-  }, [data, toast]);
+  }, [data, toast, updateEmployeeMutation]);
 
   // ── Save status that requires a date ──
   const handleSaveStatusWithDate = async () => {
@@ -398,19 +413,30 @@ const Employees = () => {
   };
 
   // ── Delete ──
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await driverService.delete(id);
+      if (error) throw new Error(error.message || 'فشل حذف الموظف');
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+
   const handleDelete = useCallback(async () => {
     if (!deleteEmployee) return;
     setDeleting(true);
-    const { error } = await driverService.delete(deleteEmployee.id);
-    if (error) {
-      toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-    } else {
+    try {
+      await deleteEmployeeMutation.mutateAsync(deleteEmployee.id);
       setData(d => d.filter(e => e.id !== deleteEmployee.id));
       toast({ title: 'تم الحذف', description: deleteEmployee.name });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }
     setDeleting(false);
     setDeleteEmployee(null);
-  }, [deleteEmployee, toast]);
+  }, [deleteEmployee, toast, deleteEmployeeMutation]);
 
   // ── unique values for select filters ──
   const uniqueVals = useMemo(() => ({
