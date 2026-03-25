@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Check, Trash2, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { employeeService, type EmployeeAppOption } from '@/services/employeeService';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import { validateUploadFile } from '@/lib/validation';
+import { useEmployeeWizardStore } from '@/stores/useEmployeeWizardStore';
 
 
 interface EmployeeData {
@@ -124,10 +125,19 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
 
 const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const isEdit = !!editEmployee;
-  const [step, setStep] = useState(0);
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const step = useEmployeeWizardStore((s) => s.step);
+  const saving = useEmployeeWizardStore((s) => s.saving);
+  const errors = useEmployeeWizardStore((s) => s.errors);
+  const form = useEmployeeWizardStore((s) => s.form);
+  const files = useEmployeeWizardStore((s) => s.files);
+  const setStep = useEmployeeWizardStore((s) => s.setStep);
+  const setSaving = useEmployeeWizardStore((s) => s.setSaving);
+  const setErrors = useEmployeeWizardStore((s) => s.setErrors);
+  const setField = useEmployeeWizardStore((s) => s.setField);
+  const setFiles = useEmployeeWizardStore((s) => s.setFiles);
+  const resetWizard = useEmployeeWizardStore((s) => s.reset);
+  const hydrateForEdit = useEmployeeWizardStore((s) => s.hydrateForEdit);
   const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
   const [availableApps, setAvailableApps] = useState<EmployeeAppOption[]>([]);
   const NATIONALITIES: { value: string; label: string }[] = [
@@ -181,49 +191,24 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     if (editEmployee) {
       employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
         if (!isMounted || !data) return;
-        setForm((f) => ({ ...f, selected_apps: data }));
+        setField('selected_apps', data);
       });
       employeeService.getEmployeeScheme(editEmployee.id).then(({ data }) => {
         if (!isMounted) return;
-        if (data?.scheme_id) setForm((f) => ({ ...f, scheme_id: data.scheme_id }));
+        if (data?.scheme_id) setField('scheme_id', data.scheme_id);
       });
     }
 
     return () => {
       isMounted = false;
     };
-  }, [editEmployee]);
-
-  const [form, setForm] = useState({
-    name: '',
-    employee_code: '',
-    job_title: '',
-    phone: '',
-    email: '',
-    national_id: '',
-    nationality: '',
-    bank_account_number: '',
-    city: '' as 'makkah' | 'jeddah' | '',
-    join_date: '',
-    birth_date: '',
-    residency_expiry: '',
-    health_insurance_expiry: '',
-    probation_end_date: '',
-    probation_months: '' as string,
-    license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
-    sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
-    salary_type: 'orders' as 'orders' | 'shift',
-    base_salary: '',
-    selected_apps: [] as string[],
-    scheme_id: '' as string,
-    preferred_language: 'ar' as 'ar' | 'en' | 'ur',
-  });
+  }, [editEmployee, setField]);
 
 
   // Pre-fill form when editing
   useEffect(() => {
     if (editEmployee) {
-      setForm({
+      hydrateForEdit({
         name: editEmployee.name || '',
         employee_code: editEmployee.employee_code || '',
         job_title: editEmployee.job_title || '',
@@ -247,22 +232,18 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         scheme_id: '',
         preferred_language: (editEmployee.preferred_language as 'ar' | 'en' | 'ur') || 'ar',
       });
+    } else {
+      resetWizard();
     }
-  }, [editEmployee]);
-
-  const [files, setFiles] = useState<{ personal: File | null; id: File | null; license: File | null }>({
-    personal: null, id: null, license: null,
-  });
-
-  const setField = useCallback((k: string, v: unknown) => setForm(f => ({ ...f, [k]: v })), []);
+  }, [editEmployee, hydrateForEdit, resetWizard]);
 
   // Auto-default scheme when salary type is per-order.
   useEffect(() => {
     if (form.salary_type !== 'orders') return;
     if (form.scheme_id) return;
     if (schemes.length === 0) return;
-    setForm((f) => ({ ...f, scheme_id: schemes[0]!.id }));
-  }, [form.salary_type, form.scheme_id, schemes]);
+    setField('scheme_id', schemes[0]!.id);
+  }, [form.salary_type, form.scheme_id, schemes, setField]);
 
   const resStatus = (() => {
     if (!form.residency_expiry) return null;
@@ -273,10 +254,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   })();
 
   const toggleApp = (app: string) => {
-    setForm(f => ({
-      ...f,
-      selected_apps: f.selected_apps.includes(app) ? f.selected_apps.filter(a => a !== app) : [...f.selected_apps, app],
-    }));
+    const nextSelected = form.selected_apps.includes(app)
+      ? form.selected_apps.filter((a) => a !== app)
+      : [...form.selected_apps, app];
+    setField('selected_apps', nextSelected);
   };
 
   const validateStep = (s: number) => {
@@ -297,8 +278,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     return Object.keys(errs).length === 0;
   };
 
-  const next = () => { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)); };
-  const back = () => setStep(s => Math.max(s - 1, 0));
+  const next = () => {
+    if (validateStep(step)) setStep(Math.min(step + 1, STEPS.length - 1));
+  };
+  const back = () => setStep(Math.max(step - 1, 0));
 
   const save = async () => {
     if (!validateStep(step)) return;
@@ -467,7 +450,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               </F>
               <F label="المدينة">
                 <div className="flex gap-3 mt-1">
-                  {[{ v: 'makkah', l: 'مكة' }, { v: 'jeddah', l: 'جدة' }].map(({ v, l }) => (
+                  {([
+                    { v: 'makkah', l: 'مكة' },
+                    { v: 'jeddah', l: 'جدة' },
+                  ] as const).map(({ v, l }) => (
                     <button key={v} type="button" onClick={() => setField('city', v)}
                       className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${form.city === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
                       {l}
@@ -562,7 +548,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 <Input type="date" value={form.health_insurance_expiry} onChange={e => setField('health_insurance_expiry', e.target.value)} />
               </F>
               <F label="حالة الرخصة">
-                <Select value={form.license_status} onValueChange={v => setField('license_status', v)}>
+                <Select
+                  value={form.license_status}
+                  onValueChange={(v) => setField('license_status', v as 'has_license' | 'no_license' | 'applied')}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="has_license">لديه رخصة</SelectItem>
@@ -572,7 +561,12 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 </Select>
               </F>
               <F label="حالة الكفالة">
-                <Select value={form.sponsorship_status} onValueChange={v => setField('sponsorship_status', v)}>
+                <Select
+                  value={form.sponsorship_status}
+                  onValueChange={(v) =>
+                    setField('sponsorship_status', v as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated')
+                  }
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="sponsored">على الكفالة</SelectItem>
@@ -590,7 +584,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
             <div className="space-y-5">
               <SectionTitle title="── نوع الراتب ──" />
               <div className="flex gap-3">
-                {[{ v: 'orders', l: '📦 بالطلب' }, { v: 'shift', l: '🕐 ثابت شهري' }].map(({ v, l }) => (
+                {([
+                  { v: 'orders', l: '📦 بالطلب' },
+                  { v: 'shift', l: '🕐 ثابت شهري' },
+                ] as const).map(({ v, l }) => (
                   <button key={v} type="button" onClick={() => setField('salary_type', v)}
                     className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${form.salary_type === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
                     {l}
@@ -646,20 +643,20 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                 <UploadArea
                   label="الصورة الشخصية" icon="📷"
                   file={files.personal} existingStoragePath={editEmployee?.personal_photo_url}
-                  onFile={f => setFiles(p => ({ ...p, personal: f }))}
-                  onRemove={() => setFiles(p => ({ ...p, personal: null }))}
+                  onFile={(f) => setFiles({ personal: f })}
+                  onRemove={() => setFiles({ personal: null })}
                 />
                 <UploadArea
                   label="صورة الهوية" icon="🪪"
                   file={files.id} existingStoragePath={editEmployee?.id_photo_url}
-                  onFile={f => setFiles(p => ({ ...p, id: f }))}
-                  onRemove={() => setFiles(p => ({ ...p, id: null }))}
+                  onFile={(f) => setFiles({ id: f })}
+                  onRemove={() => setFiles({ id: null })}
                 />
                 <UploadArea
                   label="صورة الرخصة" icon="🚗"
                   file={files.license} existingStoragePath={editEmployee?.license_photo_url}
-                  onFile={f => setFiles(p => ({ ...p, license: f }))}
-                  onRemove={() => setFiles(p => ({ ...p, license: null }))}
+                  onFile={(f) => setFiles({ license: f })}
+                  onRemove={() => setFiles({ license: null })}
                 />
               </div>
               <p className="text-xs text-muted-foreground">الملفات المقبولة: JPG, PNG, PDF — الحجم الأقصى: 5MB لكل ملف</p>
