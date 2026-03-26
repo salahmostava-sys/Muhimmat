@@ -11,32 +11,32 @@ import { SystemSettingsProvider } from "@/context/SystemSettingsContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageGuard from "@/components/PageGuard";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import DashboardLayout from '@/components/AppLayout';
+import DashboardLayout from "@/components/AppLayout";
 import AuthLayout from "@/layouts/AuthLayout";
 import Loading from "@/components/Loading";
 import { emitAuthFailure, isStrictUnauthenticatedError } from "@/lib/auth/authFailureBus";
 import "@/i18n";
 
-const Login = lazy(() => import("./pages/Login"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Employees = lazy(() => import("./pages/Employees"));
-const Attendance = lazy(() => import("./pages/Attendance"));
-const Orders = lazy(() => import("./pages/Orders"));
-const Salaries = lazy(() => import("./pages/Salaries"));
-const Advances = lazy(() => import("./pages/Advances"));
-const FuelPage = lazy(() => import("./pages/Fuel"));
-const Apps = lazy(() => import("./pages/Apps"));
-const Alerts = lazy(() => import("./pages/Alerts"));
-const SettingsHub = lazy(() => import("./pages/SettingsHub"));
-const ViolationResolver = lazy(() => import("./pages/ViolationResolver"));
-const Motorcycles = lazy(() => import("./pages/Motorcycles"));
-const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
-const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
-const PlatformAccounts = lazy(() => import("./pages/PlatformAccounts"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const Login = lazy(() => import("@/pages/Login"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Employees = lazy(() => import("@/pages/Employees"));
+const Attendance = lazy(() => import("@/pages/Attendance"));
+const Orders = lazy(() => import("@/pages/Orders"));
+const Salaries = lazy(() => import("@/pages/Salaries"));
+const Advances = lazy(() => import("@/pages/Advances"));
+const FuelPage = lazy(() => import("@/pages/Fuel"));
+const Apps = lazy(() => import("@/pages/Apps"));
+const Alerts = lazy(() => import("@/pages/Alerts"));
+const SettingsHub = lazy(() => import("@/pages/SettingsHub"));
+const ViolationResolver = lazy(() => import("@/pages/ViolationResolver"));
+const Motorcycles = lazy(() => import("@/pages/Motorcycles"));
+const VehicleAssignment = lazy(() => import("@/pages/VehicleAssignment"));
+const EmployeeTiers = lazy(() => import("@/pages/EmployeeTiers"));
+const PlatformAccounts = lazy(() => import("@/pages/PlatformAccounts"));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const PageLoader = () => {
   const location = useLocation();
@@ -50,21 +50,20 @@ const RootLoader = () => {
   return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
 };
 
-const handleGlobalAuthError = (source: 'query' | 'mutation', error: unknown) => {
+const handleGlobalAuthError = (source: "query" | "mutation", error: unknown) => {
   if (!isStrictUnauthenticatedError(error)) return;
-  emitAuthFailure({ source, reason: 'unauthenticated' });
+  emitAuthFailure({ source, reason: "unauthenticated" });
 };
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error) => handleGlobalAuthError('query', error),
+    onError: (error) => handleGlobalAuthError("query", error),
   }),
   mutationCache: new MutationCache({
-    onError: (error) => handleGlobalAuthError('mutation', error),
+    onError: (error) => handleGlobalAuthError("mutation", error),
   }),
   defaultOptions: {
     queries: {
-      // Global default = semi-fresh baseline. Domain-specific overrides live in each query.
       staleTime: 60_000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: true,
@@ -121,18 +120,14 @@ const App = () => (
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />
                                     <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
                                     <Route path="/profile" element={<ProfilePage />} />
-
-                                    {/* ── Unified Settings Hub ── */}
                                     <Route path="/settings" element={<PageGuard pageKey="settings"><SettingsHub /></PageGuard>} />
                                     <Route path="/settings/general" element={<Navigate to="/settings?tab=general" replace />} />
                                     <Route path="/settings/schemes" element={<Navigate to="/settings?tab=schemes" replace />} />
                                     <Route path="/settings/users" element={<Navigate to="/settings?tab=users" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings?tab=users" replace />} />
                                     <Route path="/settings/profile" element={<Navigate to="/profile" replace />} />
-
                                     <Route path="/activity-log" element={<Navigate to="/settings?tab=activity" replace />} />
                                     <Route path="/reports" element={<Navigate to="/settings?tab=activity" replace />} />
-
                                     <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
                                     <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
                                     <Route path="/deductions" element={<Navigate to="/advances" replace />} />
