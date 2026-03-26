@@ -75,8 +75,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
   useEffect(() => {
     const onStorage = () => setSidebarCollapsed(localStorage.getItem('sidebar_collapsed') === 'true');
     globalThis.addEventListener('storage', onStorage);
-    const id = setInterval(onStorage, 200);
-    return () => { globalThis.removeEventListener('storage', onStorage); clearInterval(id); };
+    return () => { globalThis.removeEventListener('storage', onStorage); };
   }, []);
 
   const pageKey = routeTitles[location.pathname] || 'dashboard';

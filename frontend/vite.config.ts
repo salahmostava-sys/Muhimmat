@@ -18,4 +18,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) return 'vendor-charts';
+            if (id.includes('@e965/xlsx') || id.includes('html2canvas') || id.includes('jspdf') || id.includes('jszip')) {
+              return 'vendor-export';
+            }
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('@tanstack')) return 'vendor-query';
+            if (id.includes('react')) return 'vendor-react';
+          }
+          return undefined;
+        },
+      },
+    },
+  },
 });

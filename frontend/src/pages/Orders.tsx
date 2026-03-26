@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { orderService } from '@/services/orderService';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { OrdersGridTable } from '@/components/orders/OrdersGridTable';
@@ -42,6 +41,8 @@ const ordersQueryKeys = (uid: string) => ({
   summaryMonthLock: (year: number, month: number) => ['orders', uid, 'summary', 'month-lock', year, month] as const,
   summaryMonthRaw: (year: number, month: number) => ['orders', uid, 'summary', 'month-raw', year, month] as const,
 });
+
+const loadXlsx = () => import('@e965/xlsx');
 
 const buildAppEmployeeIdsMap = (rows: EmployeeAppAssignmentRow[]): Record<string, Set<string>> => {
   const map: Record<string, Set<string>> = {};
@@ -194,7 +195,7 @@ const SpreadsheetGrid = () => {
   });
 
   const {
-    data: spreadsheetMonthRows = [],
+    data: spreadsheetMonthData = {},
     error: spreadsheetMonthError,
     isLoading: spreadsheetMonthLoading,
   } = useQuery({
@@ -205,6 +206,7 @@ const SpreadsheetGrid = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
+    select: (rows) => buildDailyDataMap(rows),
     retry: defaultQueryRetry,
     // Orders domain policy: semi-fresh (faster-changing rows)
     staleTime: 15_000,
@@ -212,13 +214,14 @@ const SpreadsheetGrid = () => {
     refetchOnReconnect: true,
   });
 
-  const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
+  const { data: spreadsheetMonthLock = false, error: spreadsheetLockError } = useQuery({
     queryKey: qk.spreadsheetMonthLock(year, month),
     enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
     },
+    select: (res) => res.locked,
     retry: defaultQueryRetry,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
@@ -235,13 +238,11 @@ const SpreadsheetGrid = () => {
   }, [spreadsheetBaseData, activeEmployeeIdsInMonth]);
 
   useEffect(() => {
-    setData(buildDailyDataMap(spreadsheetMonthRows));
-  }, [spreadsheetMonthRows]);
+    setData(spreadsheetMonthData);
+  }, [spreadsheetMonthData]);
 
   useEffect(() => {
-    if (spreadsheetMonthLock) {
-      setIsMonthLocked(spreadsheetMonthLock.locked);
-    }
+    setIsMonthLocked(spreadsheetMonthLock);
   }, [spreadsheetMonthLock]);
 
   useEffect(() => {
@@ -313,7 +314,8 @@ const SpreadsheetGrid = () => {
   }, []);
 
   // ── Export ──
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await loadXlsx();
     const rowsXlsx = filteredEmployees.map(emp => {
       const row: Record<string, unknown> = { 'الاسم': emp.name };
       dayArr.forEach(d => { row[String(d)] = empDayTotal(emp.id, d) || ''; });
@@ -332,6 +334,7 @@ const SpreadsheetGrid = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      const XLSX = await loadXlsx();
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -361,7 +364,8 @@ const SpreadsheetGrid = () => {
   };
 
   // ── Template ──
-  const handleTemplate = () => {
+  const handleTemplate = async () => {
+    const XLSX = await loadXlsx();
     const headers = [['الاسم', ...dayArr.map(String), 'المجموع']];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
@@ -651,32 +655,29 @@ const MonthSummary = () => {
     staleTime: 60_000,
   });
 
-  const { data: summaryTargetsRows = [], error: summaryTargetsError } = useQuery({
-    queryKey: qk.summaryTargets(year, month),
+  const { data: summaryMonthMeta, error: summaryMonthMetaError } = useQuery({
+    queryKey: ['orders', uid, 'summary', 'month-meta', year, month] as const,
     enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
-      const { data: rows, error } = await orderService.getAppTargets(my);
-      if (error) throw error;
-      return (rows || []) as AppTargetRow[];
+      const [targetsRes, lockRes] = await Promise.all([
+        orderService.getAppTargets(my),
+        orderService.getMonthLockStatus(my),
+      ]);
+      if (targetsRes.error) throw targetsRes.error;
+      return {
+        targets: (targetsRes.data || []) as AppTargetRow[],
+        locked: lockRes.locked,
+      };
     },
     retry: defaultQueryRetry,
     staleTime: 15_000,
-  });
-
-  const { data: summaryLockData, error: summaryLockError } = useQuery({
-    queryKey: qk.summaryMonthLock(year, month),
-    enabled,
-    queryFn: async () => {
-      const my = monthYear(year, month);
-      return orderService.getMonthLockStatus(my);
-    },
-    retry: defaultQueryRetry,
-    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const {
-    data: summaryMonthRows = [],
+    data: summaryMonthData = {},
     error: summaryMonthError,
     isLoading: summaryMonthLoading,
   } = useQuery({
@@ -687,6 +688,7 @@ const MonthSummary = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
+    select: (rows) => buildDailyDataMap(rows),
     retry: defaultQueryRetry,
     staleTime: 15_000,
   });
@@ -702,22 +704,20 @@ const MonthSummary = () => {
   // Load targets when month changes
   useEffect(() => {
     const t: Record<string, string> = {};
-    summaryTargetsRows.forEach((r) => { t[r.app_id] = String(r.target_orders); });
+    (summaryMonthMeta?.targets || []).forEach((r) => { t[r.app_id] = String(r.target_orders); });
     setTargets(t);
-  }, [summaryTargetsRows]);
+  }, [summaryMonthMeta?.targets]);
 
   useEffect(() => {
-    if (summaryLockData) {
-      setIsMonthLocked(summaryLockData.locked);
-    }
-  }, [summaryLockData]);
+    setIsMonthLocked(summaryMonthMeta?.locked ?? false);
+  }, [summaryMonthMeta?.locked]);
 
   useEffect(() => {
-    setData(buildDailyDataMap(summaryMonthRows));
-  }, [summaryMonthRows]);
+    setData(summaryMonthData);
+  }, [summaryMonthData]);
 
   useEffect(() => {
-    const error = summaryBaseError || summaryTargetsError || summaryLockError || summaryMonthError;
+    const error = summaryBaseError || summaryMonthMetaError || summaryMonthError;
     if (!error) return;
     const message = error instanceof Error ? error.message : 'فشل تحميل ملخص الشهر';
     toast({
@@ -725,7 +725,7 @@ const MonthSummary = () => {
       description: message,
       variant: 'destructive',
     });
-  }, [summaryBaseError, summaryTargetsError, summaryLockError, summaryMonthError, toast]);
+  }, [summaryBaseError, summaryMonthMetaError, summaryMonthError, toast]);
 
   const saveTarget = async (appId: string, value: string) => {
     if (isMonthLocked) return;
@@ -963,6 +963,7 @@ const OrdersList = () => {
 
   const handleExportMonth = async () => {
     try {
+      const XLSX = await loadXlsx();
       const { data: raw, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
       const empMap = Object.fromEntries((baseData?.employees ?? []).map((e) => [e.id, e]));

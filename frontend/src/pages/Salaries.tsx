@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
-import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
@@ -30,7 +29,6 @@ import { printHtmlTable } from '@/lib/printTable';
 import { defaultQueryRetry } from '@/lib/query';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
 import { auditService } from '@/services/auditService';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 
@@ -106,6 +104,9 @@ const wasFixedSchemeAlreadyCalculated = (
       platformSalaries[prev] !== undefined
   );
 };
+
+const loadXlsx = () => import('@e965/xlsx');
+const loadHtml2Canvas = async () => (await import('html2canvas')).default;
 
 const calculatePlatformSalary = ({
   platformName,
@@ -586,6 +587,7 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
     if (!slipRef.current) return;
     setExporting(true);
     try {
+      const html2canvas = await loadHtml2Canvas();
       const canvas = await html2canvas(slipRef.current, {
         scale: 2,
         useCORS: true,
@@ -997,14 +999,10 @@ const Salaries = () => {
   const [fastApproved, setFastApproved] = useState<FastApprovedFilter>('all');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
   const [appsWithoutPricingRules, setAppsWithoutPricingRules] = useState<string[]>([]);
   const [appIdByName, setAppIdByName] = useState<Record<string, string>>({});
   const [pricingRulesByAppId, setPricingRulesByAppId] = useState<Record<string, PricingRule[]>>({});
-  // appCustomColumns: appName → CustomColumn[]
-  const [appCustomColumns, setAppCustomColumns] = useState<Record<string, CustomColumn[]>>({});
 
   // ── Batch ZIP export state ────────────────────────────────────
   const [batchQueue, setBatchQueue] = useState<SalaryRow[]>([]);
@@ -1023,29 +1021,32 @@ const Salaries = () => {
     [appsWithoutPricingRules, appsWithoutScheme]
   );
 
-  // Sync platforms, colors, and custom columns from DB apps
-  useEffect(() => {
-    if (appColorsList.length === 0) return;
+  const platformMeta = useMemo(() => {
     const newColors: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
     const newPlatforms: string[] = [];
     const newCustomCols: Record<string, CustomColumn[]> = {};
-    appColorsList.filter(a => a.is_active).forEach(app => {
-      newPlatforms.push(app.name);
-      newColors[app.name] = {
-        header: app.brand_color,
-        headerText: app.text_color,
-        cellBg: `${app.brand_color}18`,
-        valueColor: app.brand_color,
-        focusBorder: app.brand_color,
-      };
-      newCustomCols[app.name] = app.custom_columns || [];
-      // keep global in sync for legacy code paths
-      PLATFORM_COLORS[app.name] = newColors[app.name];
-    });
-    setPlatforms(newPlatforms);
-    setPlatformColors(newColors);
-    setAppCustomColumns(newCustomCols);
+    appColorsList
+      .filter((a) => a.is_active)
+      .forEach((app) => {
+        newPlatforms.push(app.name);
+        newColors[app.name] = {
+          header: app.brand_color,
+          headerText: app.text_color,
+          cellBg: `${app.brand_color}18`,
+          valueColor: app.brand_color,
+          focusBorder: app.brand_color,
+        };
+        newCustomCols[app.name] = app.custom_columns || [];
+      });
+    return { platforms: newPlatforms, platformColors: newColors, appCustomColumns: newCustomCols };
   }, [appColorsList]);
+  const platforms = platformMeta.platforms;
+  const platformColors = platformMeta.platformColors;
+  const appCustomColumns = platformMeta.appCustomColumns;
+  useEffect(() => {
+    Object.keys(PLATFORM_COLORS).forEach((k) => delete PLATFORM_COLORS[k]);
+    Object.assign(PLATFORM_COLORS, platformColors);
+  }, [platformColors]);
 
   const {
     data: salaryBaseContext,
@@ -1558,6 +1559,7 @@ const Salaries = () => {
     const timer = setTimeout(async () => {
       if (!batchSlipRef.current) return;
       try {
+        const html2canvas = await loadHtml2Canvas();
         const canvas = await html2canvas(batchSlipRef.current, {
           scale: 2,
           useCORS: true,
@@ -1597,7 +1599,8 @@ const Salaries = () => {
   const approvedCount = filtered.filter(r => r.status === 'approved').length;
   const paidCount = filtered.filter(r => r.status === 'paid').length;
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await loadXlsx();
     const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
     const data = filtered.map(r => {
       const c = computeRow(r);
@@ -1778,7 +1781,8 @@ const Salaries = () => {
     }
   };
 
-  const downloadSalaryTemplate = () => {
+  const downloadSalaryTemplate = async () => {
+    const XLSX = await loadXlsx();
     const headers = [Array.from(SALARY_IMPORT_TEMPLATE_HEADERS)];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
@@ -3000,6 +3004,7 @@ function SalariesFastList(props: Readonly<{
   const exportExcel = async () => {
     setExporting(true);
     try {
+      const XLSX = await loadXlsx();
       const branchKey: Exclude<BranchKey, 'all'> | undefined = branch === 'all' ? undefined : branch;
       const q = search?.trim() || undefined;
 
