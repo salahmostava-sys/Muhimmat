@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,16 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@/hooks/useRealtimePostgresChanges';
 import { useToast } from '@/hooks/use-toast';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { authQueryUserId } from '@/hooks/useAuthQueryGate';
 import { alertsService } from '@/services/alertsService';
+import { useAlertsData } from '@/hooks/useAlertsData';
+import type { Alert } from '@/lib/alertsBuilder';
 import { escapeHtml } from '@/lib/security';
-import { defaultQueryRetry } from '@/lib/query';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import * as XLSX from '@e965/xlsx';
-import { format, differenceInDays, parseISO, addDays } from 'date-fns';
+import { format } from 'date-fns';
 
 // Static label map — not data (only residency, insurance, authorization, probation, platform_account)
 export const alertTypeLabels: Record<string, string> = {
@@ -29,40 +27,6 @@ export const alertTypeLabels: Record<string, string> = {
   platform_account: 'حساب منصة',
   employee_absconded: 'مندوب هارب',
   employee_terminated: 'مندوب منتهي',
-};
-
-export interface Alert {
-  id: string;
-  type: string;
-  entityName: string;
-  dueDate: string;
-  daysLeft: number;
-  severity: 'urgent' | 'warning' | 'info';
-  resolved: boolean;
-}
-
-type EmployeeAlertRow = {
-  id: string;
-  name: string;
-  residency_expiry: string | null;
-  probation_end_date: string | null;
-};
-
-type PlatformAccountAlertRow = {
-  id: string;
-  account_username: string;
-  iqama_expiry_date: string | null;
-  app_id: string;
-  apps?: { name?: string | null } | null;
-};
-
-type PersistedAlertRow = {
-  id: string;
-  type: string;
-  due_date: string | null;
-  is_resolved: boolean | null;
-  message: string | null;
-  details: Record<string, unknown> | null;
 };
 
 const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning: 'badge-warning', info: 'badge-info' };
@@ -78,162 +42,9 @@ const typeIcons: Record<string, string> = {
   employee_terminated: '🧾',
 };
 
-const getStandardSeverity = (daysLeft: number): Alert['severity'] => {
-  if (daysLeft <= 7) return 'urgent';
-  if (daysLeft <= 14) return 'warning';
-  return 'info';
-};
-
-const getProbationSeverity = (daysLeft: number): Alert['severity'] => {
-  if (daysLeft < 0) return 'info';
-  if (daysLeft <= 7) return 'urgent';
-  return 'warning';
-};
-
-const pushEmployeeExpiryAlerts = (
-  generatedAlerts: Alert[],
-  emp: EmployeeAlertRow,
-  threshold: string,
-  today: Date
-) => {
-  if (emp.residency_expiry && emp.residency_expiry <= threshold) {
-    const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
-    generatedAlerts.push({
-      id: `res-${emp.id}`,
-      type: 'residency',
-      entityName: emp.name,
-      dueDate: emp.residency_expiry,
-      daysLeft,
-      severity: getStandardSeverity(daysLeft),
-      resolved: false,
-    });
-  }
-
-  if (emp.probation_end_date && emp.probation_end_date <= threshold) {
-    const daysLeft = differenceInDays(parseISO(emp.probation_end_date), today);
-    generatedAlerts.push({
-      id: `prob-${emp.id}`,
-      type: 'probation',
-      entityName: emp.name,
-      dueDate: emp.probation_end_date,
-      daysLeft,
-      severity: getProbationSeverity(daysLeft),
-      resolved: false,
-    });
-  }
-};
-
-type VehicleExpiryRow = {
-  id: string;
-  plate_number: string;
-  insurance_expiry: string | null;
-  authorization_expiry: string | null;
-};
-
-const FETCH_ALERTS_TIMEOUT_MS = 45_000;
-
 const DB_BACKED_EMPLOYEE_ALERT_TYPES = new Set(['employee_absconded', 'employee_terminated']);
 
 const isDbBackedEmployeeAlertType = (type: string) => DB_BACKED_EMPLOYEE_ALERT_TYPES.has(type);
-
-const pushVehicleExpiryAlerts = (
-  out: Alert[],
-  vehicles: VehicleExpiryRow[] | null | undefined,
-  threshold: string,
-  today: Date
-) => {
-  if (!vehicles?.length) return;
-  for (const v of vehicles) {
-    if (v.insurance_expiry && v.insurance_expiry <= threshold) {
-      const days = differenceInDays(parseISO(v.insurance_expiry), today);
-      out.push({
-        id: `ins-${v.id}`,
-        type: 'insurance',
-        entityName: `مركبة ${v.plate_number}`,
-        dueDate: v.insurance_expiry,
-        daysLeft: days,
-        severity: getStandardSeverity(days),
-        resolved: false,
-      });
-    }
-    if (v.authorization_expiry && v.authorization_expiry <= threshold) {
-      const days = differenceInDays(parseISO(v.authorization_expiry), today);
-      out.push({
-        id: `auth-${v.id}`,
-        type: 'authorization',
-        entityName: `مركبة ${v.plate_number}`,
-        dueDate: v.authorization_expiry,
-        daysLeft: days,
-        severity: getStandardSeverity(days),
-        resolved: false,
-      });
-    }
-  }
-};
-
-const pushPlatformAccountAlerts = (
-  out: Alert[],
-  rows: PlatformAccountAlertRow[],
-  today: Date
-) => {
-  for (const acc of rows) {
-    if (!acc.iqama_expiry_date) continue;
-    const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
-    const appName = acc.apps?.name ?? 'منصة';
-    const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
-    out.push({
-      id: `pla-${acc.id}`,
-      type: 'platform_account',
-      entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
-      dueDate: acc.iqama_expiry_date,
-      daysLeft: days,
-      severity: getStandardSeverity(days),
-      resolved: false,
-    });
-  }
-};
-
-const pushPersistedDbAlerts = (out: Alert[], rows: PersistedAlertRow[], today: Date) => {
-  for (const a of rows) {
-    const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
-    const daysLeft = differenceInDays(parseISO(dueDate), today);
-    const details = a.details ?? {};
-    const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
-    const entityName = detailsEmployeeName ?? a.message ?? '—';
-    out.push({
-      id: a.id,
-      type: a.type,
-      entityName,
-      dueDate,
-      daysLeft,
-      severity: getStandardSeverity(daysLeft),
-      resolved: !!a.is_resolved,
-    });
-  }
-};
-
-function buildAlertsFromResponses(
-  employeesRes: { data: EmployeeAlertRow[] | null },
-  vehiclesRes: { data: VehicleExpiryRow[] | null },
-  platformAccountsRes: { data: PlatformAccountAlertRow[] | null },
-  dbAlertsRes: { data: PersistedAlertRow[] | null },
-  threshold: string,
-  today: Date
-): Alert[] {
-  const generatedAlerts: Alert[] = [];
-  (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
-    pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
-  );
-  pushVehicleExpiryAlerts(generatedAlerts, vehiclesRes.data, threshold, today);
-  pushPlatformAccountAlerts(generatedAlerts, (platformAccountsRes.data ?? []) as PlatformAccountAlertRow[], today);
-  pushPersistedDbAlerts(generatedAlerts, (dbAlertsRes.data ?? []) as PersistedAlertRow[], today);
-  generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
-  return generatedAlerts;
-}
-
-async function fetchAlertsDataWithTimeout(threshold: string, iqamaThreshold: string, timeoutMs: number) {
-  return alertsService.fetchAlertsDataWithTimeout(threshold, iqamaThreshold, timeoutMs);
-}
 
 function isUnresolvedAlertMatchingFilters(
   a: Alert,
@@ -286,15 +97,9 @@ const Alerts = () => {
   const [deferDays, setDeferDays] = useState('7');
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
-  const { settings } = useSystemSettings();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
-  const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
-  const currentMonth = format(new Date(), 'yyyy-MM');
-  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
-  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
+  const uid = authQueryUserId(user?.id ?? null);
   const [rtTick, setRtTick] = useState(0);
 
   useRealtimePostgresChanges('alerts-page-realtime', REALTIME_TABLES_ALERTS_PAGE, () => {
@@ -306,35 +111,7 @@ const Alerts = () => {
     isLoading: loading,
     error: alertsError,
     refetch: refetchAlerts,
-  } = useQuery({
-    queryKey: ['alerts', uid, 'page-data', iqamaAlertDays],
-    enabled: enabled && !!activeIdsData,
-    queryFn: async () => {
-      const today = new Date();
-      const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
-      const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
-      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await fetchAlertsDataWithTimeout(
-        threshold,
-        iqamaThreshold,
-        FETCH_ALERTS_TIMEOUT_MS
-      );
-      const employeesVisibleRes = {
-        ...employeesRes,
-        data: filterVisibleEmployeesInMonth(
-          (employeesRes.data ?? []) as unknown as { id: string; sponsorship_status?: string | null }[],
-          activeEmployeeIdsInMonth
-        ),
-      };
-      return buildAlertsFromResponses(employeesVisibleRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
-    },
-    retry: defaultQueryRetry,
-    // Alerts domain policy: always fresh
-    staleTime: 0,
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: 'always',
-    refetchInterval: 60_000,
-  });
+  } = useAlertsData();
 
   useEffect(() => {
     setLocalAlerts(alertsData);

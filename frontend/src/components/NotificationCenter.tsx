@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { alertsService } from '@/services/alertsService';
+import { useAlertsData } from '@/hooks/useAlertsData';
 import { cn } from '@/lib/utils';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 /* ── Types ─────────────────────────────────────────────────── */
 
@@ -11,7 +11,7 @@ type Severity = 'urgent' | 'warning' | 'info';
 
 interface AlertItem {
   id: string;
-  type: 'residency' | 'insurance' | 'authorization' | 'probation';
+  type: string;
   entityName: string;
   dueDate: string;
   daysLeft: number;
@@ -51,6 +51,24 @@ const TYPE_CONFIG: Record<string, {
     labelAr: 'انتهاء فترة التجربة',
     labelEn: 'Probation End',
   },
+  platform_account: {
+    icon: <AlertTriangle size={14} />,
+    colorClass: 'text-warning bg-warning/10',
+    labelAr: 'انتهاء إقامة حساب منصة',
+    labelEn: 'Platform Account Iqama',
+  },
+  employee_absconded: {
+    icon: <AlertTriangle size={14} />,
+    colorClass: 'text-destructive bg-destructive/10',
+    labelAr: 'مندوب هارب',
+    labelEn: 'Employee Absconded',
+  },
+  employee_terminated: {
+    icon: <AlertTriangle size={14} />,
+    colorClass: 'text-warning bg-warning/10',
+    labelAr: 'مندوب منتهي',
+    labelEn: 'Employee Terminated',
+  },
 };
 
 const SEVERITY_DOT: Record<Severity, string> = {
@@ -60,21 +78,6 @@ const SEVERITY_DOT: Record<Severity, string> = {
 };
 
 /* ── Helper ─────────────────────────────────────────────────── */
-
-function calcSeverity(daysLeft: number, type: string): Severity {
-  if (type === 'probation') {
-    if (daysLeft < 0) return 'info';
-    if (daysLeft <= 7) return 'urgent';
-    return 'warning';
-  }
-
-  // Residency / Insurance / Authorization share same severity windows.
-  if (daysLeft < 0) return 'urgent';
-  if (daysLeft <= 7) return 'urgent';
-  if (daysLeft <= 14) return 'warning';
-  return 'info';
-}
-
 function daysLabel(days: number, isRTL: boolean): string {
   if (days < 0) return isRTL ? `انتهت منذ ${Math.abs(days)} يوم` : `Expired ${Math.abs(days)}d ago`;
   if (days === 0) return isRTL ? 'ينتهي اليوم' : 'Expires today';
@@ -85,7 +88,6 @@ function daysLabel(days: number, isRTL: boolean): string {
 
 export default function NotificationCenter() {
   const [open, setOpen] = useState(false);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('nc_dismissed') || '[]')); }
     catch (e) {
@@ -93,59 +95,16 @@ export default function NotificationCenter() {
       return new Set();
     }
   });
-  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { isRTL } = useLanguage();
-
-  /* ── Fetch alerts (same logic as Alerts.tsx) ─────────────── */
-  const fetchAlerts = useCallback(async () => {
-    setLoading(true);
-    try {
-    const today = new Date();
-    const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
-
-    const [empRes, vehRes] = await alertsService.fetchNotificationAlertsData(threshold);
-
-    const generated: AlertItem[] = [];
-
-    empRes.data?.forEach(emp => {
-      if (emp.residency_expiry && emp.residency_expiry <= threshold) {
-        const d = differenceInDays(parseISO(emp.residency_expiry), today);
-        generated.push({ id: `res-${emp.id}`, type: 'residency', entityName: emp.name, dueDate: emp.residency_expiry, daysLeft: d, severity: calcSeverity(d, 'residency'), resolved: false });
-      }
-      if (emp.probation_end_date && emp.probation_end_date <= threshold) {
-        const d = differenceInDays(parseISO(emp.probation_end_date), today);
-        generated.push({ id: `prob-${emp.id}`, type: 'probation', entityName: emp.name, dueDate: emp.probation_end_date, daysLeft: d, severity: calcSeverity(d, 'probation'), resolved: false });
-      }
-    });
-
-    vehRes.data?.forEach(v => {
-      if (v.insurance_expiry && v.insurance_expiry <= threshold) {
-        const d = differenceInDays(parseISO(v.insurance_expiry), today);
-        generated.push({ id: `ins-${v.id}`, type: 'insurance', entityName: `مركبة ${v.plate_number}`, dueDate: v.insurance_expiry, daysLeft: d, severity: calcSeverity(d, 'insurance'), resolved: false });
-      }
-      if (v.authorization_expiry && v.authorization_expiry <= threshold) {
-        const d = differenceInDays(parseISO(v.authorization_expiry), today);
-        generated.push({ id: `auth-${v.id}`, type: 'authorization', entityName: `مركبة ${v.plate_number}`, dueDate: v.authorization_expiry, daysLeft: d, severity: calcSeverity(d, 'authorization'), resolved: false });
-      }
-    });
-
-    generated.sort((a, b) => a.daysLeft - b.daysLeft);
-    setAlerts(generated);
-    } catch (e) {
-      console.error('[NotificationCenter] fetchAlerts failed', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
-
-  // Poll every 5 minutes
-  useEffect(() => {
-    const t = setInterval(fetchAlerts, 5 * 60_000);
-    return () => clearInterval(t);
-  }, [fetchAlerts]);
+  const {
+    data: alertsData = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useAlertsData();
+  const alerts = alertsData as AlertItem[];
+  const loading = isLoading || isFetching;
 
   // Close on outside click
   useEffect(() => {
@@ -192,7 +151,10 @@ export default function NotificationCenter() {
       {/* ── Bell button ─────────────────────────────────────── */}
       <button
         type="button"
-        onClick={() => { setOpen(v => !v); if (!open) fetchAlerts(); }}
+        onClick={() => {
+          setOpen(v => !v);
+          if (!open) void refetch();
+        }}
         className="relative h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         title={isRTL ? 'الإشعارات' : 'Notifications'}
       >
@@ -260,7 +222,12 @@ export default function NotificationCenter() {
             )}
 
             {!loading && active.map(a => {
-              const cfg = TYPE_CONFIG[a.type];
+              const cfg = TYPE_CONFIG[a.type] || {
+                icon: <Bell size={14} />,
+                colorClass: 'text-muted-foreground bg-muted',
+                labelAr: a.type,
+                labelEn: a.type,
+              };
               return (
                 <div
                   key={a.id}
@@ -309,13 +276,13 @@ export default function NotificationCenter() {
 
           {/* Footer */}
           <div className="border-t border-border px-4 py-2.5 bg-muted/30">
-            <a
-              href="/alerts"
+            <Link
+              to="/alerts"
               onClick={() => setOpen(false)}
               className="text-xs text-primary hover:underline"
             >
               {isRTL ? 'عرض كل التنبيهات ←' : 'View all alerts →'}
-            </a>
+            </Link>
           </div>
         </div>
       )}
