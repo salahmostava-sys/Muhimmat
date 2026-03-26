@@ -517,7 +517,7 @@ const FuelPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [monthYear, employeeIdsOnPlatform, employees]);
+  }, [monthYear, employeeIdsOnPlatform, employees, toast]);
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);
@@ -1136,7 +1136,7 @@ const FuelPage = () => {
 
 export default FuelPage;
 
-function FuelDailyFastList(props: {
+type FuelDailyFastListProps = Readonly<{
   monthYear: string;
   monthStart: string;
   monthEnd: string;
@@ -1147,7 +1147,9 @@ function FuelDailyFastList(props: {
   pageSize: number;
   onPageChange: (p: number) => void;
   onBack: () => void;
-}) {
+}>;
+
+function FuelDailyFastList(props: FuelDailyFastListProps) {
   const { monthYear, monthStart, monthEnd, employees, filters, onFiltersChange, page, pageSize, onPageChange, onBack } = props;
   const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
@@ -1177,12 +1179,14 @@ function FuelDailyFastList(props: {
   const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const isAllDrivers = filters.driverId === 'all';
+  const isAllBranches = filters.branch === 'all';
 
   const exportExcel = async () => {
     setExporting(true);
     try {
-      const employeeId = filters.driverId !== 'all' ? String(filters.driverId) : undefined;
-      const branch = filters.branch !== 'all' ? (filters.branch as Exclude<BranchKey, 'all'>) : undefined;
+      const employeeId = isAllDrivers ? undefined : String(filters.driverId);
+      const branch: Exclude<BranchKey, 'all'> | undefined = isAllBranches ? undefined : filters.branch;
       const search = filters.search?.trim() || undefined;
 
       const res = await fuelService.exportDailyMileage({
@@ -1220,6 +1224,33 @@ function FuelDailyFastList(props: {
       setExporting(false);
     }
   };
+  const tableBodyRows = (() => {
+    if (isLoading) {
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((slot) => (
+        <tr key={`fuel-daily-skeleton-row-${slot}`}>
+          <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+          <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+          <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
+          <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
+          <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+        </tr>
+      ));
+    }
+    if (rows.length === 0) {
+      return (
+        <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا توجد نتائج</td></tr>
+      );
+    }
+    return rows.map((r) => (
+      <tr key={r.id} className="hover:bg-muted/10">
+        <td className="px-4 py-3 font-mono text-xs">{r.date}</td>
+        <td className="px-4 py-3 font-medium">{r.employees?.name ?? '—'}</td>
+        <td className="px-4 py-3 text-center font-semibold text-primary">{Number(r.km_total || 0).toLocaleString()}</td>
+        <td className="px-4 py-3 text-center text-warning">{Number(r.fuel_cost || 0).toLocaleString()}</td>
+        <td className="px-4 py-3 text-xs text-muted-foreground">{r.notes ?? '—'}</td>
+      </tr>
+    ));
+  })();
 
   return (
     <div className="space-y-4">
@@ -1277,29 +1308,7 @@ function FuelDailyFastList(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {isLoading ? (
-                Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={`fuel-daily-skeleton-row-${i}`}>
-                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
-                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
-                    <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
-                    <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
-                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
-                  </tr>
-                ))
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا توجد نتائج</td></tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/10">
-                    <td className="px-4 py-3 font-mono text-xs">{r.date}</td>
-                    <td className="px-4 py-3 font-medium">{r.employees?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-primary">{Number(r.km_total || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center text-warning">{Number(r.fuel_cost || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{r.notes ?? '—'}</td>
-                  </tr>
-                ))
-              )}
+              {tableBodyRows}
             </tbody>
           </table>
         </div>
