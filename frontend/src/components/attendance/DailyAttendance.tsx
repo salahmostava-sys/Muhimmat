@@ -218,14 +218,14 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const toSave = Object.values(records).filter(r => r.status !== null);
     let saved = 0;
-    const validDbStatuses: AttendanceStatus[] = ["present", "absent", "leave", "sick", "late"];
+    const validDbStatuses = new Set<AttendanceStatus>(["present", "absent", "leave", "sick", "late"]);
 
     for (const r of toSave) {
-      const dbStatus: AttendanceStatus = validDbStatuses.includes(r.status as AttendanceStatus)
+      const dbStatus: AttendanceStatus = validDbStatuses.has(r.status as AttendanceStatus)
         ? (r.status as AttendanceStatus)
         : "present";
       const noteText =
-        [r.note, !validDbStatuses.includes(r.status as AttendanceStatus) ? r.status : ""]
+        [r.note, !validDbStatuses.has(r.status as AttendanceStatus) ? r.status : ""]
           .filter(Boolean).join(" | ") || null;
 
       const payload = {
@@ -260,6 +260,152 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     ...BUILT_IN_STATUSES.map(k => ({ value: k, label: statusLabels[k] })),
     ...customStatuses.map(s => ({ value: s, label: s })),
   ];
+  let tableBodyRows: React.ReactNode;
+  if (loading) {
+    tableBodyRows = Array.from({ length: 5 }).map((_, i) => (
+      <tr key={`skeleton-row-${i}`} className="ta-tr">
+        {Array.from({ length: 5 }).map((_, j) => (
+          <td key={`skeleton-cell-${i}-${j}`} className="ta-td">
+            <div className="h-4 bg-muted rounded animate-pulse" />
+          </td>
+        ))}
+      </tr>
+    ));
+  } else if (employees.length === 0) {
+    tableBodyRows = (
+      <tr>
+        <td colSpan={5} className="ta-td text-center py-12 text-muted-foreground">
+          {selectedAppId ? 'لا يوجد مناديب مسجّلون في هذه المنصة' : 'لا يوجد مناديب نشطون'}
+        </td>
+      </tr>
+    );
+  } else {
+    tableBodyRows = employees.map(emp => {
+      const record = records[emp.id] ?? {
+        status: null, checkIn: "", checkOut: "", note: "", employeeId: emp.id,
+      };
+      const currentStatus = record.status;
+      const selectColor = currentStatus ? STATUS_COLORS[currentStatus] || DEFAULT_COLOR : "";
+      const isAddingCustom = addingCustomFor === emp.id;
+
+      return (
+        <tr key={emp.id} className="ta-tr">
+          {/* Name */}
+          <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card max-w-[130px]`}>
+            <div className="flex items-center gap-2">
+              <div>
+                <p className="text-sm font-medium text-foreground whitespace-nowrap truncate" title={emp.name}>
+                  {toShortEmployeeName(emp.name)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {emp.job_title || (emp.salary_type === "orders" ? "طلبات" : "دوام")}
+                </p>
+              </div>
+            </div>
+          </td>
+
+          {/* Status dropdown */}
+          <td className="ta-td">
+            <div className="flex items-center gap-2">
+              {isAddingCustom ? (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    autoFocus
+                    value={customInput}
+                    onChange={e => setCustomInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") addCustomStatus(emp.id);
+                      if (e.key === "Escape") { setAddingCustomFor(null); setCustomInput(""); }
+                    }}
+                    placeholder="اسم الحالة..."
+                    className="h-8 text-xs w-32"
+                  />
+                  <Button size="sm" className="h-8 text-xs px-2" onClick={() => addCustomStatus(emp.id)}>
+                    إضافة
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost" className="h-8 text-xs px-2"
+                    onClick={() => { setAddingCustomFor(null); setCustomInput(""); }}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={currentStatus || ""}
+                  disabled={!permissions.can_edit}
+                  onValueChange={v => {
+                    if (v === "__add_custom__") {
+                      setAddingCustomFor(emp.id);
+                      setCustomInput("");
+                    } else {
+                      updateRecord(emp.id, "status", v || null);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-8 text-xs w-40 border",
+                      currentStatus ? selectColor : "text-muted-foreground",
+                    )}
+                  >
+                    <SelectValue placeholder="اختر الحالة..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allStatuses.map(s => (
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || DEFAULT_COLOR}`}>
+                          {s.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__add_custom__" className="text-primary font-medium border-t mt-1">
+                      + إضافة حالة جديدة...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </td>
+
+          {/* Check in */}
+          <td className="ta-td-center">
+            <Input
+              type="time"
+              disabled={!permissions.can_edit}
+              value={record.checkIn}
+              onChange={e => updateRecord(emp.id, "checkIn", e.target.value)}
+              className="w-28 text-sm"
+              dir="ltr"
+            />
+          </td>
+
+          {/* Check out */}
+          <td className="ta-td-center">
+            <Input
+              type="time"
+              disabled={!permissions.can_edit}
+              value={record.checkOut}
+              onChange={e => updateRecord(emp.id, "checkOut", e.target.value)}
+              className="w-28 text-sm"
+              dir="ltr"
+            />
+          </td>
+
+          {/* Note */}
+          <td className="ta-td">
+            <Input
+              disabled={!permissions.can_edit}
+              placeholder="ملاحظة اختيارية..."
+              value={record.note}
+              onChange={e => updateRecord(emp.id, "note", e.target.value)}
+              className="text-sm min-w-[160px]"
+            />
+          </td>
+        </tr>
+      );
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -384,149 +530,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
               </tr>
             </thead>
             <tbody>
-              {loading
-                ? Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={`skeleton-${i}`} className="ta-tr">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <td key={`skeleton-cell-${i}-${j}`} className="ta-td">
-                          <div className="h-4 bg-muted rounded animate-pulse" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                : employees.length === 0
-                ? (
-                  <tr>
-                    <td colSpan={5} className="ta-td text-center py-12 text-muted-foreground">
-                      {selectedAppId ? 'لا يوجد مناديب مسجّلون في هذه المنصة' : 'لا يوجد مناديب نشطون'}
-                    </td>
-                  </tr>
-                )
-                : employees.map(emp => {
-                    const record = records[emp.id] ?? {
-                      status: null, checkIn: "", checkOut: "", note: "", employeeId: emp.id,
-                    };
-                    const currentStatus = record.status;
-                    const selectColor   = currentStatus ? STATUS_COLORS[currentStatus] || DEFAULT_COLOR : "";
-                    const isAddingCustom = addingCustomFor === emp.id;
-
-                    return (
-                      <tr key={emp.id} className="ta-tr">
-                        {/* Name */}
-                        <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card max-w-[130px]`}>
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <p className="text-sm font-medium text-foreground whitespace-nowrap truncate" title={emp.name}>
-                                {toShortEmployeeName(emp.name)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {emp.job_title || (emp.salary_type === "orders" ? "طلبات" : "دوام")}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Status dropdown */}
-                        <td className="ta-td">
-                          <div className="flex items-center gap-2">
-                            {isAddingCustom ? (
-                              <div className="flex items-center gap-1.5">
-                                <Input
-                                  autoFocus
-                                  value={customInput}
-                                  onChange={e => setCustomInput(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === "Enter")  addCustomStatus(emp.id);
-                                    if (e.key === "Escape") { setAddingCustomFor(null); setCustomInput(""); }
-                                  }}
-                                  placeholder="اسم الحالة..."
-                                  className="h-8 text-xs w-32"
-                                />
-                                <Button size="sm" className="h-8 text-xs px-2" onClick={() => addCustomStatus(emp.id)}>
-                                  إضافة
-                                </Button>
-                                <Button
-                                  size="sm" variant="ghost" className="h-8 text-xs px-2"
-                                  onClick={() => { setAddingCustomFor(null); setCustomInput(""); }}
-                                >
-                                  ✕
-                                </Button>
-                              </div>
-                            ) : (
-                              <Select
-                                value={currentStatus || ""}
-                                disabled={!permissions.can_edit}
-                                onValueChange={v => {
-                                  if (v === "__add_custom__") {
-                                    setAddingCustomFor(emp.id);
-                                    setCustomInput("");
-                                  } else {
-                                    updateRecord(emp.id, "status", v || null);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    "h-8 text-xs w-40 border",
-                                    currentStatus ? selectColor : "text-muted-foreground",
-                                  )}
-                                >
-                                  <SelectValue placeholder="اختر الحالة..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {allStatuses.map(s => (
-                                    <SelectItem key={s.value} value={s.value}>
-                                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || DEFAULT_COLOR}`}>
-                                        {s.label}
-                                      </span>
-                                    </SelectItem>
-                                  ))}
-                                  <SelectItem value="__add_custom__" className="text-primary font-medium border-t mt-1">
-                                    + إضافة حالة جديدة...
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Check in */}
-                        <td className="ta-td-center">
-                          <Input
-                            type="time"
-                            disabled={!permissions.can_edit}
-                            value={record.checkIn}
-                            onChange={e => updateRecord(emp.id, "checkIn", e.target.value)}
-                            className="w-28 text-sm"
-                            dir="ltr"
-                          />
-                        </td>
-
-                        {/* Check out */}
-                        <td className="ta-td-center">
-                          <Input
-                            type="time"
-                            disabled={!permissions.can_edit}
-                            value={record.checkOut}
-                            onChange={e => updateRecord(emp.id, "checkOut", e.target.value)}
-                            className="w-28 text-sm"
-                            dir="ltr"
-                          />
-                        </td>
-
-                        {/* Note */}
-                        <td className="ta-td">
-                          <Input
-                            disabled={!permissions.can_edit}
-                            placeholder="ملاحظة اختيارية..."
-                            value={record.note}
-                            onChange={e => updateRecord(emp.id, "note", e.target.value)}
-                            className="text-sm min-w-[160px]"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
+              {tableBodyRows}
             </tbody>
           </table>
         </div>

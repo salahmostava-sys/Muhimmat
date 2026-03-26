@@ -72,8 +72,6 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
     fetchData();
   }, [selectedMonth, selectedYear]);
 
-  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-
   const data = employees.map((emp) => {
     const rows = attendanceRows.filter((r) => r.employee_id === emp.id);
     const presentDays = rows.filter((r) => r.status === "present").length;
@@ -111,6 +109,49 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
     hoursUnit: "س",
     monthPeriod: `${MONTHS[selectedMonth]} ${selectedYear}`,
   };
+  const stickySideClass = isRTL ? "right-0" : "left-0";
+  const stickyAlignClass = isRTL ? "text-right" : "text-left";
+  let tableBodyRows: React.ReactNode;
+  if (loading) {
+    tableBodyRows = Array.from({ length: 5 }).map((_, i) => (
+      <tr key={`skeleton-row-${i}`} className="ta-tr">
+        {Array.from({ length: 8 }).map((_, j) => (
+          <td key={`skeleton-cell-${i}-${j}`} className="ta-td">
+            <div className="h-4 bg-muted rounded animate-pulse" />
+          </td>
+        ))}
+      </tr>
+    ));
+  } else if (data.length === 0) {
+    tableBodyRows = (
+      <tr>
+        <td colSpan={8} className="p-10 text-center text-muted-foreground">
+          {t.noData}
+        </td>
+      </tr>
+    );
+  } else {
+    tableBodyRows = data.map((row) => (
+      <tr key={row.id} className="ta-tr">
+        <td className={`ta-td sticky ${stickySideClass} bg-card`}>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground whitespace-nowrap">{row.name}</span>
+          </div>
+        </td>
+        <td className="ta-td text-muted-foreground font-mono text-xs" dir="ltr">
+          {row.national_id || "—"}
+        </td>
+        <td className="ta-td-center font-semibold text-green-600 dark:text-green-400">{row.presentDays}</td>
+        <td className="ta-td-center font-semibold text-destructive">{row.absentDays}</td>
+        <td className="ta-td-center font-semibold text-yellow-600 dark:text-yellow-400">{row.leaveDays}</td>
+        <td className="ta-td-center font-semibold text-purple-600 dark:text-purple-400">{row.sickDays}</td>
+        <td className="ta-td-center text-orange-600 dark:text-orange-400">{row.lateDays}</td>
+        <td className="ta-td-center text-muted-foreground">
+          {row.totalHours} {t.hoursUnit}
+        </td>
+      </tr>
+    ));
+  }
 
   return (
     <div className="space-y-5">
@@ -120,7 +161,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
             <thead className="ta-thead">
               <tr>
                 <th
-                  className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} ${isRTL ? "text-right" : "text-left"} bg-muted/40`}
+                  className={`ta-th sticky ${stickySideClass} ${stickyAlignClass} bg-muted/40`}
                 >
                   {t.employee}
                 </th>
@@ -148,49 +189,12 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="ta-tr">
-                    {Array.from({ length: 8 }).map((_, j) => (
-                      <td key={j} className="ta-td">
-                        <div className="h-4 bg-muted rounded animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-10 text-center text-muted-foreground">
-                    {t.noData}
-                  </td>
-                </tr>
-              ) : (
-                data.map((row) => (
-                  <tr key={row.id} className="ta-tr">
-                    <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card`}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground whitespace-nowrap">{row.name}</span>
-                      </div>
-                    </td>
-                    <td className="ta-td text-muted-foreground font-mono text-xs" dir="ltr">
-                      {row.national_id || "—"}
-                    </td>
-                    <td className="ta-td-center font-semibold text-green-600 dark:text-green-400">{row.presentDays}</td>
-                    <td className="ta-td-center font-semibold text-destructive">{row.absentDays}</td>
-                    <td className="ta-td-center font-semibold text-yellow-600 dark:text-yellow-400">{row.leaveDays}</td>
-                    <td className="ta-td-center font-semibold text-purple-600 dark:text-purple-400">{row.sickDays}</td>
-                    <td className="ta-td-center text-orange-600 dark:text-orange-400">{row.lateDays}</td>
-                    <td className="ta-td-center text-muted-foreground">
-                      {row.totalHours} {t.hoursUnit}
-                    </td>
-                  </tr>
-                ))
-              )}
+              {tableBodyRows}
             </tbody>
             {!loading && data.length > 0 && (
               <tfoot>
                 <tr className="bg-muted/40 font-semibold border-t-2 border-border">
-                  <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 text-foreground`}>
+                  <td className={`ta-td sticky ${stickySideClass} bg-muted/40 text-foreground`}>
                     {t.total}
                   </td>
                   <td className="ta-td" />

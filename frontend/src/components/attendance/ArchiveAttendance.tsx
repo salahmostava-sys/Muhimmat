@@ -201,9 +201,9 @@ const ArchiveAttendance = () => {
             <tbody>
               {loading
                 ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="ta-tr">
+                    <tr key={`archive-skeleton-${i}`} className="ta-tr">
                       {Array.from({ length: 8 }).map((_, j) => (
-                        <td key={j} className="ta-td"><Skeleton className="h-4 w-full" /></td>
+                        <td key={`archive-skeleton-cell-${i}-${j}`} className="ta-td"><Skeleton className="h-4 w-full" /></td>
                       ))}
                     </tr>
                   ))
