@@ -269,7 +269,7 @@ export default function ActivityLogContent() {
                   'التفاصيل',
                 ].map((h, i) => (
                   <th
-                    key={i}
+                    key={`activity-header-${h}`}
                     className={`p-3 text-xs font-semibold whitespace-nowrap ${i === 2 ? 'text-center' : isRTL ? 'text-right' : 'text-left'} ${i === 4 ? 'hidden lg:table-cell' : ''}`}
                     style={{ color: 'var(--ds-on-surface-variant)' }}
                   >
@@ -281,7 +281,7 @@ export default function ActivityLogContent() {
             <tbody style={{ background: 'var(--ds-surface-lowest)' }}>
               {loading
                 ? Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
+                  <tr key={`activity-skeleton-row-${i}`} style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
                     <td className="p-3"><Skeleton className="h-4 w-28" /></td>
                     <td className="p-3"><Skeleton className="h-4 w-24" /></td>
                     <td className="p-3 text-center"><Skeleton className="h-5 w-14 mx-auto rounded-full" /></td>

@@ -70,7 +70,7 @@ const Attendance = () => {
             </SelectTrigger>
             <SelectContent>
               {MONTHS.map((m, i) => (
-                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                <SelectItem key={`month-${i}-${m}`} value={String(i)}>{m}</SelectItem>
               ))}
             </SelectContent>
           </Select>
