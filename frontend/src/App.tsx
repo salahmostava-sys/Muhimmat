@@ -14,6 +14,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import DashboardLayout from '@/components/AppLayout';
 import AuthLayout from "@/layouts/AuthLayout";
 import Loading from "@/components/Loading";
+import { emitAuthFailure, isStrictUnauthenticatedError } from "@/lib/auth/authFailureBus";
 import "@/i18n";
 
 const Login = lazy(() => import("./pages/Login"));
@@ -49,41 +50,17 @@ const RootLoader = () => {
   return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
 };
 
-const isUnauthenticatedError = (error: unknown): boolean => {
-  const anyError = error as { status?: number; message?: string; cause?: { status?: number; message?: string } } | null;
-  const status = anyError?.status ?? anyError?.cause?.status;
-  if (status === 401 || status === 403) return true;
-
-  const message = `${anyError?.message ?? ''} ${anyError?.cause?.message ?? ''}`.toLowerCase();
-  return (
-    message.includes('jwt') ||
-    message.includes('unauthorized') ||
-    message.includes('not authorized') ||
-    message.includes('auth') ||
-    message.includes('session')
-  );
-};
-
-const redirectToLoginIfNeeded = () => {
-  const currentPath = globalThis.location?.pathname ?? '';
-  const isPublicAuthRoute = currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/reset-password';
-  if (!isPublicAuthRoute) {
-    globalThis.location.replace('/login');
-  }
-};
-
-const handleGlobalAuthError = (error: unknown) => {
-  if (!isUnauthenticatedError(error)) return;
-  console.warn('[QueryClient] Ignoring unauthenticated query/mutation error and redirecting to login');
-  redirectToLoginIfNeeded();
+const handleGlobalAuthError = (source: 'query' | 'mutation', error: unknown) => {
+  if (!isStrictUnauthenticatedError(error)) return;
+  emitAuthFailure({ source, reason: 'unauthenticated' });
 };
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: handleGlobalAuthError,
+    onError: (error) => handleGlobalAuthError('query', error),
   }),
   mutationCache: new MutationCache({
-    onError: handleGlobalAuthError,
+    onError: (error) => handleGlobalAuthError('mutation', error),
   }),
   defaultOptions: {
     queries: {

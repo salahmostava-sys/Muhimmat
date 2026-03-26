@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { User, Session } from '@supabase/supabase-js';
 import { authService } from '@/services/authService';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { onAuthFailure } from '@/lib/auth/authFailureBus';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -25,6 +27,8 @@ const fetchRole = async (userId: string): Promise<AppRole | null> => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
@@ -33,13 +37,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const recoverInFlightRef = useRef<Promise<boolean> | null>(null);
   const isFirstLoad = useRef(true);
+  const redirectLockRef = useRef(false);
+  const isPublicAuthRoute = useCallback((pathname: string) => (
+    pathname === '/login' || pathname === '/forgot-password' || pathname === '/reset-password'
+  ), []);
   const redirectToLoginIfNeeded = useCallback(() => {
-    const currentPath = globalThis.location?.pathname ?? '';
-    const isPublicAuthRoute = currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/reset-password';
-    if (!isPublicAuthRoute) {
-      globalThis.location.replace('/login');
+    if (redirectLockRef.current) return;
+    if (isPublicAuthRoute(location.pathname)) return;
+    redirectLockRef.current = true;
+    navigate('/login', { replace: true, state: { from: location.pathname } });
+    setTimeout(() => { redirectLockRef.current = false; }, 250);
+  }, [isPublicAuthRoute, location.pathname, navigate]);
+  const handleUnauthenticatedState = useCallback(async (reason: string) => {
+    try {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+    } catch (e) {
+      console.error('[Auth] queryClient cancel/clear failed', e);
     }
-  }, []);
+    setRefreshing(false);
+    setLoading(false);
+    setSession(null);
+    setUser(null);
+    setRole(null);
+    console.warn('[Auth] transitioning to unauthenticated state', { reason });
+    redirectToLoginIfNeeded();
+  }, [queryClient, redirectToLoginIfNeeded]);
 
   const forceSignOut = useCallback(async () => {
     const { user: currentUser } = await authService.getCurrentUser();
@@ -104,15 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
         }
         if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-          try {
-            await queryClient.cancelQueries();
-            queryClient.clear();
-          } catch (e) {
-            console.error('[Auth] queryClient cancel/clear failed', e);
-          }
-          setRefreshing(false);
-          setLoading(false);
-          redirectToLoginIfNeeded();
+          await handleUnauthenticatedState(event.toLowerCase());
         }
         if (nextSession?.user) {
           const active = await authService.fetchIsActive(nextSession.user.id);
@@ -158,7 +173,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
     return () => subscription.unsubscribe();
-  }, [forceSignOut, queryClient, redirectToLoginIfNeeded]);
+  }, [forceSignOut, handleUnauthenticatedState]);
+
+  useEffect(() => {
+    return onAuthFailure(({ source, reason }) => {
+      void handleUnauthenticatedState(`${source}:${reason}`);
+    });
+  }, [handleUnauthenticatedState]);
 
   // عند العودة للتبويب/الاتصال: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل البيانات
   useEffect(() => {
