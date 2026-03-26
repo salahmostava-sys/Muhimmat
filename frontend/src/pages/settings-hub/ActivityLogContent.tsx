@@ -14,6 +14,7 @@ import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { settingsHubService } from '@/services/settingsHubService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 interface AuditLog {
   id: string;
@@ -148,7 +149,7 @@ export default function ActivityLogContent() {
         total: count || 0,
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 

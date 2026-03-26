@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { escapeHtml } from '@/lib/security';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -750,7 +751,7 @@ const Advances = () => {
         employees: (empRes.data || []) as { id: string; name: string; sponsorship_status?: string | null }[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
   const [search, setSearch] = useState('');

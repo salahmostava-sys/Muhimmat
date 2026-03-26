@@ -22,6 +22,7 @@ import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterS
 import { useOrdersMonthPaged } from '@/hooks/useOrdersPaged';
 import { toast as sonnerToast } from '@/components/ui/sonner';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -147,7 +148,7 @@ const SpreadsheetGrid = () => {
         employeeApps: (empAppsRes.data || []) as EmployeeAppAssignmentRow[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -163,7 +164,7 @@ const SpreadsheetGrid = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -174,7 +175,7 @@ const SpreadsheetGrid = () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -585,7 +586,7 @@ const MonthSummary = () => {
         apps: (appRes.data || []) as App[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -598,7 +599,7 @@ const MonthSummary = () => {
       if (error) throw error;
       return (rows || []) as AppTargetRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -609,7 +610,7 @@ const MonthSummary = () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -625,7 +626,7 @@ const MonthSummary = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -869,7 +870,7 @@ const OrdersList = () => {
     },
     enabled: enabled && !!activeIdsData,
     staleTime: 60_000,
-    retry: 1,
+    retry: defaultQueryRetry,
   });
 
   useEffect(() => {

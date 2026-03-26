@@ -21,6 +21,7 @@ import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/tab
 import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
 import { auditService } from '@/services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -643,7 +644,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
         links: (linkRes.data || []) as { employee_id: string; app_id: string }[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -673,7 +674,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       if (error) throw error;
       return (data || []) as { employee_id: string; orders_count: number }[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 30_000,
   });
 

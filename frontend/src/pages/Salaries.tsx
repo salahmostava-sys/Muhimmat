@@ -28,6 +28,7 @@ import { TableActions } from '@/components/table/TableActions';
 import { SALARY_IMPORT_TEMPLATE_HEADERS, parseSalaryImportWorkbook } from '@/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation';
 import { printHtmlTable } from '@/lib/printTable';
+import { defaultQueryRetry } from '@/lib/query';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
 import { auditService } from '@/services/auditService';
 import html2canvas from 'html2canvas';
@@ -618,7 +619,7 @@ const Salaries = () => {
         previewData: previewData || [],
       };
     },
-    retry: 1,
+    retry: defaultQueryRetry,
     staleTime: 20_000,
   });
 
