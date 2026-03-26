@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 export const violationService = {
   getViolations: async () => {
@@ -10,8 +10,8 @@ export const violationService = {
       .eq('type', 'fine')
       .order('created_at', { ascending: false })
       .limit(500);
-    throwIfError(error, 'violationService.getViolations');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.getViolations');
+    return data ?? [];
   },
 
   findVehiclesByPlateQuery: async (q: string) => {
@@ -21,14 +21,14 @@ export const violationService = {
       .or(`plate_number.ilike.%${q}%,plate_number_en.ilike.%${q}%`)
       .eq('status', 'active')
       .limit(8);
-    throwIfError(error, 'violationService.findVehiclesByPlateQuery');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.findVehiclesByPlateQuery');
+    return data ?? [];
   },
 
   findVehicleIdsByPlate: async (plate: string) => {
     const { data, error } = await supabase.from('vehicles').select('id').ilike('plate_number', `%${plate}%`).limit(5);
-    throwIfError(error, 'violationService.findVehicleIdsByPlate');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.findVehicleIdsByPlate');
+    return data ?? [];
   },
 
   getAssignmentsByVehicleIds: async (vehicleIds: string[]) => {
@@ -37,8 +37,8 @@ export const violationService = {
       .select('id, vehicle_id, employee_id, start_date, start_at, returned_at, end_date, employees(id, name, national_id), vehicles(plate_number, brand, type)')
       .in('vehicle_id', vehicleIds)
       .order('start_at', { ascending: false });
-    throwIfError(error, 'violationService.getAssignmentsByVehicleIds');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.getAssignmentsByVehicleIds');
+    return data ?? [];
   },
 
   getExistingFineDeductions: async (employeeIds: string[], incidentDate: string, applyMonth: string) => {
@@ -49,26 +49,24 @@ export const violationService = {
       .in('employee_id', employeeIds)
       .eq('incident_date', incidentDate)
       .eq('apply_month', applyMonth);
-    throwIfError(error, 'violationService.getExistingFineDeductions');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.getExistingFineDeductions');
+    return data ?? [];
   },
 
   createFineDeduction: async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase.from('external_deductions').insert(payload).select('id').single();
-    throwIfError(error, 'violationService.createFineDeduction');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.createFineDeduction');
+    return data as { id: string };
   },
 
   updateViolation: async (id: string, payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.from('external_deductions').update(payload).eq('id', id);
-    throwIfError(error, 'violationService.updateViolation');
-    return { data, error: null };
+    const { error } = await supabase.from('external_deductions').update(payload).eq('id', id);
+    if (error) throw toServiceError(error, 'violationService.updateViolation');
   },
 
   deleteViolation: async (id: string) => {
     const { error } = await supabase.from('external_deductions').delete().eq('id', id);
-    throwIfError(error, 'violationService.deleteViolation');
-    return { error: null };
+    if (error) throw toServiceError(error, 'violationService.deleteViolation');
   },
 
   findMatchingAdvanceForFine: async (employeeId: string, applyMonth: string, amountMin: number, amountMax: number) => {
@@ -81,19 +79,18 @@ export const violationService = {
       .gte('monthly_amount', amountMin)
       .lte('monthly_amount', amountMax)
       .limit(1);
-    throwIfError(error, 'violationService.findMatchingAdvanceForFine');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.findMatchingAdvanceForFine');
+    return data ?? [];
   },
 
   createAdvanceFromFine: async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase.from('advances').insert(payload).select('id').single();
-    throwIfError(error, 'violationService.createAdvanceFromFine');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'violationService.createAdvanceFromFine');
+    return data as { id: string };
   },
 
   createSingleInstallment: async (payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.from('advance_installments').insert(payload);
-    throwIfError(error, 'violationService.createSingleInstallment');
-    return { data, error: null };
+    const { error } = await supabase.from('advance_installments').insert(payload);
+    if (error) throw toServiceError(error, 'violationService.createSingleInstallment');
   },
 };

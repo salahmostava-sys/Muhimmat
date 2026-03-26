@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 export const externalDeductionService = {
   getApprovedByMonth: async (monthYear: string) => {
@@ -8,8 +8,8 @@ export const externalDeductionService = {
       .select('employee_id, amount')
       .eq('apply_month', monthYear)
       .eq('approval_status', 'approved');
-    throwIfError(error, 'externalDeductionService.getApprovedByMonth');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'externalDeductionService.getApprovedByMonth');
+    return data ?? [];
   },
 };
 

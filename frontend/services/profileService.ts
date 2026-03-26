@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 import { authService } from '@services/authService';
 
 export const profileService = {
@@ -9,8 +9,8 @@ export const profileService = {
       .select('name, avatar_url')
       .eq('id', userId)
       .single();
-    throwIfError(error, 'profileService.getProfile');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'profileService.getProfile');
+    return data;
   },
 
   getProfileName: async (userId: string) => {
@@ -19,8 +19,8 @@ export const profileService = {
       .select('name')
       .eq('id', userId)
       .maybeSingle();
-    throwIfError(error, 'profileService.getProfileName');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'profileService.getProfileName');
+    return data;
   },
 
   uploadAvatar: async (userId: string, file: File) => {
@@ -29,8 +29,9 @@ export const profileService = {
     const { data, error } = await supabase.storage
       .from('avatars')
       .upload(path, file, { upsert: true });
-    throwIfError(error, 'profileService.uploadAvatar');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'profileService.uploadAvatar');
+    if (!data) throw toServiceError(new Error('Upload returned no data'), 'profileService.uploadAvatar');
+    return data;
   },
 
   getAvatarPublicUrl: (path: string) => {
@@ -43,13 +44,10 @@ export const profileService = {
       .from('profiles')
       .update(payload)
       .eq('id', userId);
-    throwIfError(error, 'profileService.updateProfile');
-    return { error: null };
+    if (error) throw toServiceError(error, 'profileService.updateProfile');
   },
 
   updatePassword: async (password: string) => {
-    const { error } = await authService.updatePassword(password);
-    throwIfError(error, 'profileService.updatePassword');
-    return { error: null };
+    await authService.updatePassword(password);
   },
 };

@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 export interface PlatformApp {
   id: string;
@@ -44,8 +44,8 @@ export interface PlatformAccountWritePayload {
 export const platformAccountService = {
   getApps: async () => {
     const { data, error } = await supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name');
-    throwIfError(error, 'platformAccountService.getApps');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'platformAccountService.getApps');
+    return data ?? [];
   },
 
   getEmployees: async () => {
@@ -54,14 +54,14 @@ export const platformAccountService = {
       .select('id, name, national_id, residency_expiry, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    throwIfError(error, 'platformAccountService.getEmployees');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'platformAccountService.getEmployees');
+    return data ?? [];
   },
 
   getAccounts: async () => {
     const { data, error } = await supabase.from('platform_accounts').select('*').order('created_at', { ascending: false });
-    throwIfError(error, 'platformAccountService.getAccounts');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'platformAccountService.getAccounts');
+    return data ?? [];
   },
 
   /**
@@ -112,8 +112,8 @@ export const platformAccountService = {
     }
 
     const { data, error, count } = await query;
-    throwIfError(error, 'platformAccountService.getAccountsPaged');
-    return { data: data || [], error: null, count: count ?? 0 };
+    if (error) throw toServiceError(error, 'platformAccountService.getAccountsPaged');
+    return { data: data ?? [], count: count ?? 0 };
   },
 
   /** Export helper for large datasets (chunked). */
@@ -139,27 +139,25 @@ export const platformAccountService = {
         pageSize: chunkSize,
         filters,
       });
-      all.push(...(res.data || []));
-      if ((res.data || []).length < chunkSize) break;
+      all.push(...res.data);
+      if (res.data.length < chunkSize) break;
     }
-    return { data: all, error: null };
+    return all;
   },
 
   createAccount: async (payload: PlatformAccountWritePayload) => {
-    const { data, error } = await supabase.from('platform_accounts').insert(payload);
-    throwIfError(error, 'platformAccountService.createAccount');
-    return { data, error: null };
+    const { data, error } = await supabase.from('platform_accounts').insert(payload).select('id').single();
+    if (error) throw toServiceError(error, 'platformAccountService.createAccount');
+    return data as { id: string };
   },
 
   updateAccount: async (id: string, payload: PlatformAccountWritePayload) => {
-    const { data, error } = await supabase.from('platform_accounts').update(payload).eq('id', id);
-    throwIfError(error, 'platformAccountService.updateAccount');
-    return { data, error: null };
+    const { error } = await supabase.from('platform_accounts').update(payload).eq('id', id);
+    if (error) throw toServiceError(error, 'platformAccountService.updateAccount');
   },
 
   syncAccountEmployee: async (id: string, employeeId: string) => {
-    const { data, error } = await supabase.from('platform_accounts').update({ employee_id: employeeId }).eq('id', id);
-    throwIfError(error, 'platformAccountService.syncAccountEmployee');
-    return { data, error: null };
+    const { error } = await supabase.from('platform_accounts').update({ employee_id: employeeId }).eq('id', id);
+    if (error) throw toServiceError(error, 'platformAccountService.syncAccountEmployee');
   },
 };

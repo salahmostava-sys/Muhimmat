@@ -14,11 +14,7 @@ export const useMotorcyclesData = () => {
   const q = useQuery({
     queryKey: motorcyclesDataQueryKey(uid),
     queryFn: async () => {
-      const { data, error } = await vehicleService.getAllWithCurrentRider();
-      if (error) {
-        throw new Error(error.message || 'تعذر تحميل بيانات المركبات');
-      }
-      return data || [];
+      return vehicleService.getAllWithCurrentRider();
     },
     staleTime: 60_000,
     enabled,

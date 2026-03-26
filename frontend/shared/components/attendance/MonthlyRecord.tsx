@@ -58,11 +58,11 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
         const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
         const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
 
-        const { employeesRes: empRes, attendanceRes: attRes } =
+        const { employees: empRows, attendanceRows: attRows } =
           await attendanceService.getMonthlyEmployeesAndAttendance(startDate, endDate);
 
-        if (empRes.data) setEmployees(empRes.data as Employee[]);
-        if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);
+        setEmployees((empRows || []) as Employee[]);
+        setAttendanceRows((attRows || []) as AttendanceRow[]);
       } catch (err) {
         console.error('[MonthlyRecord] fetch failed', err);
         setEmployees([]);

@@ -379,8 +379,8 @@ const buildAdvanceInstallmentMaps = async (
   const advIdToEmpMap: Record<string, string> = {};
   for (const advance of allAdvances) advIdToEmpMap[advance.id] = advance.employee_id;
 
-  const { data: advInstData } = await salaryDataService.getMonthInstallmentsForAdvances(selectedMonth, advanceIds);
-  const { data: allPendingInsts } = await salaryDataService.getPendingInstallmentsForAdvances(advanceIds);
+  const advInstData = await salaryDataService.getMonthInstallmentsForAdvances(selectedMonth, advanceIds);
+  const allPendingInsts = await salaryDataService.getPendingInstallmentsForAdvances(advanceIds);
 
   allPendingInsts?.forEach((inst) => {
     const empId = advIdToEmpMap[inst.advance_id];
@@ -1339,15 +1339,18 @@ const Salaries = () => {
       return;
     }
     const manualDeduction = getManualDeductionTotal(row);
-    const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
-      row.employeeId,
-      selectedMonth,
-      row.paymentMethod,
-      manualDeduction,
-      null
-    );
-    if (calcError) {
-      toast({ title: 'تعذّر حساب الراتب من الخادم', description: calcError.message, variant: 'destructive' });
+    let calcData: unknown;
+    try {
+      calcData = await salaryDataService.calculateSalaryForEmployeeMonth(
+        row.employeeId,
+        selectedMonth,
+        row.paymentMethod,
+        manualDeduction,
+        null
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'تعذّر حساب الراتب من الخادم';
+      toast({ title: 'تعذّر حساب الراتب من الخادم', description: message, variant: 'destructive' });
       return;
     }
     const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
@@ -1358,22 +1361,24 @@ const Salaries = () => {
     const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
     const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
 
-    const { error } = await salaryDataService.upsertSalaryRecord({
-      employee_id: row.employeeId,
-      month_year: selectedMonth,
-      base_salary: baseSalary,
-      allowances: totalAdditions,
-      attendance_deduction: row.violations,
-      advance_deduction: advanceDeduction,
-      external_deduction: externalDeduction,
-      manual_deduction: manualDeduction,
-      net_salary: netSalary,
-      is_approved: true,
-      approved_by: user?.id ?? null,
-      approved_at: new Date().toISOString(),
-    });
-    if (error) {
-      toast({ title: 'تعذّر حفظ الاعتماد', description: error.message, variant: 'destructive' });
+    try {
+      await salaryDataService.upsertSalaryRecord({
+        employee_id: row.employeeId,
+        month_year: selectedMonth,
+        base_salary: baseSalary,
+        allowances: totalAdditions,
+        attendance_deduction: row.violations,
+        advance_deduction: advanceDeduction,
+        external_deduction: externalDeduction,
+        manual_deduction: manualDeduction,
+        net_salary: netSalary,
+        is_approved: true,
+        approved_by: user?.id ?? null,
+        approved_at: new Date().toISOString(),
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'تعذّر حفظ الاعتماد';
+      toast({ title: 'تعذّر حفظ الاعتماد', description: message, variant: 'destructive' });
       return;
     }
     updateRow(id, { status: 'approved', isDirty: false, advanceDeduction, externalDeduction });
@@ -1387,14 +1392,13 @@ const Salaries = () => {
 
   const computeServerSalaryForPayment = useCallback(async (row: SalaryRow, monthYear: string) => {
     const manualDeduction = getManualDeductionTotal(row);
-    const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
+    const calcData = await salaryDataService.calculateSalaryForEmployeeMonth(
       row.employeeId,
       monthYear,
       row.paymentMethod,
       manualDeduction,
       null
     );
-    if (calcError) throw calcError;
     const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
     const baseSalary = Number(calc?.base_salary ?? 0);
     const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
@@ -1409,13 +1413,13 @@ const Salaries = () => {
     if (row.advanceInstallmentIds.length === 0) return;
 
     await salaryDataService.markInstallmentsDeducted(row.advanceInstallmentIds, nowStr);
-    const { data: instData } = await salaryDataService.getInstallmentsByIds(row.advanceInstallmentIds);
-    if (!instData) return;
+    const instData = await salaryDataService.getInstallmentsByIds(row.advanceInstallmentIds);
+    if (!instData.length) return;
 
     const advanceIds = [...new Set(instData.map(i => i.advance_id))];
     for (const advId of advanceIds) {
-      const { data: allInsts } = await salaryDataService.getAdvanceInstallmentStatuses(advId);
-      if (allInsts?.every(i => i.status === 'deducted')) {
+      const allInsts = await salaryDataService.getAdvanceInstallmentStatuses(advId);
+      if (allInsts.every(i => i.status === 'deducted')) {
         await salaryDataService.markAdvanceCompleted(advId);
       }
     }
@@ -1438,7 +1442,7 @@ const Salaries = () => {
       const nowStr = new Date().toISOString();
 
       // 1. Upsert into salary_records
-      const { error: srError } = await salaryDataService.upsertSalaryRecord({
+      await salaryDataService.upsertSalaryRecord({
         employee_id: row.employeeId,
         month_year: selectedMonth,
         base_salary: baseSalary,
@@ -1453,8 +1457,6 @@ const Salaries = () => {
         approved_at: nowStr,
         payment_method: row.paymentMethod,
       });
-
-      if (srError) throw srError;
 
       // 2. Mark installments as deducted (if any), then complete fully paid advances.
       await settleAdvanceInstallments(row, nowStr);
@@ -1481,9 +1483,12 @@ const Salaries = () => {
       return;
     }
 
-    const { data: monthCalcData, error: monthCalcError } = await salaryDataService.calculateSalaryForMonth(selectedMonth);
-    if (monthCalcError) {
-      toast({ title: 'خطأ أثناء الحساب من الخادم', description: monthCalcError.message, variant: 'destructive' });
+    let monthCalcData: unknown;
+    try {
+      monthCalcData = await salaryDataService.calculateSalaryForMonth(selectedMonth);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'خطأ أثناء الحساب من الخادم';
+      toast({ title: 'خطأ أثناء الحساب من الخادم', description: message, variant: 'destructive' });
       return;
     }
     const monthCalcMap = new Map<string, Record<string, number>>(
@@ -1521,9 +1526,11 @@ const Salaries = () => {
       };
     });
 
-    const { error } = await salaryDataService.upsertSalaryRecords(records);
-    if (error) {
-      toast({ title: 'خطأ أثناء الاعتماد', description: error.message, variant: 'destructive' });
+    try {
+      await salaryDataService.upsertSalaryRecords(records);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'خطأ أثناء الاعتماد';
+      toast({ title: 'خطأ أثناء الاعتماد', description: message, variant: 'destructive' });
       return;
     }
 
@@ -1803,8 +1810,7 @@ const Salaries = () => {
         return;
       }
       const records = parsed.map((p) => p.record);
-      const { error } = await salaryDataService.upsertSalaryRecords(records);
-      if (error) throw error;
+      await salaryDataService.upsertSalaryRecords(records);
       await auditService.logAdminAction({
         action: 'salary_records.import_excel',
         table_name: 'salary_records',

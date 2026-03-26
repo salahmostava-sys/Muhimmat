@@ -57,7 +57,6 @@ export function usePlatformAccountsPaged(params: {
           filters: { employeeId, appId, branch, status, search },
         })
       );
-      if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
     retry: safeRetry,

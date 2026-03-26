@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 import { authService } from '@services/authService';
 
 export type AdminActionLogPayload = {
@@ -20,8 +20,6 @@ export const auditService = {
       record_id: payload.record_id ?? null,
       meta: payload.meta ?? {},
     });
-    throwIfError(error, 'auditService.logAdminAction');
-    return { error: null };
+    if (error) throw toServiceError(error, 'auditService.logAdminAction');
   },
 };
-

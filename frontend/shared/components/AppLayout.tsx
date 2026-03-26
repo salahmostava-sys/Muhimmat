@@ -89,8 +89,8 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
   useEffect(() => {
     if (!user?.id) return;
     profileService.getProfileName(user.id)
-      .then(({ data }) => {
-        if (data?.name) setProfileName(data.name);
+      .then((row) => {
+        if (row?.name) setProfileName(row.name);
       })
       .catch((e: unknown) => {
         console.error('[AppLayout] getProfileName failed', e);

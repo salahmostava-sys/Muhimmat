@@ -306,7 +306,7 @@ async function saveVehicleMileageDaily(
   payload: { employee_id: string; date: string; km_total: number; fuel_cost: number; notes: string | null },
   editId?: string
 ) {
-  return fuelService.upsertDailyMileage(payload, editId);
+  await fuelService.upsertDailyMileage(payload, editId);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -428,8 +428,7 @@ const ImportModal = ({
         fuel_cost: r.fuel_cost,
         notes: r.notes || null,
       }));
-      const { error } = await fuelService.saveMonthlyMileageImport(payload, replaceExisting);
-      if (error) return toast({ title: 'خطأ في الاستيراد', description: error.message, variant: 'destructive' });
+      await fuelService.saveMonthlyMileageImport(payload, replaceExisting);
       toast({ title: `تم استيراد ${payload.length} سجل بنجاح` });
       onImported();
     } catch (e) {
@@ -637,18 +636,15 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     queryKey: ['fuel', uid, 'base-data'],
     enabled,
     queryFn: async () => {
-      const [empRes, appRes, linkRes] = await Promise.all([
+      const [empRows, appRows, linkRows] = await Promise.all([
         fuelService.getActiveEmployees(),
         fuelService.getActiveApps(),
         fuelService.getActiveEmployeeAppLinks(),
       ]);
-      if (empRes.error) throw empRes.error;
-      if (appRes.error) throw appRes.error;
-      if (linkRes.error) throw linkRes.error;
       return {
-        employees: (empRes.data || []) as Employee[],
-        apps: (appRes.data || []) as AppRow[],
-        links: (linkRes.data || []) as { employee_id: string; app_id: string }[],
+        employees: (empRows || []) as Employee[],
+        apps: (appRows || []) as AppRow[],
+        links: (linkRows || []) as { employee_id: string; app_id: string }[],
       };
     },
     retry: defaultQueryRetry,
@@ -677,9 +673,8 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     queryFn: async () => {
       const monthStart = `${monthYear}-01`;
       const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-      const { data, error } = await fuelService.getMonthlyOrders(monthStart, monthEnd);
-      if (error) throw error;
-      return (data || []) as { employee_id: string; orders_count: number }[];
+      const rows = await fuelService.getMonthlyOrders(monthStart, monthEnd);
+      return (rows || []) as { employee_id: string; orders_count: number }[];
     },
     retry: defaultQueryRetry,
     staleTime: 30_000,
@@ -702,17 +697,14 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     try {
       const ms = `${monthYear}-01`;
       const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-      const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
+      const [dailyRows, orderRows, assignmentRows] = await Promise.all([
         fuelService.getMonthlyDailyMileage(ms, me),
         fuelService.getMonthlyOrders(ms, me),
         fuelService.getActiveVehicleAssignments(),
       ]);
-      if (dailyRes.error) throw dailyRes.error;
-      if (ordersRes.error) throw ordersRes.error;
-      if (assignmentsRes.error) throw assignmentsRes.error;
-      const ordersMap = buildOrdersMap((ordersRes.data || []) as MonthlyOrderRow[]);
-      const vehicleMap = buildVehicleMap((assignmentsRes.data || []) as VehicleAssignmentRow[]);
-      const aggMap = buildMonthlyAggMap((dailyRes.data || []) as DailyMileageAggSource[], employeeIdsOnPlatform);
+      const ordersMap = buildOrdersMap((orderRows || []) as MonthlyOrderRow[]);
+      const vehicleMap = buildVehicleMap((assignmentRows || []) as VehicleAssignmentRow[]);
+      const aggMap = buildMonthlyAggMap((dailyRows || []) as DailyMileageAggSource[], employeeIdsOnPlatform);
       const nextRows = buildMonthlyRows(aggMap, ordersMap, vehicleMap, employees);
       setMonthlyRows(nextRows);
     } catch (err) {
@@ -730,9 +722,8 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     try {
       const ms = `${monthYear}-01`;
       const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-      const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
-      if (error) throw error;
-      const mappedRows = mapDailyRows((data || []) as DailyMileageResponseRow[]);
+      const dailyData = await fuelService.getDailyMileageByMonth(ms, me);
+      const mappedRows = mapDailyRows((dailyData || []) as DailyMileageResponseRow[]);
       const filteredRows = applyDailyFilters(mappedRows, selectedEmployee, employeeIdsOnPlatform);
       setDailyRows(filteredRows);
     } catch (err) {
@@ -758,11 +749,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
     try {
-      const { error } = await fuelService.deleteDailyMileage(id);
-      if (error) {
-        toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-        return;
-      }
+      await fuelService.deleteDailyMileage(id);
       toast({ title: 'تم الحذف' });
       fetchDaily();
       fetchMonthly();
@@ -785,14 +772,13 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     }
     setSavingEntry(true);
     try {
-      const { error } = await saveVehicleMileageDaily({
+      await saveVehicleMileageDaily({
         employee_id: newEntry.employee_id,
         date: newEntry.date,
         km_total: km,
         fuel_cost: fuel,
         notes: newEntry.notes.trim() || null,
       });
-      if (error) return toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
       toast({ title: 'تم الحفظ بنجاح' });
       setNewEntry(ne => ({ ...ne, km_total: '', fuel_cost: '', notes: '' }));
       refresh();
@@ -815,7 +801,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     }
     setSavingEntry(true);
     try {
-      const { error } = await saveVehicleMileageDaily(
+      await saveVehicleMileageDaily(
         {
           employee_id: row.employee_id,
           date: row.date,
@@ -825,10 +811,6 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
         },
         row.id
       );
-      if (error) {
-        toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
-        return;
-      }
       toast({ title: 'تم تحديث السجل' });
       setEditingDaily(null);
       refresh();
@@ -1354,14 +1336,11 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
       const branch: FuelBranch | undefined = isAllBranches ? undefined : (filters.branch as FuelBranch);
       const search = filters.search?.trim() || undefined;
 
-      const res = await fuelService.exportDailyMileage({
+      const out = (await fuelService.exportDailyMileage({
         monthStart,
         monthEnd,
         filters: { employeeId, branch, search },
-      });
-      if (res.error) throw res.error;
-
-      const out = (res.data || []) as Row[];
+      })) as Row[];
       const sheet = out.map((r) => ({
         'التاريخ': r.date,
         'المندوب': r.employees?.name ?? '',

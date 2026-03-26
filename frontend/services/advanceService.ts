@@ -1,4 +1,5 @@
 import { supabase } from '@services/supabase/client';
+import { toServiceError } from '@services/serviceError';
 
 export interface AdvancePayload {
   employee_id: string;
@@ -22,20 +23,14 @@ export interface MarkInstallmentDeductedPayload {
   deducted_at: string;
 }
 
-const throwIfSupabaseError = (error: unknown) => {
-  if (!error) return;
-  console.error(error);
-  throw error;
-};
-
 export const advanceService = {
   getAll: async () => {
     const { data, error } = await supabase
       .from('advances')
       .select('*, employees(name, national_id), advance_installments(*)')
       .order('created_at', { ascending: false });
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getAll');
+    return data ?? [];
   },
 
   getById: async (id: string) => {
@@ -44,8 +39,8 @@ export const advanceService = {
       .select('*')
       .eq('id', id)
       .maybeSingle();
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getById');
+    return data;
   },
 
   create: async (payload: AdvancePayload) => {
@@ -54,16 +49,15 @@ export const advanceService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.create');
+    return data;
   },
 
   insertMany: async (rows: AdvancePayload[]) => {
     const { error } = await supabase
       .from('advances')
       .insert(rows as unknown[]);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.insertMany');
   },
 
   update: async (id: string, payload: Partial<AdvancePayload>) => {
@@ -71,8 +65,7 @@ export const advanceService = {
       .from('advances')
       .update(payload as Record<string, unknown>)
       .eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.update');
   },
 
   updateStatus: async (id: string, status: string) => {
@@ -80,24 +73,21 @@ export const advanceService = {
       .from('advances')
       .update({ status } as Record<string, unknown>)
       .eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.updateStatus');
   },
 
   delete: async (id: string) => {
     const { error: installmentsError } = await supabase.from('advance_installments').delete().eq('advance_id', id);
-    throwIfSupabaseError(installmentsError);
+    if (installmentsError) throw toServiceError(installmentsError, 'advanceService.delete.installments');
     const { error } = await supabase.from('advances').delete().eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.delete');
   },
 
   deleteMany: async (ids: string[]) => {
     const { error: installmentsError } = await supabase.from('advance_installments').delete().in('advance_id', ids);
-    throwIfSupabaseError(installmentsError);
+    if (installmentsError) throw toServiceError(installmentsError, 'advanceService.deleteMany.installments');
     const { error } = await supabase.from('advances').delete().in('id', ids);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.deleteMany');
   },
 
   writeOffMany: async (ids: string[], reason: string) => {
@@ -109,8 +99,7 @@ export const advanceService = {
         written_off_reason: reason,
       } as Record<string, unknown>)
       .in('id', ids);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.writeOffMany');
   },
 
   restoreWrittenOffMany: async (ids: string[]) => {
@@ -122,8 +111,7 @@ export const advanceService = {
         written_off_reason: null,
       } as Record<string, unknown>)
       .in('id', ids);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.restoreWrittenOffMany');
   },
 
   getInstallments: async (advanceId: string) => {
@@ -132,14 +120,13 @@ export const advanceService = {
       .select('*')
       .eq('advance_id', advanceId)
       .order('month_year');
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getInstallments');
+    return data ?? [];
   },
 
   createInstallments: async (installments: Record<string, unknown>[]) => {
     const { error } = await supabase.from('advance_installments').insert(installments as unknown[]);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.createInstallments');
   },
 
   updateInstallment: async (id: string, payload: InstallmentUpdate) => {
@@ -147,8 +134,7 @@ export const advanceService = {
       .from('advance_installments')
       .update(payload as Record<string, unknown>)
       .eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.updateInstallment');
   },
 
   updateInstallmentNote: async (id: string, notes: string | null) => {
@@ -156,14 +142,12 @@ export const advanceService = {
       .from('advance_installments')
       .update({ notes })
       .eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.updateInstallmentNote');
   },
 
   deleteInstallment: async (id: string) => {
     const { error } = await supabase.from('advance_installments').delete().eq('id', id);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.deleteInstallment');
   },
 
   deletePendingInstallments: async (advanceId: string) => {
@@ -172,8 +156,7 @@ export const advanceService = {
       .delete()
       .eq('advance_id', advanceId)
       .eq('status', 'pending');
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.deletePendingInstallments');
   },
 
   markInstallmentsDeducted: async (installmentIds: string[], deductedAtIso: string) => {
@@ -182,8 +165,7 @@ export const advanceService = {
       .from('advance_installments')
       .update(payload)
       .in('id', installmentIds);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.markInstallmentsDeducted');
   },
 
   getInstallmentsByIds: async (installmentIds: string[]) => {
@@ -191,8 +173,8 @@ export const advanceService = {
       .from('advance_installments')
       .select('advance_id, status')
       .in('id', installmentIds);
-    throwIfSupabaseError(error);
-    return { data: data || [], error: null };
+    if (error) throw toServiceError(error, 'advanceService.getInstallmentsByIds');
+    return data ?? [];
   },
 
   getAdvanceInstallmentStatuses: async (advanceId: string) => {
@@ -200,8 +182,8 @@ export const advanceService = {
       .from('advance_installments')
       .select('status')
       .eq('advance_id', advanceId);
-    throwIfSupabaseError(error);
-    return { data: data || [], error: null };
+    if (error) throw toServiceError(error, 'advanceService.getAdvanceInstallmentStatuses');
+    return data ?? [];
   },
 
   markAdvanceCompleted: async (advanceId: string) => {
@@ -209,30 +191,29 @@ export const advanceService = {
       .from('advances')
       .update({ status: 'completed' })
       .eq('id', advanceId);
-    throwIfSupabaseError(error);
-    return { error: null };
+    if (error) throw toServiceError(error, 'advanceService.markAdvanceCompleted');
   },
 
   getMonthInstallmentsForAdvances: async (selectedMonth: string, advanceIds: string[]) => {
-    if (!advanceIds.length) return { data: [], error: null };
+    if (!advanceIds.length) return [];
     const { data, error } = await supabase
       .from('advance_installments')
       .select('id, advance_id, amount, status')
       .eq('month_year', selectedMonth)
       .in('advance_id', advanceIds);
-    throwIfSupabaseError(error);
-    return { data: data || [], error: null };
+    if (error) throw toServiceError(error, 'advanceService.getMonthInstallmentsForAdvances');
+    return data ?? [];
   },
 
   getPendingInstallmentsForAdvances: async (advanceIds: string[]) => {
-    if (!advanceIds.length) return { data: [], error: null };
+    if (!advanceIds.length) return [];
     const { data, error } = await supabase
       .from('advance_installments')
       .select('advance_id, amount, status')
       .in('status', ['pending', 'deferred'])
       .in('advance_id', advanceIds);
-    throwIfSupabaseError(error);
-    return { data: data || [], error: null };
+    if (error) throw toServiceError(error, 'advanceService.getPendingInstallmentsForAdvances');
+    return data ?? [];
   },
 
   getActiveByEmployee: async (employeeId: string) => {
@@ -241,8 +222,8 @@ export const advanceService = {
       .select('id, amount, status')
       .eq('employee_id', employeeId)
       .eq('status', 'active');
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getActiveByEmployee');
+    return data ?? [];
   },
 
   getActiveAndPausedForSalaryContext: async () => {
@@ -250,8 +231,8 @@ export const advanceService = {
       .from('advances')
       .select('id, employee_id, status, amount, monthly_amount')
       .in('status', ['active', 'paused']);
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getActiveAndPausedForSalaryContext');
+    return data ?? [];
   },
 
   getEmployees: async () => {
@@ -260,7 +241,7 @@ export const advanceService = {
       .select('id, name, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    throwIfSupabaseError(error);
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'advanceService.getEmployees');
+    return data ?? [];
   },
 };

@@ -33,17 +33,11 @@ vi.mock('@services/attendanceService', () => ({
 describe('AttendanceStats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(attendanceService.getActiveEmployeesCount).mockResolvedValue({
-      count: 4,
-      error: null,
-    } as never);
+    vi.mocked(attendanceService.getActiveEmployeesCount).mockResolvedValue(4);
   });
 
   it('shows empty state when there is no attendance data', async () => {
-    vi.mocked(attendanceService.getAttendanceStatusRange).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
+    vi.mocked(attendanceService.getAttendanceStatusRange).mockResolvedValue([]);
 
     render(<AttendanceStats selectedMonth={2} selectedYear={2026} />);
 
@@ -52,15 +46,12 @@ describe('AttendanceStats', () => {
   });
 
   it('renders aggregated summary values from attendance records', async () => {
-    vi.mocked(attendanceService.getAttendanceStatusRange).mockResolvedValue({
-      data: [
-        { date: '2026-03-01', status: 'present' },
-        { date: '2026-03-01', status: 'present' },
-        { date: '2026-03-01', status: 'late' },
-        { date: '2026-03-02', status: 'absent' },
-      ],
-      error: null,
-    } as never);
+    vi.mocked(attendanceService.getAttendanceStatusRange).mockResolvedValue([
+      { date: '2026-03-01', status: 'present' },
+      { date: '2026-03-01', status: 'present' },
+      { date: '2026-03-01', status: 'late' },
+      { date: '2026-03-02', status: 'absent' },
+    ]);
 
     render(<AttendanceStats selectedMonth={2} selectedYear={2026} />);
 
@@ -74,14 +65,4 @@ describe('AttendanceStats', () => {
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
   });
 
-  it('handles null attendance payload without crashing', async () => {
-    vi.mocked(attendanceService.getAttendanceStatusRange).mockResolvedValue({
-      data: null,
-      error: null,
-    } as never);
-
-    render(<AttendanceStats selectedMonth={2} selectedYear={2026} />);
-
-    await waitFor(() => expect(screen.getByText('لا توجد بيانات حضور لهذا الشهر')).toBeInTheDocument());
-  });
 });

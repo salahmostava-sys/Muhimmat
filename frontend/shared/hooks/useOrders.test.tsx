@@ -17,10 +17,9 @@ describe('useOrders', () => {
   });
 
   it('returns orders data from service', async () => {
-    vi.mocked(orderService.getAll).mockResolvedValue({
-      data: [{ id: '1', employee_id: 'e1', app_id: 'a1', date: '2026-03-01', orders_count: 5 }],
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof orderService.getAll>>);
+    vi.mocked(orderService.getAll).mockResolvedValue([
+      { id: '1', employee_id: 'e1', app_id: 'a1', date: '2026-03-01', orders_count: 5 },
+    ] as unknown as Awaited<ReturnType<typeof orderService.getAll>>);
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

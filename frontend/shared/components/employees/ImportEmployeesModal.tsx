@@ -338,7 +338,7 @@ const upsertEmployeeAndLinkApp = async (
   let empId: string | null = null;
 
   if (emp.employee_code) {
-    const { data: existing } = await employeeService.findByEmployeeCode(emp.employee_code);
+    const existing = await employeeService.findByEmployeeCode(emp.employee_code);
     if (existing) {
       await employeeService.updateEmployee(existing.id, payload);
       empId = existing.id;
@@ -346,7 +346,7 @@ const upsertEmployeeAndLinkApp = async (
   }
 
   if (!empId && emp.national_id) {
-    const { data: existing } = await employeeService.findByNationalId(emp.national_id);
+    const existing = await employeeService.findByNationalId(emp.national_id);
     if (existing) {
       await employeeService.updateEmployee(existing.id, payload);
       empId = existing.id;
@@ -355,7 +355,7 @@ const upsertEmployeeAndLinkApp = async (
 
   if (!empId) {
     payload.status = payload.status || 'active';
-    const { data: newEmp } = await employeeService.createEmployee(payload);
+    const newEmp = await employeeService.createEmployee(payload);
     empId = (newEmp as { id: string } | null)?.id ?? null;
   }
 
@@ -559,7 +559,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
       return;
     }
 
-    const { data: appsData } = await employeeService.getActiveApps();
+    const appsData = await employeeService.getActiveApps();
     if (!appsData || appsData.length === 0) {
       setImporting(false);
       toast({ title: 'لا توجد منصات فعّالة للربط', variant: 'destructive' });

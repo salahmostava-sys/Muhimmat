@@ -25,15 +25,12 @@ export const useAppsData = () => {
   const q = useQuery({
     queryKey: appsDataQueryKey(uid),
     queryFn: async () => {
-      const { data, error } = await appService.getAll();
-      if (error) {
-        throw new Error(error.message || 'تعذر تحميل التطبيقات');
-      }
-      if (!data) return [] as AppWithCount[];
+      const data = await appService.getAll();
+      if (!data.length) return [] as AppWithCount[];
 
       const appsWithCounts = await Promise.all(
         data.map(async (app) => {
-          const countRes = await appService.countActiveEmployeeApps(app.id);
+          const count = await appService.countActiveEmployeeApps(app.id);
           return {
             id: app.id,
             name: app.name,
@@ -41,7 +38,7 @@ export const useAppsData = () => {
             brand_color: app.brand_color || '#6366f1',
             text_color: app.text_color || '#ffffff',
             is_active: app.is_active,
-            employeeCount: countRes.count || 0,
+            employeeCount: count,
             custom_columns: (app.custom_columns as unknown[]) || [],
           } as AppWithCount;
         })

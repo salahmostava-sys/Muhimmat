@@ -14,21 +14,14 @@ export const useMaintenanceData = () => {
   const q = useQuery({
     queryKey: maintenanceDataQueryKey(uid),
     queryFn: async () => {
-      const [logsRes, vehiclesRes] = await Promise.all([
+      const [logs, vehicles] = await Promise.all([
         vehicleService.getMaintenanceLogs(),
         vehicleService.getForSelect(),
       ]);
 
-      if (logsRes.error) {
-        throw new Error(logsRes.error.message || 'تعذر تحميل سجلات الصيانة');
-      }
-      if (vehiclesRes.error) {
-        throw new Error(vehiclesRes.error.message || 'تعذر تحميل المركبات');
-      }
-
       return {
-        logs: logsRes.data || [],
-        vehicles: vehiclesRes.data || [],
+        logs,
+        vehicles,
       };
     },
     staleTime: 60_000,

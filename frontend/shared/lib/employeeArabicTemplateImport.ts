@@ -138,13 +138,13 @@ async function resolveEmployeeIdByKeys(
 ) : Promise<string | null> {
   const code = strVal(row.employee_code);
   if (code) {
-    const { data: existingByCode } = await svc.findByEmployeeCode(code);
+    const existingByCode = await svc.findByEmployeeCode(code);
     if (existingByCode?.id) return existingByCode.id;
   }
 
   const nid = strVal(row.national_id);
   if (!nid) return null;
-  const { data: existingByNid } = await svc.findByNationalId(nid);
+  const existingByNid = await svc.findByNationalId(nid);
   return existingByNid?.id ?? null;
 }
 

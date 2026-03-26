@@ -45,7 +45,6 @@ export function useFuelDailyPaged(params: {
           filters: { employeeId, branch, search },
         })
       );
-      if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
     retry: safeRetry,

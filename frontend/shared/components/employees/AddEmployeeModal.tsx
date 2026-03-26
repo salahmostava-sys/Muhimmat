@@ -250,16 +250,16 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     Promise.all([
       employeeService.getActiveSalarySchemes(),
       employeeService.getActiveApps(),
-    ]).then(([schemesRes, appsRes]) => {
+    ]).then(([schemes, apps]) => {
       if (!isMounted) return;
-      if (schemesRes.data) setSchemes(schemesRes.data);
-      if (appsRes.data) setAvailableApps(appsRes.data);
+      setSchemes(schemes ?? []);
+      setAvailableApps(apps ?? []);
     });
 
     if (editEmployee) {
-      employeeService.getEmployeeAssignedAppNames(editEmployee.id).then(({ data }) => {
-        if (!isMounted || !data) return;
-        setValue('selected_apps', data, { shouldDirty: false });
+      employeeService.getEmployeeAssignedAppNames(editEmployee.id).then((names) => {
+        if (!isMounted) return;
+        setValue('selected_apps', names ?? [], { shouldDirty: false });
       });
     }
 
@@ -340,7 +340,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     }
 
     const createPayload = { ...payload, status: 'active' };
-    const { data: emp } = await employeeService.createEmployee(createPayload);
+    const emp = await employeeService.createEmployee(createPayload);
     await auditService.logAdminAction({
       action: 'employees.create',
       table_name: 'employees',
@@ -368,7 +368,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       }
       const ext = u.file.name.split('.').pop();
       const storagePath = `${u.path}.${ext}`;
-      const { data: upData } = await employeeService.uploadEmployeeDocument(storagePath, u.file);
+      const upData = await employeeService.uploadEmployeeDocument(storagePath, u.file);
       if (upData) updates[u.field] = upData.path;
     }
     if (Object.keys(updates).length > 0) {

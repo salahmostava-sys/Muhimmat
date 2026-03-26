@@ -243,8 +243,12 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
         check_out:   r.checkOut || null,
         note:        noteText,
       };
-      const { error } = await attendanceService.upsertDailyAttendance(payload);
-      if (!error) saved++;
+      try {
+        await attendanceService.upsertDailyAttendance(payload);
+        saved++;
+      } catch {
+        /* row failed; continue */
+      }
     }
 
     setSaving(false);

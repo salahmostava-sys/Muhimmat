@@ -26,10 +26,9 @@ describe('useEmployees', () => {
   });
 
   it('returns employees when service succeeds', async () => {
-    vi.mocked(employeeService.getAll).mockResolvedValue({
-      data: [{ id: 'e1', name: 'Ahmed' }],
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof employeeService.getAll>>);
+    vi.mocked(employeeService.getAll).mockResolvedValue([
+      { id: 'e1', name: 'Ahmed' },
+    ] as unknown as Awaited<ReturnType<typeof employeeService.getAll>>);
 
     const { result } = renderHook(() => useEmployees(), { wrapper: createWrapper() });
 
@@ -38,10 +37,7 @@ describe('useEmployees', () => {
   });
 
   it('returns error when service fails', async () => {
-    vi.mocked(employeeService.getAll).mockResolvedValue({
-      data: null,
-      error: { message: 'db down' },
-    } as unknown as Awaited<ReturnType<typeof employeeService.getAll>>);
+    vi.mocked(employeeService.getAll).mockRejectedValue(new Error('db down'));
 
     const { result } = renderHook(() => useEmployees(), { wrapper: createWrapper() });
 
@@ -49,11 +45,10 @@ describe('useEmployees', () => {
     expect(result.current.error?.message).toContain('db down');
   });
 
-  it('returns empty list when service returns null data without error', async () => {
-    vi.mocked(employeeService.getAll).mockResolvedValue({
-      data: null,
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof employeeService.getAll>>);
+  it('returns empty list when service returns no rows', async () => {
+    vi.mocked(employeeService.getAll).mockResolvedValue(
+      [] as unknown as Awaited<ReturnType<typeof employeeService.getAll>>,
+    );
 
     const { result } = renderHook(() => useEmployees(), { wrapper: createWrapper() });
 

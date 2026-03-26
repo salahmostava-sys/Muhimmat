@@ -69,13 +69,13 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
         const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
         const to = `${selectedYear}-${pad(selectedMonth + 1)}-${pad(daysInMonth)}`;
 
-        const [attRes, empRes] = await Promise.all([
+        const [attRows, activeCount] = await Promise.all([
           attendanceService.getAttendanceStatusRange(from, to),
           attendanceService.getActiveEmployeesCount(),
         ]);
 
-        setTotalEmployees(empRes.count || 0);
-        if (!attRes.data) {
+        setTotalEmployees(activeCount);
+        if (!attRows.length) {
           setData([]);
           return;
         }
@@ -84,7 +84,7 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
         const byDay: Record<number, Record<string, number>> = {};
         for (let d = 1; d <= daysInMonth; d++) byDay[d] = { present: 0, absent: 0, leave: 0, sick: 0, late: 0 };
 
-        attRes.data.forEach(r => {
+        attRows.forEach(r => {
           const d = new Date(r.date).getDate();
           const s = r.status;
           if (byDay[d] && s && s in byDay[d]) byDay[d][s]++;

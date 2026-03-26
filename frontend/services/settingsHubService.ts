@@ -1,7 +1,7 @@
 import { supabase } from '@services/supabase/client';
 import { validateUploadFile } from '@shared/lib/validation';
 import { authService } from '@services/authService';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 const EXPORT_TABLE_ALLOWLIST = new Set([
   'audit_log',
@@ -33,79 +33,88 @@ export const settingsHubService = {
     }
 
     const { data, error, count } = await query;
-    throwIfError(error, 'settingsHubService.getAuditLogs');
-    return { data, error: null, count };
+    if (error) throw toServiceError(error, 'settingsHubService.getAuditLogs');
+    return { data: data ?? [], count: count ?? 0 };
   },
   getAuditProfilesByIds: async (userIds: string[]) => {
     const { data, error } = await supabase.from('profiles').select('id, name, email').in('id', userIds);
-    throwIfError(error, 'settingsHubService.getAuditProfilesByIds');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.getAuditProfilesByIds');
+    return data ?? [];
   },
   getAuditLogsForExport: async () => {
     const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(1000);
-    throwIfError(error, 'settingsHubService.getAuditLogsForExport');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.getAuditLogsForExport');
+    return data ?? [];
   },
 
   getProfileByUserId: async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('name, avatar_url').eq('id', userId).maybeSingle();
-    throwIfError(error, 'settingsHubService.getProfileByUserId');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.getProfileByUserId');
+    return data;
   },
   uploadAvatar: async (path: string, file: File) => {
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
     });
-    if (!validation.valid) throw new Error(validation.error);
+    if (!validation.valid) {
+      throw toServiceError(
+        new Error('error' in validation ? validation.error : 'Invalid file'),
+        'settingsHubService.uploadAvatar.validation'
+      );
+    }
     const { data, error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-    throwIfError(error, 'settingsHubService.uploadAvatar');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.uploadAvatar');
+    if (!data) throw toServiceError(new Error('Upload returned no data'), 'settingsHubService.uploadAvatar');
+    return data;
   },
   getAvatarPublicUrl: (path: string) => supabase.storage.from('avatars').getPublicUrl(path),
   updateProfileByUserId: async (userId: string, payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.from('profiles').update(payload).eq('id', userId);
-    throwIfError(error, 'settingsHubService.updateProfileByUserId');
-    return { data, error: null };
+    const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
+    if (error) throw toServiceError(error, 'settingsHubService.updateProfileByUserId');
   },
   updatePassword: async (password: string) => authService.updatePassword(password),
 
   getTradeRegister: async () => {
     const { data, error } = await supabase.from('trade_registers').select('*').order('created_at').limit(1).maybeSingle();
-    throwIfError(error, 'settingsHubService.getTradeRegister');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.getTradeRegister');
+    return data;
   },
   uploadCompanyLogo: async (path: string, file: File) => {
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
     });
-    if (!validation.valid) throw new Error(validation.error);
+    if (!validation.valid) {
+      throw toServiceError(
+        new Error('error' in validation ? validation.error : 'Invalid file'),
+        'settingsHubService.uploadCompanyLogo.validation'
+      );
+    }
     const { data, error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-    throwIfError(error, 'settingsHubService.uploadCompanyLogo');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.uploadCompanyLogo');
+    if (!data) throw toServiceError(new Error('Upload returned no data'), 'settingsHubService.uploadCompanyLogo');
+    return data;
   },
   getCompanyLogoPublicUrl: (path: string) => supabase.storage.from('avatars').getPublicUrl(path),
   updateSystemLogo: async (settingsId: string, logoUrl: string | null) => {
-    const { data, error } = await supabase.from('system_settings').update({ logo_url: logoUrl }).eq('id', settingsId);
-    throwIfError(error, 'settingsHubService.updateSystemLogo');
-    return { data, error: null };
+    const { error } = await supabase.from('system_settings').update({ logo_url: logoUrl }).eq('id', settingsId);
+    if (error) throw toServiceError(error, 'settingsHubService.updateSystemLogo');
   },
   updateTradeRegister: async (recordId: string, payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.from('trade_registers').update(payload).eq('id', recordId);
-    throwIfError(error, 'settingsHubService.updateTradeRegister');
-    return { data, error: null };
+    const { error } = await supabase.from('trade_registers').update(payload).eq('id', recordId);
+    if (error) throw toServiceError(error, 'settingsHubService.updateTradeRegister');
   },
   createTradeRegister: async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase.from('trade_registers').insert(payload).select().single();
-    throwIfError(error, 'settingsHubService.createTradeRegister');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.createTradeRegister');
+    return data;
   },
 
   exportTableRows: async (table: string) => {
     if (!EXPORT_TABLE_ALLOWLIST.has(table)) {
-      throw new Error('Table is not allowed for export');
+      throw toServiceError(new Error('Table is not allowed for export'), 'settingsHubService.exportTableRows');
     }
     const { data, error } = await supabase.from(table).select('*');
-    throwIfError(error, 'settingsHubService.exportTableRows');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'settingsHubService.exportTableRows');
+    return data ?? [];
   },
 };

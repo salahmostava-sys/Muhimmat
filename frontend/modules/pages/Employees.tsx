@@ -471,14 +471,7 @@ const Employees = () => {
     const isAllStatus = fastStatus === 'all';
     const status = isAllStatus ? undefined : fastStatus;
 
-    const res = await employeeService.exportEmployees({ filters: { branch, search, status } });
-    if (res.error) {
-      const message = res.error instanceof Error ? res.error.message : 'تعذر التصدير';
-      toast({ title: 'خطأ', description: message, variant: 'destructive' });
-      return;
-    }
-
-    const out = (res.data || []) as Array<{
+    let out: Array<{
       name: string;
       employee_code: string | null;
       national_id: string | null;
@@ -491,6 +484,13 @@ const Employees = () => {
       join_date: string | null;
       job_title: string | null;
     }>;
+    try {
+      out = (await employeeService.exportEmployees({ filters: { branch, search, status } })) as typeof out;
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'تعذر التصدير';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      return;
+    }
 
     const rows = out.map((e, i) => ({
       '#': i + 1,

@@ -33,7 +33,7 @@ export const salaryDataService = {
   },
 
   async getMonthlyContext(selectedMonth: string) {
-    const [employees, extRes, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvancesRes] =
+    const [employees, extRes, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvances] =
       await Promise.all([
         employeeService.getActiveForSalaryContext(),
         externalDeductionService.getApprovedByMonth(selectedMonth),
@@ -53,7 +53,7 @@ export const salaryDataService = {
       attendanceRows,
       fuelRes,
       savedRecords,
-      allAdvances: allAdvancesRes.data || [],
+      allAdvances,
     };
   },
 
