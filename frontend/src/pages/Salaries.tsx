@@ -5,8 +5,8 @@ import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -41,6 +41,57 @@ const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cell
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
 const statusStyles: Record<string, string> = { pending: 'badge-warning', approved: 'badge-info', paid: 'badge-success' };
+const SALARY_CARD_SKELETON_KEYS = [
+  'salary-card-skeleton-1',
+  'salary-card-skeleton-2',
+  'salary-card-skeleton-3',
+  'salary-card-skeleton-4',
+  'salary-card-skeleton-5',
+  'salary-card-skeleton-6',
+  'salary-card-skeleton-7',
+  'salary-card-skeleton-8',
+] as const;
+const SALARY_TABLE_SKELETON_KEYS = [
+  'salary-table-skeleton-1',
+  'salary-table-skeleton-2',
+  'salary-table-skeleton-3',
+  'salary-table-skeleton-4',
+  'salary-table-skeleton-5',
+  'salary-table-skeleton-6',
+  'salary-table-skeleton-7',
+  'salary-table-skeleton-8',
+  'salary-table-skeleton-9',
+  'salary-table-skeleton-10',
+  'salary-table-skeleton-11',
+  'salary-table-skeleton-12',
+] as const;
+
+const toCityArabicLabel = (city?: string | null) => {
+  if (city === 'makkah') return 'مكة';
+  if (city === 'jeddah') return 'جدة';
+  return '—';
+};
+
+const getStatusStyleForPrint = (status: SalaryRow['status']) => {
+  if (status === 'paid') return 'background:#dcfce7;color:#15803d';
+  if (status === 'approved') return 'background:#dbeafe;color:#1d4ed8';
+  return 'background:#fef9c3;color:#92400e';
+};
+
+const getOrdersCellBackground = (
+  orders: number,
+  hitTarget: boolean,
+  defaultBackground: string | undefined
+) => {
+  if (orders === 0) return undefined;
+  if (hitTarget) return 'rgba(34,197,94,0.08)';
+  return defaultBackground;
+};
+
+const toComparableSortValue = (value: unknown): string | number => {
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  return Number(value) || 0;
+};
 
 const generateMonths = () => {
   const months = [];
@@ -62,6 +113,7 @@ const shortEmployeeName = (name: string) => {
 };
 
 type SortDir = 'asc' | 'desc' | null;
+type FastApprovedFilter = 'all' | 'approved' | 'pending';
 
 interface SalaryRow {
   id: string;
@@ -180,14 +232,6 @@ const buildFuelCostMap = (rows: Array<{ employee_id: string; fuel_cost: number |
   return fuelCostMap;
 };
 
-const buildExternalDeductionsMap = (rows: Array<{ employee_id: string; amount: number | string }> | null | undefined) => {
-  const extMap: Record<string, number> = {};
-  rows?.forEach((d) => {
-    extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
-  });
-  return extMap;
-};
-
 const buildOrdersMap = (rows: OrderWithAppRow[] | null | undefined) => {
   const ordMap: Record<string, Record<string, number>> = {};
   (rows || []).forEach((r) => {
@@ -202,6 +246,31 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
   if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
   if (sortDir === 'asc') return <ChevronUp size={10} className="inline ml-0.5" />;
   return <ChevronDown size={10} className="inline ml-0.5" />;
+};
+
+const renderEngineStatusBadge = (loadingData: boolean, previewBackendError: string | null) => {
+  if (loadingData) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
+        <span className="h-2 w-2 rounded-full bg-muted-foreground/70 animate-pulse" />
+        جارٍ فحص محرك الرواتب
+      </span>
+    );
+  }
+  if (previewBackendError) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
+        <span className="h-2 w-2 rounded-full bg-destructive" />
+        Backend Engine Offline
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[11px] text-success">
+      <span className="h-2 w-2 rounded-full bg-success" />
+      Backend Engine Online
+    </span>
+  );
 };
 
 interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; companyName?: string; }
@@ -339,6 +408,12 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
             <div className="border-l border-[#8c6239]">
               <div className="bg-[#8c6239] text-white text-center font-bold py-1">الاستحقاقات (ر.س)</div>
               <table className="w-full border-collapse">
+                <thead className="sr-only">
+                  <tr>
+                    <th>البند</th>
+                    <th>القيمة</th>
+                  </tr>
+                </thead>
                 <tbody>
                   <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">الراتب الأساسي</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(totalPlatformSalary).toLocaleString()}</td></tr>
                   <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.incentives}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.incentives).toLocaleString()}</td></tr>
@@ -532,7 +607,7 @@ const Salaries = () => {
   const [fastPage, setFastPage] = useState(1);
   const [fastPageSize] = useState(50);
   const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
-  const [fastApproved, setFastApproved] = useState<'all' | 'approved' | 'pending'>('all');
+  const [fastApproved, setFastApproved] = useState<FastApprovedFilter>('all');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
   const [platforms, setPlatforms] = useState<string[]>([]);
@@ -712,8 +787,6 @@ const Salaries = () => {
       // Build fuel cost map: employeeId → fuel_cost
       const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
 
-      const extMap = buildExternalDeductionsMap(extRes.data as Array<{ employee_id: string; amount: number | string }> | null | undefined);
-
       const ordMap = buildOrdersMap(ordersRes.data as OrderWithAppRow[] | null);
 
       // ── Build appName→scheme map from apps.scheme_id (scheme per platform) ──
@@ -828,7 +901,7 @@ const Salaries = () => {
         const preview = previewMap[emp.id];
         const advDeduction = preview.advance_deduction;
         const extDeduction = preview.external_deduction;
-        const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
+        const cityLabel = toCityArabicLabel(emp.city);
         const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
         const hasIban = !!emp.iban;
         // platformIncome is manual — not computed from anywhere
@@ -976,32 +1049,28 @@ const Salaries = () => {
 
   const filtered = useMemo(() => {
     if (!sortField || !sortDir) return filteredBase;
-    return [...filteredBase].sort((a, b) => {
-      let va: string | number;
-      let vb: string | number;
-      const ca = computeRow(a), cb = computeRow(b);
+    const getSortValue = (row: SalaryRow) => {
+      const computed = computeRow(row);
       switch (sortField) {
-        case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
-        case 'jobTitle': va = a.jobTitle; vb = b.jobTitle; break;
-        case 'nationalId': va = a.nationalId; vb = b.nationalId; break;
-        case 'platformSalaries': va = ca.totalPlatformSalary; vb = cb.totalPlatformSalary; break;
-        case 'incentives': va = a.incentives; vb = b.incentives; break;
-        case 'totalAdditions': va = ca.totalAdditions; vb = cb.totalAdditions; break;
-        case 'advanceDeduction': va = a.advanceDeduction; vb = b.advanceDeduction; break;
-        case 'totalDeductions': va = ca.totalDeductions; vb = cb.totalDeductions; break;
-        case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
-        case 'status': va = a.status; vb = b.status; break;
+        case 'employeeName': return row.employeeName;
+        case 'jobTitle': return row.jobTitle;
+        case 'nationalId': return row.nationalId;
+        case 'platformSalaries': return computed.totalPlatformSalary;
+        case 'incentives': return row.incentives;
+        case 'totalAdditions': return computed.totalAdditions;
+        case 'advanceDeduction': return row.advanceDeduction;
+        case 'totalDeductions': return computed.totalDeductions;
+        case 'netSalary': return computed.netSalary;
+        case 'status': return row.status;
         default:
-          if (platforms.includes(sortField)) {
-            va = a.platformOrders[sortField] || 0;
-            vb = b.platformOrders[sortField] || 0;
-          } else {
-            const ra = (a as unknown as Record<string, unknown>)[sortField];
-            const rb = (b as unknown as Record<string, unknown>)[sortField];
-            va = typeof ra === 'number' || typeof ra === 'string' ? ra : Number(ra) || 0;
-            vb = typeof rb === 'number' || typeof rb === 'string' ? rb : Number(rb) || 0;
-          }
+          if (platforms.includes(sortField)) return row.platformOrders[sortField] || 0;
+          return toComparableSortValue((row as Record<string, unknown>)[sortField]);
       }
+    };
+
+    return [...filteredBase].sort((a, b) => {
+      const va = getSortValue(a);
+      const vb = getSortValue(b);
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
@@ -1021,20 +1090,6 @@ const Salaries = () => {
     if (payslipRow?.id === id) setPayslipRow(prev => prev ? { ...prev, ...patch } : prev);
   }, [payslipRow]);
 
-  const updateSalaryCityFromMenu = useCallback(async (
-    row: SalaryRow,
-    cityLabel: 'مكة' | 'جدة',
-    cityVal: 'makkah' | 'jeddah',
-  ) => {
-    const prev = row.city;
-    updateRow(row.id, { city: cityLabel });
-    const { error } = await employeeService.updateCity(row.employeeId, cityVal);
-    if (error) {
-      updateRow(row.id, { city: prev });
-      toast({ title: 'تعذّر حفظ المدينة', description: error.message, variant: 'destructive' });
-    }
-  }, [updateRow, toast]);
-
   const updatePlatformOrders = (id: string, platform: string, value: number) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
@@ -1046,7 +1101,7 @@ const Salaries = () => {
       if (!ruleResult.matchedRule) {
         // Fallback to scheme behavior when pricing_rules are not configured.
         const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
-        if (scheme && scheme.salary_scheme_tiers) {
+        if (scheme?.salary_scheme_tiers) {
           salary = salaryService.calculateTierSalary(
             value,
             scheme.salary_scheme_tiers as SalarySchemeTier[],
@@ -1373,7 +1428,7 @@ const Salaries = () => {
           ? `<td style="text-align:center">${r.platformOrders[p] || 0}</td>`
           : `<td style="text-align:center;color:#ccc">—</td>`
       ).join('');
-      const statusStyle = r.status === 'paid' ? 'background:#dcfce7;color:#15803d' : r.status === 'approved' ? 'background:#dbeafe;color:#1d4ed8' : 'background:#fef9c3;color:#92400e';
+      const statusStyle = getStatusStyleForPrint(r.status);
       const statusLabel = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[r.status];
       return `<tr>
         <td>${escapeHtml(r.employeeName)}</td>
@@ -1899,7 +1954,6 @@ const Salaries = () => {
 
   const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/60 text-right sticky z-20";
   const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/50 text-center";
-  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border/40 bg-card text-foreground sticky z-10";
   const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border/40 text-foreground";
   const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/40 bg-muted/60 text-foreground";
   const stickyLeft = (offset: number) => ({ left: offset });
@@ -1952,27 +2006,13 @@ const Salaries = () => {
           </nav>
           <h1 className="page-title flex items-center gap-2"><Wallet size={20} /> الرواتب الشهرية</h1>
           <div className="mt-1">
-            {loadingData ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/70 animate-pulse" />
-                جارٍ فحص محرك الرواتب
-              </span>
-            ) : previewBackendError ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                Backend Engine Offline
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[11px] text-success">
-                <span className="h-2 w-2 rounded-full bg-success" />
-                Backend Engine Online
-              </span>
-            )}
+            {renderEngineStatusBadge(loadingData, previewBackendError)}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setPageMode('fast')}>
-            <Table2 size={16} /> قائمة (سريعة)
+            <Table2 size={16} />
+            <span>قائمة (سريعة)</span>
           </Button>
           <select
             value={selectedMonth}
@@ -2068,7 +2108,7 @@ const Salaries = () => {
             )}
             {appsWithoutPricingRulesDeduped.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                بدون Pricing Rules:
+                بدون Pricing Rules:{' '}
                 <span className="font-semibold text-warning mr-1">{appsWithoutPricingRulesDeduped.join(' · ')}</span>
               </p>
             )}
@@ -2079,7 +2119,8 @@ const Salaries = () => {
             className="gap-1.5 text-xs border-warning/40 text-warning hover:bg-warning/10 flex-shrink-0"
             onClick={() => navigate('/settings/schemes')}
           >
-            <Settings2 size={13} /> فتح الإعداد
+            <Settings2 size={13} />
+            <span>فتح الإعداد</span>
           </Button>
         </div>
       )}
@@ -2172,8 +2213,8 @@ const Salaries = () => {
         <div>
           {loadingData ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={`salary-card-skeleton-${i}`} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
+              {SALARY_CARD_SKELETON_KEYS.map((skeletonKey) => (
+                <div key={skeletonKey} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
                   <div className="h-4 bg-muted rounded w-3/4" />
                   <div className="h-3 bg-muted rounded w-1/2" />
                   <div className="h-8 bg-muted rounded mt-3" />
@@ -2395,7 +2436,7 @@ const Salaries = () => {
                         const scheme = empPlatformScheme?.[r.employeeId]?.[p];
                         const target = scheme?.target_orders;
                         const hitTarget = target && orders >= target;
-                        const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
+                        const rowBg = getOrdersCellBackground(orders, !!hitTarget, pc?.cellBg);
                         // Check if employee has no scheme assigned (null = registered but no scheme)
                         const noScheme = orders > 0 && scheme === null;
                         return (
@@ -2797,12 +2838,12 @@ const Salaries = () => {
 
 export default Salaries;
 
-function SalariesFastList(props: {
+function SalariesFastList(props: Readonly<{
   monthYear: string;
   branch: BranchKey;
   search: string;
-  approved: 'all' | 'approved' | 'pending';
-  onApprovedChange: (v: 'all' | 'approved' | 'pending') => void;
+  approved: FastApprovedFilter;
+  onApprovedChange: (v: FastApprovedFilter) => void;
   onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
   page: number;
   pageSize: number;
@@ -2811,7 +2852,7 @@ function SalariesFastList(props: {
   onSalaryTemplate: () => void;
   onSalaryImport: (file: File) => void | Promise<void>;
   salaryActionLoading: boolean;
-}) {
+}>) {
   const { toast } = useToast();
   const {
     monthYear,
@@ -2852,7 +2893,7 @@ function SalariesFastList(props: {
     created_at: string;
     employees?: { id: string; name: string; national_id: string | null; city: string | null } | null;
   };
-  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
+  const paged = data as { data?: Row[]; count?: number } | undefined;
   const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -2869,7 +2910,7 @@ function SalariesFastList(props: {
   const exportExcel = async () => {
     setExporting(true);
     try {
-      const branchKey = branch !== 'all' ? (branch as Exclude<BranchKey, 'all'>) : undefined;
+      const branchKey: Exclude<BranchKey, 'all'> | undefined = branch === 'all' ? undefined : branch;
       const q = search?.trim() || undefined;
 
       const res = await salaryService.exportMonth({
@@ -2911,6 +2952,31 @@ function SalariesFastList(props: {
       setExporting(false);
     }
   };
+
+  let tableRowsNode: React.ReactNode;
+  if (isLoading) {
+    tableRowsNode = SALARY_TABLE_SKELETON_KEYS.map((skeletonKey) => (
+      <tr key={skeletonKey}>
+        <td className="px-4 py-3 text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+      </tr>
+    ));
+  } else if (rows.length === 0) {
+    tableRowsNode = <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>;
+  } else {
+    tableRowsNode = rows.map((r) => (
+      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+        <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
+        <td className="px-4 py-3 text-center">{toCityArabicLabel(r.employees?.city)}</td>
+        <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
+        <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
+        <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
+      </tr>
+    ));
+  }
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -2985,29 +3051,7 @@ function SalariesFastList(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {isLoading ? (
-                Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={`salary-table-skeleton-${i}`}>
-                    <td className="px-4 py-3 text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                  </tr>
-                ))
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-center">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>
-                    <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
-                    <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
-                  </tr>
-                ))
-              )}
+              {tableRowsNode}
             </tbody>
           </table>
         </div>
