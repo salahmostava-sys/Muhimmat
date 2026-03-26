@@ -60,6 +60,153 @@ type ImportRow = {
   manual_employee_id?: string;
 };
 const MONTHLY_SKELETON_ROWS = ['m1', 'm2', 'm3', 'm4', 'm5'];
+type MonthlyOrderRow = { employee_id: string; orders_count: number };
+type VehicleAssignmentRow = { employee_id: string; vehicles?: { plate_number: string; type: string; brand?: string | null; model?: string | null } };
+type DailyMileageAggSource = {
+  employee_id: string;
+  km_total: number;
+  fuel_cost: number;
+  employees?: { name: string; personal_photo_url?: string | null };
+};
+type MonthlyAgg = { km: number; fuel: number; count: number; name: string; photo?: string | null };
+
+const getErrorMessageOrFallback = (err: unknown, fallback: string): string =>
+  err instanceof Error ? err.message : fallback;
+
+const buildOrdersMap = (rows: MonthlyOrderRow[]): Record<string, number> => {
+  const map: Record<string, number> = {};
+  rows.forEach((row) => {
+    map[row.employee_id] = (map[row.employee_id] || 0) + (Number(row.orders_count) || 0);
+  });
+  return map;
+};
+
+const buildVehicleMap = (
+  rows: VehicleAssignmentRow[]
+): Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> => {
+  const map: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
+  rows.forEach((row) => {
+    if (map[row.employee_id] || !row.vehicles) return;
+    map[row.employee_id] = row.vehicles;
+  });
+  return map;
+};
+
+const buildMonthlyAggMap = (
+  rows: DailyMileageAggSource[],
+  employeeIdsOnPlatform: Set<string> | null
+): Record<string, MonthlyAgg> => {
+  const aggMap: Record<string, MonthlyAgg> = {};
+  rows.forEach((row) => {
+    if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(row.employee_id)) return;
+    const emp = row.employees;
+    if (!aggMap[row.employee_id]) {
+      aggMap[row.employee_id] = { km: 0, fuel: 0, count: 0, name: emp?.name || '', photo: emp?.personal_photo_url };
+    }
+    aggMap[row.employee_id].km += Number(row.km_total) || 0;
+    aggMap[row.employee_id].fuel += Number(row.fuel_cost) || 0;
+    aggMap[row.employee_id].count += 1;
+  });
+  return aggMap;
+};
+
+const buildEmployeeIndex = (employees: Employee[]): Record<string, Employee> => {
+  const index: Record<string, Employee> = {};
+  employees.forEach((employee) => { index[employee.id] = employee; });
+  return index;
+};
+
+const buildMonthlyRows = (
+  aggMap: Record<string, MonthlyAgg>,
+  ordersMap: Record<string, number>,
+  vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }>,
+  employees: Employee[]
+): MonthlyRow[] => {
+  const employeeById = buildEmployeeIndex(employees);
+  const allEmployeeIds = new Set<string>([
+    ...Object.keys(aggMap),
+    ...Object.keys(ordersMap).filter((id) => (ordersMap[id] || 0) > 0),
+  ]);
+  return Array.from(allEmployeeIds).map((employeeId) => {
+    const agg = aggMap[employeeId];
+    const employee = employeeById[employeeId];
+    return {
+      employee_id: employeeId,
+      employee_name: agg?.name || employee?.name || '—',
+      personal_photo_url: agg?.photo || employee?.personal_photo_url || null,
+      km_total: agg?.km || 0,
+      fuel_cost: agg?.fuel || 0,
+      orders_count: ordersMap[employeeId] || 0,
+      vehicle: vehicleMap[employeeId] || null,
+      daily_count: agg?.count || 0,
+    };
+  }).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
+};
+
+const mapDailyRows = (rows: DailyMileageResponseRow[]): DailyRow[] =>
+  rows.map((row) => ({
+    ...row,
+    employee: row.employees ? { id: row.employee_id, ...row.employees } : undefined,
+  }));
+
+const applyDailyFilters = (
+  rows: DailyRow[],
+  selectedEmployee: string,
+  employeeIdsOnPlatform: Set<string> | null
+): DailyRow[] => {
+  if (selectedEmployee && selectedEmployee !== '_all_') {
+    return rows.filter((row) => row.employee_id === selectedEmployee);
+  }
+  if (!employeeIdsOnPlatform) return rows;
+  const ids = Array.from(employeeIdsOnPlatform);
+  if (ids.length === 0) return [];
+  return rows.filter((row) => ids.includes(row.employee_id));
+};
+
+const renderMonthlyLoadingRows = (): React.ReactNode =>
+  MONTHLY_SKELETON_ROWS.map((rowKey) => (
+    <tr key={`fuel-monthly-skeleton-row-${rowKey}`} className="border-b border-border/30">
+      {Array.from({ length: 9 }).map((_, j) => (
+        <td key={`fuel-monthly-skeleton-cell-${rowKey}-${j}`} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
+      ))}
+    </tr>
+  ));
+
+const renderMonthlyEmptyRow = (): React.ReactNode => (
+  <tr>
+    <td colSpan={9} className="text-center py-16">
+      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+        <span className="text-4xl">⛽</span>
+        <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
+        <p className="text-xs">أضف إدخالات يومية من عرض يومي أو غيّر المنصة/البحث</p>
+      </div>
+    </td>
+  </tr>
+);
+
+const renderMonthlyTotalsRow = (
+  filteredCount: number,
+  totalKm: number,
+  totalFuel: number,
+  avgCostPerKm: number,
+  totalOrders: number
+): React.ReactNode => (
+  <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
+    <td className="px-4 py-3 text-foreground">الإجمالي ({filteredCount} مندوب)</td>
+    <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+    <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
+    <td className="px-4 py-3 text-center text-warning">{totalFuel.toLocaleString()} ر.س</td>
+    <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
+      {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
+    </td>
+    <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+    <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
+    <td className="px-4 py-3 text-center text-muted-foreground">
+      {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
+    </td>
+    <td />
+  </tr>
+);
 
 const toCellString = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -469,58 +616,14 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       if (dailyRes.error) throw dailyRes.error;
       if (ordersRes.error) throw ordersRes.error;
       if (assignmentsRes.error) throw assignmentsRes.error;
-
-      const orderMap: Record<string, number> = {};
-      (ordersRes.data || []).forEach((o: { employee_id: string; orders_count: number }) => {
-        orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
-      });
-
-      const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
-      (assignmentsRes.data || []).forEach((a: { employee_id: string; vehicles?: { plate_number: string; type: string; brand?: string | null; model?: string | null } }) => {
-        if (!vehicleMap[a.employee_id] && a.vehicles) vehicleMap[a.employee_id] = a.vehicles;
-      });
-
-      const aggMap: Record<string, { km: number; fuel: number; count: number; name: string; photo?: string | null }> = {};
-      (dailyRes.data || []).forEach((r: {
-        employee_id: string; km_total: number; fuel_cost: number;
-        employees?: { name: string; personal_photo_url?: string | null };
-      }) => {
-        if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(r.employee_id)) return;
-        const emp = r.employees;
-        if (!aggMap[r.employee_id]) {
-          aggMap[r.employee_id] = { km: 0, fuel: 0, count: 0, name: emp?.name || '', photo: emp?.personal_photo_url };
-        }
-        aggMap[r.employee_id].km += Number(r.km_total) || 0;
-        aggMap[r.employee_id].fuel += Number(r.fuel_cost) || 0;
-        aggMap[r.employee_id].count += 1;
-      });
-
-      const empById: Record<string, Employee> = {};
-      employees.forEach((e) => { empById[e.id] = e; });
-      const allEmployeeIds = new Set<string>([
-        ...Object.keys(aggMap),
-        ...Object.keys(orderMap).filter((id) => (orderMap[id] || 0) > 0),
-      ]);
-
-      const rows: MonthlyRow[] = Array.from(allEmployeeIds).map((emp_id) => {
-        const agg = aggMap[emp_id];
-        const emp = empById[emp_id];
-        return {
-          employee_id: emp_id,
-          employee_name: agg?.name || emp?.name || '—',
-          personal_photo_url: agg?.photo || emp?.personal_photo_url || null,
-          km_total: agg?.km || 0,
-          fuel_cost: agg?.fuel || 0,
-          orders_count: orderMap[emp_id] || 0,
-          vehicle: vehicleMap[emp_id] || null,
-          daily_count: agg?.count || 0,
-        };
-      }).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
-
-      setMonthlyRows(rows);
+      const ordersMap = buildOrdersMap((ordersRes.data || []) as MonthlyOrderRow[]);
+      const vehicleMap = buildVehicleMap((assignmentsRes.data || []) as VehicleAssignmentRow[]);
+      const aggMap = buildMonthlyAggMap((dailyRes.data || []) as DailyMileageAggSource[], employeeIdsOnPlatform);
+      const nextRows = buildMonthlyRows(aggMap, ordersMap, vehicleMap, employees);
+      setMonthlyRows(nextRows);
     } catch (err) {
       console.error('[Fuel] fetchMonthly failed', err);
-      const message = err instanceof Error ? err.message : 'تعذر جلب البيانات الشهرية';
+      const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات الشهرية');
       toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
       setMonthlyRows([]);
     } finally {
@@ -535,25 +638,12 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
       const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
       if (error) throw error;
-
-      let mapped: DailyRow[] = ((data || []) as DailyMileageResponseRow[]).map((r) => ({
-        ...r,
-        employee: r.employees ? { id: r.employee_id, ...r.employees } : undefined,
-      }));
-      if (selectedEmployee && selectedEmployee !== '_all_') {
-        mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
-      } else if (employeeIdsOnPlatform) {
-        const ids = Array.from(employeeIdsOnPlatform);
-        if (ids.length === 0) {
-          setDailyRows([]);
-          return;
-        }
-        mapped = mapped.filter((r) => ids.includes(r.employee_id));
-      }
-      setDailyRows(mapped);
+      const mappedRows = mapDailyRows((data || []) as DailyMileageResponseRow[]);
+      const filteredRows = applyDailyFilters(mappedRows, selectedEmployee, employeeIdsOnPlatform);
+      setDailyRows(filteredRows);
     } catch (err) {
       console.error('[Fuel] fetchDaily failed', err);
-      const message = err instanceof Error ? err.message : 'تعذر جلب البيانات اليومية';
+      const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات اليومية');
       toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
       setDailyRows([]);
     } finally {
@@ -690,25 +780,9 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   };
   let monthlyBodyRows: React.ReactNode;
   if (loading) {
-    monthlyBodyRows = MONTHLY_SKELETON_ROWS.map((rowKey) => (
-      <tr key={`fuel-monthly-skeleton-row-${rowKey}`} className="border-b border-border/30">
-        {Array.from({ length: 9 }).map((_, j) => (
-          <td key={`fuel-monthly-skeleton-cell-${rowKey}-${j}`} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
-        ))}
-      </tr>
-    ));
+    monthlyBodyRows = renderMonthlyLoadingRows();
   } else if (filteredMonthly.length === 0) {
-    monthlyBodyRows = (
-      <tr>
-        <td colSpan={9} className="text-center py-16">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <span className="text-4xl">⛽</span>
-            <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
-            <p className="text-xs">أضف إدخالات يومية من عرض يومي أو غيّر المنصة/البحث</p>
-          </div>
-        </td>
-      </tr>
-    );
+    monthlyBodyRows = renderMonthlyEmptyRow();
   } else {
     monthlyBodyRows = (
       <>
@@ -774,21 +848,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
             </tr>
           );
         })}
-        <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
-          <td className="px-4 py-3 text-foreground">الإجمالي ({filteredMonthly.length} مندوب)</td>
-          <td className="px-4 py-3 text-center text-muted-foreground">—</td>
-          <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
-          <td className="px-4 py-3 text-center text-warning">{totalFuel.toLocaleString()} ر.س</td>
-          <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
-            {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
-          </td>
-          <td className="px-4 py-3 text-center text-muted-foreground">—</td>
-          <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
-          <td className="px-4 py-3 text-center text-muted-foreground">
-            {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
-          </td>
-          <td />
-        </tr>
+        {renderMonthlyTotalsRow(filteredMonthly.length, totalKm, totalFuel, avgCostPerKm, totalOrders)}
       </>
     );
   }
