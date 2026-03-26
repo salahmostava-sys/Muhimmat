@@ -28,10 +28,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
       - name: SonarCloud Scan
         uses: sonarsource/sonarqube-scan-action@v6
         env:
