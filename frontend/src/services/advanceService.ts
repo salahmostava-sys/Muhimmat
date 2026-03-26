@@ -182,7 +182,8 @@ export const advanceService = {
       .from('advance_installments')
       .update(payload)
       .in('id', installmentIds);
-    return { error };
+    throwIfSupabaseError(error);
+    return { error: null };
   },
 
   getInstallmentsByIds: async (installmentIds: string[]) => {
