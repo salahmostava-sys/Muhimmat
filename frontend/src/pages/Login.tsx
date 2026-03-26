@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Eye, EyeOff, Sun, Moon, Rocket, AlertCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@/services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
-import { AUTH_FORM_INPUT_BASE, AUTH_FORM_LABEL_CLASS } from '@/lib/formFieldClasses';
 import './login.css';
 
 interface SystemSettings {
@@ -96,165 +95,130 @@ const Login = () => {
     }
   };
 
-  const inputClass = AUTH_FORM_INPUT_BASE;
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10" dir="rtl">
-      <div className="fixed top-4 left-4 z-50">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4" dir="rtl">
+      <div className="absolute top-4 left-4 flex items-center gap-2">
         <button
           type="button"
           onClick={toggleTheme}
-          className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-muted-foreground border border-border shadow-sm bg-card/80 backdrop-blur-sm"
-          title={isDark ? 'الوضع الفاتح' : 'الوضع الداكن'}
-          aria-label={isDark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
+          className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground border border-border"
+          title={isDark ? 'Light mode' : 'Dark mode'}
         >
-          {isDark ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} />}
+          {isDark ? <Sun size={15} className="text-yellow-500" /> : <Moon size={15} />}
         </button>
       </div>
 
-      <div className="w-full max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-400">
-        <header className="flex flex-col items-center justify-center text-center mb-8 px-4 w-full mx-auto">
+      <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-400">
+        <div className="flex flex-col items-center mb-8">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
-              alt=""
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1 mb-4 mx-auto"
+              alt="logo"
+              className="w-[8.5rem] h-[5.5rem] sm:w-40 sm:h-28 rounded-2xl object-contain mb-4 shadow-lg border border-border bg-card p-1"
             />
           ) : (
             <div
-              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-primary-foreground shadow-md mb-4 mx-auto"
-              aria-hidden
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl mb-4 flex items-center justify-center text-5xl sm:text-6xl shadow-lg"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7))' }}
             >
-              <Rocket className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={2} aria-hidden />
+              🚀
             </div>
           )}
-          <div className="min-w-0 w-full max-w-md mx-auto">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight tracking-tight text-center">
-              {projectName}
-            </h1>
-            <p className="text-sm sm:text-[15px] text-muted-foreground mt-1.5 leading-relaxed text-center">
-              {projectSubtitle}
-            </p>
-          </div>
-        </header>
+          <h1 className="text-2xl sm:text-[26px] font-extrabold text-foreground text-center leading-tight">
+            {projectName}
+          </h1>
+          <p className="text-sm sm:text-[15px] text-muted-foreground text-center mt-1.5">
+            {projectSubtitle}
+          </p>
+        </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xl">
-          <h2 className="text-lg font-bold text-foreground mb-6 text-center">تسجيل الدخول</h2>
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
+          <h2 className="text-base font-bold text-foreground mb-5 text-center">
+            تسجيل الدخول
+          </h2>
 
-          <form onSubmit={handleLogin} className="space-y-6" noValidate aria-describedby={loginError ? 'login-error' : undefined}>
-            <div className="space-y-2">
-              <label htmlFor="login-email" className={AUTH_FORM_LABEL_CLASS}>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="login-email" className="block text-base font-medium text-muted-foreground mb-2">
                 البريد الإلكتروني
               </label>
-              <Input
-                id="login-email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@company.com"
-                required
-                dir="ltr"
-                autoComplete="email"
-                aria-label="البريد الإلكتروني"
-                aria-invalid={!!loginError}
-                aria-errormessage={loginError ? 'login-error' : undefined}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="login-password" className={AUTH_FORM_LABEL_CLASS}>
-                كلمة المرور
-              </label>
-              {/* dir=ltr: toggle على اليسار البصري، والنص يبدأ بعد مساحة الأيقونة */}
-              <div className="relative flex w-full items-center rounded-xl" dir="ltr">
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="pointer-events-auto absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
-                  aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-                  aria-pressed={showPw}
-                >
-                  {showPw ? <EyeOff size={22} className="shrink-0" strokeWidth={2} /> : <Eye size={22} className="shrink-0" strokeWidth={2} />}
-                </button>
+              <div className="relative">
+                <Mail size={18} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3.5 pointer-events-none" />
                 <Input
-                  id="login-password"
-                  name="password"
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="example@company.com"
                   required
                   dir="ltr"
-                  autoComplete="current-password"
-                  aria-label="كلمة المرور"
-                  aria-invalid={!!loginError}
-                  aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} w-full pl-[2.5rem] pr-5`}
+                  autoComplete="email"
+                  className="h-12 pr-11 text-base sm:text-lg"
                 />
               </div>
             </div>
 
-            <div className="login-remember-row flex w-full flex-row items-center justify-start gap-3 pt-1 pb-2">
-              <Checkbox
-                id="remember-me"
-                checked={rememberMe}
-                onCheckedChange={(v) => setRememberMe(v === true)}
-                className="h-5 w-5 shrink-0 rounded-md border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-              />
+            <div>
+              <label htmlFor="login-password" className="block text-base font-medium text-muted-foreground mb-2">
+                كلمة المرور
+              </label>
+              <div className="relative">
+                <Lock size={18} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3.5 pointer-events-none" />
+                <Input
+                  id="login-password"
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className="h-12 pr-11 pl-11 text-base sm:text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  className="absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors left-3.5"
+                  aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 justify-start pt-0.5">
               <label
                 htmlFor="remember-me"
-                className="text-[16px] font-medium text-foreground cursor-pointer select-none leading-relaxed flex-1 min-w-0 text-start"
+                className="text-base text-foreground cursor-pointer select-none leading-snug"
               >
                 تذكرني على هذا الجهاز
               </label>
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={v => setRememberMe(v === true)}
+                className="h-5 w-5 rounded-md"
+              />
             </div>
 
             {loginError && (
-              <div
-                id="login-error"
-                role="alert"
-                className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200"
-              >
-                <AlertCircle className="h-5 w-5 shrink-0 text-destructive" aria-hidden />
-                <p className="text-destructive text-sm text-start leading-relaxed">{loginError}</p>
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
+                <span className="text-sm">⚠️</span>
+                <p className="text-destructive text-sm">{loginError}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-[16px] text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-xl font-bold text-base sm:text-lg text-primary-foreground transition-all duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.85))' }}
             >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin shrink-0" aria-hidden />
-                  <span>جاري التحقق...</span>
-                </>
-              ) : (
-                'تسجيل الدخول'
-              )}
+              {loading
+                ? <><Loader2 size={18} className="animate-spin" /> جاري التحقق...</>
+                : 'تسجيل الدخول'
+              }
             </button>
           </form>
-
-          <nav
-            className="mt-8 pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-10 text-center"
-            aria-label="روابط إضافية"
-          >
-            <Link
-              to="/forgot-password"
-              className="text-[15px] font-semibold text-primary hover:underline underline-offset-4 decoration-2 transition-colors"
-            >
-              نسيت كلمة المرور؟
-            </Link>
-            <a
-              href="mailto:?subject=%D8%B7%D9%84%D8%A8%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AC%D8%AF%D9%8A%D8%AF%20%D9%81%D9%8A%20%D9%85%D9%87%D9%85%D8%A9%20%D8%A7%D9%84%D8%AA%D9%88%D8%B5%D9%8A%D9%84"
-              className="text-[15px] font-medium text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
-            >
-              طلب إنشاء حساب
-            </a>
-          </nav>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
