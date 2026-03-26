@@ -38,15 +38,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const recoverInFlightRef = useRef<Promise<boolean> | null>(null);
   const isFirstLoad = useRef(true);
   const redirectLockRef = useRef(false);
+  const redirectCooldownUntilRef = useRef(0);
   const isPublicAuthRoute = useCallback((pathname: string) => (
     pathname === '/login' || pathname === '/forgot-password' || pathname === '/reset-password'
   ), []);
   const redirectToLoginIfNeeded = useCallback(() => {
     if (redirectLockRef.current) return;
     if (isPublicAuthRoute(location.pathname)) return;
+    const now = Date.now();
+    if (now < redirectCooldownUntilRef.current) return;
     redirectLockRef.current = true;
+    redirectCooldownUntilRef.current = now + 2000;
     navigate('/login', { replace: true, state: { from: location.pathname } });
-    setTimeout(() => { redirectLockRef.current = false; }, 250);
+    setTimeout(() => { redirectLockRef.current = false; }, 300);
   }, [isPublicAuthRoute, location.pathname, navigate]);
   const handleUnauthenticatedState = useCallback(async (reason: string) => {
     try {
@@ -180,6 +184,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       void handleUnauthenticatedState(`${source}:${reason}`);
     });
   }, [handleUnauthenticatedState]);
+
+  // Single redirect owner: keep unauthenticated users off protected routes.
+  useEffect(() => {
+    if (loading || refreshing) return;
+    if (session) return;
+    redirectToLoginIfNeeded();
+  }, [loading, refreshing, session, redirectToLoginIfNeeded]);
 
   // عند العودة للتبويب/الاتصال: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل البيانات
   useEffect(() => {

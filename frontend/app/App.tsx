@@ -66,8 +66,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       gcTime: 10 * 60 * 1000,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       retry: (failureCount, error: any) => {
         if (!error) return false;
         if (error?.status === 401 || error?.status === 403) return false;

@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ReactNode, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,11 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
   }
 
-  if (!session) return <Navigate to="/login" replace />;
+  // Redirect is centralized in AuthProvider to avoid multi-redirect races.
+  if (!session) {
+    const resetKey = `${location.pathname}${location.search}`;
+    return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
+  }
 
   if (!role) {
     return (

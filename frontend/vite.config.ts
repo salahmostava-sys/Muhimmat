@@ -26,9 +26,10 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('recharts')) return 'vendor-charts';
-            if (id.includes('@e965/xlsx') || id.includes('html2canvas') || id.includes('jspdf') || id.includes('jszip')) {
-              return 'vendor-export';
-            }
+            if (id.includes('@e965/xlsx')) return 'vendor-xlsx';
+            if (id.includes('html2canvas')) return 'vendor-html2canvas';
+            if (id.includes('jspdf') || id.includes('jspdf-autotable')) return 'vendor-jspdf';
+            if (id.includes('jszip')) return 'vendor-jszip';
             if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('@tanstack')) return 'vendor-query';
             if (id.includes('react')) return 'vendor-react';

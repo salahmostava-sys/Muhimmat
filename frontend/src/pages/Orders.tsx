@@ -190,8 +190,8 @@ const SpreadsheetGrid = () => {
     retry: defaultQueryRetry,
     // Orders domain policy: semi-fresh
     staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const {
@@ -210,8 +210,8 @@ const SpreadsheetGrid = () => {
     retry: defaultQueryRetry,
     // Orders domain policy: semi-fresh (faster-changing rows)
     staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: spreadsheetMonthLock = false, error: spreadsheetLockError } = useQuery({
@@ -224,8 +224,8 @@ const SpreadsheetGrid = () => {
     select: (res) => res.locked,
     retry: defaultQueryRetry,
     staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const loading = spreadsheetBaseLoading || spreadsheetMonthLoading;
@@ -672,8 +672,8 @@ const MonthSummary = () => {
     },
     retry: defaultQueryRetry,
     staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const {

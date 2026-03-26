@@ -594,7 +594,8 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
         backgroundColor: '#ffffff',
       });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const JsPdf = await loadJsPdf();
+      const pdf = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = pageWidth;
@@ -605,7 +606,7 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
     } catch (e) {
       console.warn('[Salaries] DOM PDF capture failed, using fallback slip', e);
       // Fallback to service-based PDF when DOM capture fails.
-      const simpleSlipBlob = salarySlipService.generateSalaryPDF(
+      const simpleSlipBlob = await salarySlipService.generateSalaryPDF(
         { name: row.employeeName, nationalId: row.nationalId || null },
         netSalary,
         selectedMonth,
@@ -1566,7 +1567,8 @@ const Salaries = () => {
           backgroundColor: '#ffffff',
         });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const JsPdf = await loadJsPdf();
+        const pdf = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pageWidth = pdf.internal.pageSize.getWidth();
         const imgHeight = (canvas.height * pageWidth) / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, Math.min(imgHeight, pdf.internal.pageSize.getHeight()));
@@ -1852,7 +1854,8 @@ const Salaries = () => {
     for (const row of toPrint) {
           const c = computeRow(row);
           const [y, m] = selectedMonth.split('-');
-          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const JsPdf = await loadJsPdf();
+          const doc = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4' });
           const docWithTables = doc as jsPDF & { lastAutoTable?: { finalY: number } };
           const lastAutoTableY = () => docWithTables.lastAutoTable?.finalY ?? 40;
 
