@@ -16,7 +16,10 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "@": path.resolve(__dirname, "./frontend/src"),
+      "@app": path.resolve(__dirname, "./frontend/app"),
+      "@modules": path.resolve(__dirname, "./frontend/modules"),
+      "@shared": path.resolve(__dirname, "./frontend/shared"),
+      "@services": path.resolve(__dirname, "./frontend/services"),
     },
   },
   build: {

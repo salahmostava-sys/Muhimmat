@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "allowImportingTsExtensions": true,
     "allowJs": true,
     "isolatedModules": true,
@@ -18,8 +19,17 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
-      "@/*": [
-        "./frontend/src/*"
+      "@app/*": [
+        "./frontend/app/*"
+      ],
+      "@services/*": [
+        "./frontend/services/*"
+      ],
+      "@modules/*": [
+        "./frontend/modules/*"
+      ],
+      "@shared/*": [
+        "./frontend/shared/*"
       ]
     },
     "skipLibCheck": true,
@@ -33,6 +43,9 @@
     "useDefineForClassFields": true
   },
   "include": [
-    "src"
+    "frontend/app",
+    "frontend/modules",
+    "frontend/shared",
+    "frontend/services"
   ]
 }

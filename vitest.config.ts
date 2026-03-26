@@ -7,20 +7,30 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    setupFiles: [path.resolve(__dirname, "./frontend/vitest.setup.ts")],
+    include: [
+      "frontend/app/**/*.{test,spec}.{ts,tsx}",
+      "frontend/modules/**/*.{test,spec}.{ts,tsx}",
+      "frontend/shared/**/*.{test,spec}.{ts,tsx}",
+      "frontend/services/**/*.{test,spec}.{ts,tsx}",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      include: ["src/**/*.{ts,tsx}"],
+      include: [
+        "frontend/app/**/*.{ts,tsx}",
+        "frontend/modules/**/*.{ts,tsx}",
+        "frontend/shared/**/*.{ts,tsx}",
+        "frontend/services/**/*.{ts,tsx}",
+      ],
       exclude: [
-        "src/**/*.test.{ts,tsx}",
-        "src/**/*.spec.{ts,tsx}",
-        "src/test/**",
-        "src/integrations/supabase/types.ts",
-        "src/main.tsx",
-        "src/vite-env.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "frontend/shared/test/**",
+        "frontend/services/supabase/types.ts",
+        "frontend/app/main.tsx",
+        "frontend/app/vite-env.d.ts",
       ],
       thresholds: {
         lines: 2,
@@ -31,6 +41,11 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@app": path.resolve(__dirname, "./frontend/app"),
+      "@services": path.resolve(__dirname, "./frontend/services"),
+      "@modules": path.resolve(__dirname, "./frontend/modules"),
+      "@shared": path.resolve(__dirname, "./frontend/shared"),
+    },
   },
 });
