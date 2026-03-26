@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
+import { Bell, Search, CheckCircle, Clock, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -13,9 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId } from '@/hooks/useAuthQueryGate';
 import { alertsService } from '@/services/alertsService';
 import { useAlertsData } from '@/hooks/useAlertsData';
-import type { Alert } from '@/lib/alertsBuilder';
+import type { Alert } from '@shared/lib/alertsBuilder';
 import { escapeHtml } from '@/lib/security';
-import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 
 // Static label map — not data (only residency, insurance, authorization, probation, platform_account)
@@ -87,8 +86,9 @@ const printSeverityColor = (severity: Alert['severity']) => {
   return '#2563eb';
 };
 
+const loadXlsx = () => import('@e965/xlsx');
+
 const Alerts = () => {
-  const [localAlerts, setLocalAlerts] = useState<Alert[]>([]);
   const [typeFilter, setTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -111,11 +111,9 @@ const Alerts = () => {
     isLoading: loading,
     error: alertsError,
     refetch: refetchAlerts,
+    iqamaAlertDays,
   } = useAlertsData();
-
-  useEffect(() => {
-    setLocalAlerts(alertsData);
-  }, [alertsData]);
+  const alertsQueryKey = ['alerts', uid, 'page-data', iqamaAlertDays] as const;
 
   useEffect(() => {
     if (!alertsError) return;
@@ -128,41 +126,30 @@ const Alerts = () => {
     void refetchAlerts();
   }, [rtTick, refetchAlerts]);
 
-  /** عند العودة للتبويب بعد إبقائه في الخلفية (يثبّت الجلسة ويعيد جلب التنبيهات بصمت) */
-  useEffect(() => {
-    let debounce: ReturnType<typeof setTimeout>;
-    const onVis = () => {
-      if (document.visibilityState !== 'visible') return;
-      clearTimeout(debounce);
-      debounce = setTimeout(() => void refetchAlerts(), 400);
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      clearTimeout(debounce);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, [refetchAlerts]);
-
-  const filtered = localAlerts.filter(a =>
+  const filtered = alertsData.filter(a =>
     isUnresolvedAlertMatchingFilters(a, typeFilter, severityFilter, search)
   );
 
-  const resolved = localAlerts.filter(a => a.resolved);
+  const resolved = alertsData.filter(a => a.resolved);
 
   const handleResolve = async () => {
     if (!resolveDialog) return;
     const targetAlertId = resolveDialog.id;
-    setLocalAlerts(prev => prev.map(a => a.id === resolveDialog.id ? { ...a, resolved: true } : a));
+    queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
+      prev.map((a) => (a.id === resolveDialog.id ? { ...a, resolved: true } : a))
+    );
     toast({ title: 'تم الحسم', description: `تم حسم تنبيه: ${resolveDialog.entityName}` });
 
     // Persist DB-backed employee alerts
     if (isDbBackedEmployeeAlertType(resolveDialog.type)) {
       const { error } = await alertsService.resolveAlert(resolveDialog.id, user?.id ?? null);
       if (error) {
-        setLocalAlerts(prev => prev.map(a => a.id === targetAlertId ? { ...a, resolved: false } : a));
+        queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
+          prev.map((a) => (a.id === targetAlertId ? { ...a, resolved: false } : a))
+        );
         toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       } else {
-        await queryClient.invalidateQueries({ queryKey: ['alerts', uid, 'page-data'] });
+        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
       }
     }
 
@@ -178,11 +165,13 @@ const Alerts = () => {
     const originalDaysLeft = deferDialog.daysLeft;
     const newDate = new Date(deferDialog.dueDate);
     newDate.setDate(newDate.getDate() + days);
-    setLocalAlerts(prev => prev.map(a =>
-      a.id === deferDialog.id
-        ? { ...a, daysLeft: a.daysLeft + days, dueDate: newDate.toISOString().split('T')[0] }
-        : a
-    ));
+    queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
+      prev.map((a) =>
+        a.id === deferDialog.id
+          ? { ...a, daysLeft: a.daysLeft + days, dueDate: newDate.toISOString().split('T')[0] }
+          : a
+      )
+    );
     toast({ title: 'تم التأجيل', description: `تم تأجيل التنبيه ${days} يوم` });
 
     // Persist DB-backed employee alerts
@@ -190,14 +179,16 @@ const Alerts = () => {
       const due = newDate.toISOString().split('T')[0];
       const { error } = await alertsService.deferAlert(deferDialog.id, due);
       if (error) {
-        setLocalAlerts(prev => prev.map(a =>
-          a.id === targetAlertId
-            ? { ...a, dueDate: originalDueDate, daysLeft: originalDaysLeft }
-            : a
-        ));
+        queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
+          prev.map((a) =>
+            a.id === targetAlertId
+              ? { ...a, dueDate: originalDueDate, daysLeft: originalDaysLeft }
+              : a
+          )
+        );
         toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       } else {
-        await queryClient.invalidateQueries({ queryKey: ['alerts', uid, 'page-data'] });
+        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
       }
     }
 
@@ -215,7 +206,9 @@ const Alerts = () => {
   };
 
   const handleExport = () => {
-    const rows = [...localAlerts]
+    void (async () => {
+      const XLSX = await loadXlsx();
+    const rows = [...alertsData]
       .filter(a => !a.resolved)
       .sort(compareAlertsBySeverity)
       .map(a => ({
@@ -230,6 +223,7 @@ const Alerts = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'التنبيهات');
     XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    })();
   };
 
   const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation', 'platform_account', 'employee_absconded', 'employee_terminated'];
@@ -261,11 +255,14 @@ const Alerts = () => {
               <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel (مرتب حسب الأولوية)</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
+                void (async () => {
+                const XLSX = await loadXlsx();
                 const headers = [['النوع', 'الجهة', 'تاريخ الاستحقاق', 'المتبقي (يوم)', 'الأولوية']];
                 const ws = XLSX.utils.aoa_to_sheet(headers);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'قالب');
                 XLSX.writeFile(wb, 'template_alerts.xlsx');
+                })();
               }}>📋 تحميل القالب</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>

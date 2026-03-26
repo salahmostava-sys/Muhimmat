@@ -22,6 +22,9 @@
       ],
       "@modules/*": [
         "./modules/*"
+      ],
+      "@shared/*": [
+        "./shared/*"
       ]
     },
     "skipLibCheck": true,
@@ -35,6 +38,7 @@
   "include": [
     "src",
     "app",
-    "modules"
+    "modules",
+    "shared"
   ]
 }

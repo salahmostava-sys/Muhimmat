@@ -29,7 +29,6 @@ import { printHtmlTable } from '@/lib/printTable';
 import { defaultQueryRetry } from '@/lib/query';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
 import { auditService } from '@/services/auditService';
-import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 
 
@@ -107,6 +106,7 @@ const wasFixedSchemeAlreadyCalculated = (
 
 const loadXlsx = () => import('@e965/xlsx');
 const loadHtml2Canvas = async () => (await import('html2canvas')).default;
+const loadJsPdf = async () => (await import('jspdf')).default;
 
 const calculatePlatformSalary = ({
   platformName,

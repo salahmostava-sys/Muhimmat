@@ -4,20 +4,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useAlertsData } from '@/hooks/useAlertsData';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-
-/* ── Types ─────────────────────────────────────────────────── */
-
-type Severity = 'urgent' | 'warning' | 'info';
-
-interface AlertItem {
-  id: string;
-  type: string;
-  entityName: string;
-  dueDate: string;
-  daysLeft: number;
-  severity: Severity;
-  resolved: boolean;
-}
+import type { Alert } from '@shared/lib/alertsBuilder';
 
 /* ── Config ─────────────────────────────────────────────────── */
 
@@ -71,7 +58,7 @@ const TYPE_CONFIG: Record<string, {
   },
 };
 
-const SEVERITY_DOT: Record<Severity, string> = {
+const SEVERITY_DOT: Record<Alert['severity'], string> = {
   urgent:  'bg-destructive',
   warning: 'bg-warning',
   info:    'bg-info',
@@ -103,7 +90,7 @@ export default function NotificationCenter() {
     isFetching,
     refetch,
   } = useAlertsData();
-  const alerts = alertsData as AlertItem[];
+  const alerts = alertsData as Alert[];
   const loading = isLoading || isFetching;
 
   // Close on outside click
