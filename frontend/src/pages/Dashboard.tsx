@@ -415,6 +415,104 @@ interface EmpDetail {
   sponsorship_status: string | null;
 }
 
+const useDashboardRealtimeInvalidation = (
+  userId: string | undefined,
+  currentMonth: string,
+  queryClient: ReturnType<typeof useQueryClient>
+) => {
+  useRealtimePostgresChanges('dashboard-realtime', REALTIME_TABLES_DASHBOARD, () => {
+    if (!userId) return;
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', userId, currentMonth] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-analytics', userId] });
+  });
+};
+
+const fetchDashboardKpis = async (
+  currentMonth: string,
+  activeEmployeeIdsInMonth: string[] | undefined
+) => {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);
+  if (error) throw error;
+
+  const rpc = (rpcData || {}) as any;
+  const apps = (rpc.apps || []) as { id: string; name: string; brand_color: string; text_color: string }[];
+
+  const att = (rpc.attendanceToday || {}) as { present?: number; absent?: number; late?: number; leave?: number; sick?: number };
+  const presentToday = att.present || 0;
+  const absentToday = att.absent || 0;
+  const lateToday = att.late || 0;
+  const leaveToday = att.leave || 0;
+  const sickToday = att.sick || 0;
+
+  const rawEmpDetails = (rpc.empDetails || []) as EmpDetail[];
+  const empDetails = rawEmpDetails.filter((e) =>
+    isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
+  );
+
+  const ordersByApp = (rpc.ordersByApp || []) as {
+    app: string;
+    orders: number;
+    appId: string;
+    riders: number;
+    brandColor: string;
+    textColor: string;
+    target: number;
+    estRevenue: number;
+  }[];
+  const totalOrders = ordersByApp.reduce((s, r) => s + (r.orders || 0), 0);
+  const estRevenueByApp = ordersByApp;
+  const estRevenueTotal = (rpc.kpis?.estRevenueTotal as number) || estRevenueByApp.reduce((s, r) => s + (r.estRevenue || 0), 0);
+
+  const ordersByCity = ((rpc.ordersByCity || []) as { city: string; orders: number }[]).map((r) => ({
+    city: r.city === 'makkah' ? 'مكة المكرمة' : r.city === 'jeddah' ? 'جدة' : r.city,
+    orders: r.orders,
+  }));
+
+  const allRiders = ((rpc.riders || []) as any[]).map((r) => ({
+    name: r.name,
+    orders: r.orders,
+    app: r.app,
+    appColor: r.appColor,
+    appId: r.appId,
+  }));
+
+  const kpis = {
+    activeEmployees: empDetails.length,
+    presentToday, absentToday, lateToday, leaveToday, sickToday,
+    totalOrders, prevMonthOrders: (rpc.kpis?.prevMonthOrders as number) || 0,
+    activeVehicles: (rpc.kpis?.activeVehicles as number) || 0,
+    activeAlerts: (rpc.kpis?.activeAlerts as number) || 0,
+    activeApps: (rpc.kpis?.activeApps as number) || apps.length,
+    hasLicense: empDetails.filter(e => e.license_status === 'has_license').length,
+    appliedLicense: empDetails.filter(e => e.license_status === 'applied').length,
+    noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
+    makkahCount: empDetails.filter(e => e.city === 'makkah').length,
+    jeddahCount: empDetails.filter(e => e.city === 'jeddah').length,
+    estRevenueTotal,
+  };
+
+  const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+  const attendanceWeek = ((rpc.attendanceWeek || []) as { date: string; present: number; absent: number; late: number; leave: number; sick: number }[])
+    .map((r) => ({ day: dayNames[new Date(r.date + 'T12:00:00').getDay()], ...r }));
+
+  const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
+  const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
+  const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
+  type AuditRow = {
+    action: string;
+    table_name: string;
+    created_at: string;
+    profiles?: { name?: string | null; email?: string | null } | null;
+  };
+  const recentActivity = (((rpc.recentActivity || []) as AuditRow[]) || []).map((a) => {
+    const userName = 'مستخدم';
+    return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
+  });
+
+  return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { enabled, userId } = useAuthQueryGate();
@@ -428,99 +526,12 @@ const Dashboard = () => {
   const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
   const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
-  useRealtimePostgresChanges('dashboard-realtime', REALTIME_TABLES_DASHBOARD, () => {
-    if (!user?.id) return;
-    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', user.id, currentMonth] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-analytics', user.id] });
-  });
+  useDashboardRealtimeInvalidation(user?.id, currentMonth, queryClient);
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['dashboard-kpis', uid, currentMonth],
     enabled: enabled && !!activeIdsData,
-    queryFn: async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);
-      if (error) throw error;
-
-      const rpc = (rpcData || {}) as any;
-      const apps = (rpc.apps || []) as { id: string; name: string; brand_color: string; text_color: string }[];
-
-      const att = (rpc.attendanceToday || {}) as { present?: number; absent?: number; late?: number; leave?: number; sick?: number };
-      const presentToday = att.present || 0;
-      const absentToday = att.absent || 0;
-      const lateToday = att.late || 0;
-      const leaveToday = att.leave || 0;
-      const sickToday = att.sick || 0;
-
-      const rawEmpDetails = (rpc.empDetails || []) as EmpDetail[];
-      const empDetails = rawEmpDetails.filter((e) =>
-        isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
-      );
-
-      const ordersByApp = (rpc.ordersByApp || []) as {
-        app: string;
-        orders: number;
-        appId: string;
-        riders: number;
-        brandColor: string;
-        textColor: string;
-        target: number;
-        estRevenue: number;
-      }[];
-      const totalOrders = ordersByApp.reduce((s, r) => s + (r.orders || 0), 0);
-      const estRevenueByApp = ordersByApp;
-      const estRevenueTotal = (rpc.kpis?.estRevenueTotal as number) || estRevenueByApp.reduce((s, r) => s + (r.estRevenue || 0), 0);
-
-      const ordersByCity = ((rpc.ordersByCity || []) as { city: string; orders: number }[]).map((r) => ({
-        city: r.city === 'makkah' ? 'مكة المكرمة' : r.city === 'jeddah' ? 'جدة' : r.city,
-        orders: r.orders,
-      }));
-
-      const allRiders = ((rpc.riders || []) as any[]).map((r) => ({
-        name: r.name,
-        orders: r.orders,
-        app: r.app,
-        appColor: r.appColor,
-        appId: r.appId,
-      }));
-
-      const kpis = {
-        activeEmployees: empDetails.length,
-        presentToday, absentToday, lateToday, leaveToday, sickToday,
-        totalOrders, prevMonthOrders: (rpc.kpis?.prevMonthOrders as number) || 0,
-        activeVehicles: (rpc.kpis?.activeVehicles as number) || 0,
-        activeAlerts: (rpc.kpis?.activeAlerts as number) || 0,
-        activeApps: (rpc.kpis?.activeApps as number) || apps.length,
-        hasLicense: empDetails.filter(e => e.license_status === 'has_license').length,
-        appliedLicense: empDetails.filter(e => e.license_status === 'applied').length,
-        noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
-        makkahCount: empDetails.filter(e => e.city === 'makkah').length,
-        jeddahCount: empDetails.filter(e => e.city === 'jeddah').length,
-        estRevenueTotal,
-      };
-
-      // ── Attendance week ──
-      const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-      const attendanceWeek = ((rpc.attendanceWeek || []) as { date: string; present: number; absent: number; late: number; leave: number; sick: number }[])
-        .map((r) => ({ day: dayNames[new Date(r.date + 'T12:00:00').getDay()], ...r }));
-
-      // ── Recent activity ──
-      const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
-      const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
-      const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
-      type AuditRow = {
-        action: string;
-        table_name: string;
-        created_at: string;
-        profiles?: { name?: string | null; email?: string | null } | null;
-      };
-      const recentActivity = (((rpc.recentActivity || []) as AuditRow[]) || []).map((a) => {
-        const userName = 'مستخدم';
-        return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
-      });
-
-      return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
-    },
+    queryFn: () => fetchDashboardKpis(currentMonth, activeEmployeeIdsInMonth),
     staleTime: 5 * 60 * 1000,
   });
 

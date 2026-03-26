@@ -58,6 +58,24 @@ interface Props {
   selectedYear: number;
 }
 
+const mapAttendanceData = (
+  employees: Employee[],
+  data: Array<{ employee_id: string; status?: string | null; check_in?: string | null; check_out?: string | null; note?: string | null }> | null | undefined
+): Record<string, AttendanceRecord> => {
+  const initial: Record<string, AttendanceRecord> = {};
+  employees.forEach((emp) => {
+    const existing = data?.find((r) => r.employee_id === emp.id);
+    initial[emp.id] = {
+      employeeId: emp.id,
+      status: (existing?.status as AttendanceStatus) ?? null,
+      checkIn: existing?.check_in ?? "",
+      checkOut: existing?.check_out ?? "",
+      note: existing?.note ?? "",
+    };
+  });
+  return initial;
+};
+
 const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { isRTL } = useLanguage();
   const { permissions } = usePermissions("attendance");
@@ -168,18 +186,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
       .select("*")
       .eq("date", dateStr)
       .then(({ data }) => {
-        const initial: Record<string, AttendanceRecord> = {};
-        allEmployees.forEach(emp => {
-          const existing = data?.find(r => r.employee_id === emp.id);
-          initial[emp.id] = {
-            employeeId: emp.id,
-            status:   (existing?.status as AttendanceStatus) ?? null,
-            checkIn:  existing?.check_in  ?? "",
-            checkOut: existing?.check_out ?? "",
-            note:     existing?.note      ?? "",
-          };
-        });
-        setRecords(initial);
+        setRecords(mapAttendanceData(allEmployees, data as Array<{ employee_id: string; status?: string | null; check_in?: string | null; check_out?: string | null; note?: string | null }>));
       });
   }, [date, allEmployees]);
 

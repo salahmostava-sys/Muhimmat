@@ -60,6 +60,22 @@ const buildDailyDataMap = (rows: OrderRawRow[]): DailyData => {
   return mapped;
 };
 
+const calculatePlatformTotals = (
+  apps: App[],
+  filteredEmployees: Employee[],
+  dayArr: number[],
+  data: DailyData
+): Record<string, number> => {
+  const totals: Record<string, number> = {};
+  apps.forEach((app) => {
+    totals[app.id] = filteredEmployees.reduce((sum, emp) => {
+      const employeeAppTotal = dayArr.reduce((daySum, d) => daySum + (data[`${emp.id}::${app.id}::${d}`] ?? 0), 0);
+      return sum + employeeAppTotal;
+    }, 0);
+  });
+  return totals;
+};
+
 const getDaysInMonth = (y: number, m: number) => new Date(y, m, 0).getDate();
 const monthLabel = (y: number, m: number) =>
   new Date(y, m - 1, 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
@@ -218,15 +234,7 @@ const SpreadsheetGrid = () => {
   );
   const monthDailyAvg = days > 0 ? Math.round(monthGrandTotal / days) : 0;
   const platformOrderTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    apps.forEach((app) => {
-      totals[app.id] = filteredEmployees.reduce(
-        (sum, emp) =>
-          sum + dayArr.reduce((daySum, d) => daySum + (data[`${emp.id}::${app.id}::${d}`] ?? 0), 0),
-        0
-      );
-    });
-    return totals;
+    return calculatePlatformTotals(apps, filteredEmployees, dayArr, data);
   }, [apps, filteredEmployees, dayArr, data]);
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };

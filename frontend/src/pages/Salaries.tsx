@@ -141,6 +141,62 @@ const getManualDeductionTotal = (row: SalaryRow) =>
 const getTotalDeductions = (row: SalaryRow) =>
   row.advanceDeduction + row.externalDeduction + row.violations + getManualDeductionTotal(row);
 
+const buildSavedMap = (savedRecords: Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined) => {
+  const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
+  savedRecords?.forEach((r) => {
+    savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
+  });
+  return savedMap;
+};
+
+const buildPreviewMap = (previewData: Array<Record<string, unknown>> | null | undefined) => {
+  const previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }> = {};
+  (previewData || []).forEach((row) => {
+    const employeeId = String(row.employee_id || '');
+    if (!employeeId) return;
+    previewMap[employeeId] = {
+      base_salary: Number(row.base_salary || 0),
+      advance_deduction: Number(row.advance_deduction || 0),
+      external_deduction: Number(row.external_deduction || 0),
+    };
+  });
+  return previewMap;
+};
+
+const buildAttendanceDaysMap = (rows: Array<{ employee_id: string }> | null | undefined) => {
+  const attendanceDaysMap: Record<string, number> = {};
+  rows?.forEach((r) => {
+    attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
+  });
+  return attendanceDaysMap;
+};
+
+const buildFuelCostMap = (rows: Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined) => {
+  const fuelCostMap: Record<string, number> = {};
+  rows?.forEach((r) => {
+    fuelCostMap[r.employee_id] = (fuelCostMap[r.employee_id] || 0) + Number(r.fuel_cost);
+  });
+  return fuelCostMap;
+};
+
+const buildExternalDeductionsMap = (rows: Array<{ employee_id: string; amount: number | string }> | null | undefined) => {
+  const extMap: Record<string, number> = {};
+  rows?.forEach((d) => {
+    extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
+  });
+  return extMap;
+};
+
+const buildOrdersMap = (rows: OrderWithAppRow[] | null | undefined) => {
+  const ordMap: Record<string, Record<string, number>> = {};
+  (rows || []).forEach((r) => {
+    const appName = r.apps?.name || 'غير معروف';
+    if (!ordMap[r.employee_id]) ordMap[r.employee_id] = {};
+    ordMap[r.employee_id][appName] = (ordMap[r.employee_id][appName] || 0) + r.orders_count;
+  });
+  return ordMap;
+};
+
 const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: SortDir }) => {
   if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
   if (sortDir === 'asc') return <ChevronUp size={10} className="inline ml-0.5" />;
@@ -593,20 +649,8 @@ const Salaries = () => {
         const { monthlyContext, previewData } = salaryBaseContext;
         const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
 
-      const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
-      savedRecords?.forEach(r => {
-        savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
-      });
-      const previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }> = {};
-      (previewData || []).forEach((row: Record<string, unknown>) => {
-        const employeeId = String(row.employee_id || '');
-        if (!employeeId) return;
-        previewMap[employeeId] = {
-          base_salary: Number(row.base_salary || 0),
-          advance_deduction: Number(row.advance_deduction || 0),
-          external_deduction: Number(row.external_deduction || 0),
-        };
-      });
+      const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
+      const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
 
       // ── Fetch advance installments via advances → employee_id ──
       // Step 1: get all active/paused advances with total amount for remaining calc
@@ -662,28 +706,14 @@ const Salaries = () => {
       }
 
       // Build attendance days map: employeeId → count of present/late days
-      const attendanceDaysMap: Record<string, number> = {};
-      attendanceRes.data?.forEach(r => {
-        attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
-      });
+      const attendanceDaysMap = buildAttendanceDaysMap(attendanceRes.data as Array<{ employee_id: string }> | null | undefined);
 
       // Build fuel cost map: employeeId → fuel_cost
-      const fuelCostMap: Record<string, number> = {};
-      fuelRes.data?.forEach(r => {
-        fuelCostMap[r.employee_id] = (fuelCostMap[r.employee_id] || 0) + Number(r.fuel_cost);
-      });
+      const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
 
-      const extMap: Record<string, number> = {};
-      extRes.data?.forEach(d => {
-        extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
-      });
+      const extMap = buildExternalDeductionsMap(extRes.data as Array<{ employee_id: string; amount: number | string }> | null | undefined);
 
-      const ordMap: Record<string, Record<string, number>> = {};
-      (ordersRes.data as OrderWithAppRow[] | null)?.forEach(r => {
-        const appName = r.apps?.name || 'غير معروف';
-        if (!ordMap[r.employee_id]) ordMap[r.employee_id] = {};
-        ordMap[r.employee_id][appName] = (ordMap[r.employee_id][appName] || 0) + r.orders_count;
-      });
+      const ordMap = buildOrdersMap(ordersRes.data as OrderWithAppRow[] | null);
 
       // ── Build appName→scheme map from apps.scheme_id (scheme per platform) ──
       const appSchemeMap: Record<string, SchemeData | null> = {};

@@ -44,6 +44,8 @@ interface Props {
   onSuccess: () => void;
 }
 
+type ImportError = { name: string; error: string };
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const parseCity = (val: string | undefined): 'makkah' | 'jeddah' | null => {
   if (!val) return null;
@@ -195,6 +197,84 @@ const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
   };
 };
 
+const buildEmployeePayload = (emp: ParsedEmployee): Record<string, any> => {
+  const payload: Record<string, any> = {
+    name: emp.name,
+    status: emp.status,
+    salary_type: emp.salary_type,
+    base_salary: emp.base_salary ?? 0,
+    sponsorship_status: emp.sponsorship_status,
+  };
+  if (emp.employee_code) payload.employee_code = emp.employee_code;
+  if (emp.national_id) payload.national_id = emp.national_id;
+  if (emp.city) payload.city = emp.city;
+  if (emp.job_title) payload.job_title = emp.job_title;
+  if (emp.phone) payload.phone = emp.phone;
+  if (emp.nationality) payload.nationality = emp.nationality;
+  if (emp.birth_date) payload.birth_date = emp.birth_date;
+  if (emp.email) payload.email = emp.email;
+  return payload;
+};
+
+const upsertEmployeeAndLinkApp = async (
+  emp: ParsedEmployee,
+  appsMap: Record<string, string>
+): Promise<void> => {
+  const payload = buildEmployeePayload(emp);
+  let empId: string | null = null;
+
+  if (emp.employee_code) {
+    const { data: existing } = await employeeService.findByEmployeeCode(emp.employee_code);
+    if (existing) {
+      await employeeService.updateEmployee(existing.id, payload);
+      empId = existing.id;
+    }
+  }
+
+  if (!empId && emp.national_id) {
+    const { data: existing } = await employeeService.findByNationalId(emp.national_id);
+    if (existing) {
+      await employeeService.updateEmployee(existing.id, payload);
+      empId = existing.id;
+    }
+  }
+
+  if (!empId) {
+    payload.status = payload.status || 'active';
+    const { data: newEmp } = await employeeService.createEmployee(payload);
+    empId = (newEmp as { id: string } | null)?.id ?? null;
+  }
+
+  if (!empId || !emp.platform || !appsMap[emp.platform]) return;
+  await employeeService.upsertEmployeeApp(empId, appsMap[emp.platform]);
+};
+
+const processEmployeeBatches = async (
+  validRows: ParsedEmployee[],
+  appsMap: Record<string, string>,
+  onProgress: (done: number, total: number) => void
+): Promise<ImportError[]> => {
+  const importErrors: ImportError[] = [];
+  const total = validRows.length;
+  const BATCH = 20;
+  let done = 0;
+
+  for (let i = 0; i < validRows.length; i += BATCH) {
+    const batch = validRows.slice(i, i + BATCH);
+    for (const emp of batch) {
+      try {
+        await upsertEmployeeAndLinkApp(emp, appsMap);
+      } catch (err: unknown) {
+        importErrors.push({ name: emp.name, error: getErrorMessage(err) });
+      }
+      done++;
+      onProgress(done, total);
+    }
+  }
+
+  return importErrors;
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
   const { toast } = useToast();
@@ -264,82 +344,33 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
     setImporting(true);
     setStep(3);
     setProgress(0);
-    const importErrors: { name: string; error: string }[] = [];
     const validRows = parsed.filter(e => e._errors.length === 0);
-    const total = validRows.length;
-    const BATCH = 20;
+    if (validRows.length === 0) {
+      setErrors([]);
+      setImporting(false);
+      toast({ title: 'لا توجد صفوف صالحة للاستيراد', variant: 'destructive' });
+      return;
+    }
 
     const { data: appsData } = await employeeService.getActiveApps();
+    if (!appsData || appsData.length === 0) {
+      setImporting(false);
+      toast({ title: 'لا توجد منصات فعّالة للربط', variant: 'destructive' });
+      return;
+    }
     const appsMap: Record<string, string> = {};
     (appsData || []).forEach(a => { appsMap[a.name] = a.id; });
-
-    let done = 0;
-
-    for (let i = 0; i < validRows.length; i += BATCH) {
-      const batch = validRows.slice(i, i + BATCH);
-
-      for (const emp of batch) {
-        try {
-          const payload: Record<string, any> = {
-            name: emp.name,
-            status: emp.status,
-            salary_type: emp.salary_type,
-            base_salary: emp.base_salary ?? 0,
-            sponsorship_status: emp.sponsorship_status,
-          };
-          if (emp.employee_code) payload.employee_code = emp.employee_code;
-          if (emp.national_id) payload.national_id = emp.national_id;
-          if (emp.city) payload.city = emp.city;
-          if (emp.job_title) payload.job_title = emp.job_title;
-          if (emp.phone) payload.phone = emp.phone;
-          if (emp.nationality) payload.nationality = emp.nationality;
-          if (emp.birth_date) payload.birth_date = emp.birth_date;
-          if (emp.email) payload.email = emp.email;
-
-          let empId: string | null = null;
-
-          if (emp.employee_code) {
-            const { data: existing } = await employeeService.findByEmployeeCode(emp.employee_code);
-            if (existing) {
-              await employeeService.updateEmployee(existing.id, payload);
-              empId = existing.id;
-            }
-          }
-
-          if (!empId && emp.national_id) {
-            const { data: existing } = await employeeService.findByNationalId(emp.national_id);
-            if (existing) {
-              await employeeService.updateEmployee(existing.id, payload);
-              empId = existing.id;
-            }
-          }
-
-          if (!empId) {
-            payload.status = payload.status || 'active';
-            const { data: newEmp } = await employeeService.createEmployee(payload);
-            empId = (newEmp as { id: string } | null)?.id;
-          }
-
-          if (empId && emp.platform && appsMap[emp.platform]) {
-            const appId = appsMap[emp.platform];
-            await employeeService.upsertEmployeeApp(empId, appId);
-          }
-        } catch (err: unknown) {
-          importErrors.push({ name: emp.name, error: getErrorMessage(err) });
-        }
-
-        done++;
-        const pct = Math.round((done / total) * 100);
-        setProgress(pct);
-        setProgressLabel(`جاري الاستيراد... ${done}/${total}`);
-      }
-    }
+    const importErrors = await processEmployeeBatches(validRows, appsMap, (done, total) => {
+      const pct = Math.round((done / total) * 100);
+      setProgress(pct);
+      setProgressLabel(`جاري الاستيراد... ${done}/${total}`);
+    });
 
     setErrors(importErrors);
     setImporting(false);
 
     if (importErrors.length === 0) {
-      toast({ title: `✅ تم استيراد ${total} موظف بنجاح` });
+      toast({ title: `✅ تم استيراد ${validRows.length} موظف بنجاح` });
       onSuccess();
     } else {
       toast({

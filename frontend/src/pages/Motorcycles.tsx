@@ -309,6 +309,37 @@ const cell = (row: Record<string, unknown>, ...keys: string[]) => {
   return undefined;
 };
 
+const validateMotorcycleRow = (row: Record<string, unknown>): { isValid: boolean; plate: string | null } => {
+  const plate = cell(row, 'plate_number', 'رقم اللوحة');
+  if (!plate) return { isValid: false, plate: null };
+  const normalized = String(plate).trim();
+  if (!normalized) return { isValid: false, plate: null };
+  return { isValid: true, plate: normalized };
+};
+
+const mapRowToVehiclePayload = (row: Record<string, unknown>, plate: string) => {
+  const y = cell(row, 'year', 'سنة الصنع');
+  const yearNum = y !== undefined ? parseInt(String(y), 10) : NaN;
+  const plateEn = cell(row, 'plate_number_en', 'رقم اللوحة en');
+
+  return {
+    plate_number: plate,
+    plate_number_en: plateEn !== undefined ? String(plateEn).trim() || null : null,
+    type: parseVehicleType(cell(row, 'type', 'النوع')),
+    brand: cell(row, 'brand', 'الماركة') != null ? String(cell(row, 'brand', 'الماركة')) : null,
+    model: cell(row, 'model', 'الموديل') != null ? String(cell(row, 'model', 'الموديل')) : null,
+    year: Number.isFinite(yearNum) ? yearNum : null,
+    status: parseVehicleStatus(cell(row, 'status', 'الحالة')),
+    has_fuel_chip: parseBool(cell(row, 'has_fuel_chip', 'شريحة البنزين', 'fuel_chip')),
+    insurance_expiry: cell(row, 'insurance_expiry', 'انتهاء التأمين') != null ? String(cell(row, 'insurance_expiry', 'انتهاء التأمين')) : null,
+    registration_expiry: cell(row, 'registration_expiry', 'انتهاء التسجيل') != null ? String(cell(row, 'registration_expiry', 'انتهاء التسجيل')) : null,
+    authorization_expiry: cell(row, 'authorization_expiry', 'انتهاء التفويض') != null ? String(cell(row, 'authorization_expiry', 'انتهاء التفويض')) : null,
+    chassis_number: cell(row, 'chassis_number', 'رقم الهيكل') != null ? String(cell(row, 'chassis_number', 'رقم الهيكل')).trim() || null : null,
+    serial_number: cell(row, 'serial_number', 'الرقم التسلسلي') != null ? String(cell(row, 'serial_number', 'الرقم التسلسلي')).trim() || null : null,
+    notes: cell(row, 'notes', 'ملاحظات') != null ? String(cell(row, 'notes', 'ملاحظات')) : null,
+  };
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Motorcycles = () => {
   const { toast } = useToast();
@@ -340,27 +371,10 @@ const Motorcycles = () => {
       if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
       let success = 0;
       for (const row of rows) {
-        const plate = cell(row, 'plate_number', 'رقم اللوحة');
-        if (!plate) continue;
-        const y = cell(row, 'year', 'سنة الصنع');
-        const yearNum = y !== undefined ? parseInt(String(y), 10) : NaN;
-        const plateEn = cell(row, 'plate_number_en', 'رقم اللوحة en');
-        await vehicleService.upsert({
-          plate_number: String(plate).trim(),
-          plate_number_en: plateEn !== undefined ? String(plateEn).trim() || null : null,
-          type: parseVehicleType(cell(row, 'type', 'النوع')),
-          brand: cell(row, 'brand', 'الماركة') != null ? String(cell(row, 'brand', 'الماركة')) : null,
-          model: cell(row, 'model', 'الموديل') != null ? String(cell(row, 'model', 'الموديل')) : null,
-          year: Number.isFinite(yearNum) ? yearNum : null,
-          status: parseVehicleStatus(cell(row, 'status', 'الحالة')),
-          has_fuel_chip: parseBool(cell(row, 'has_fuel_chip', 'شريحة البنزين', 'fuel_chip')),
-          insurance_expiry: cell(row, 'insurance_expiry', 'انتهاء التأمين') != null ? String(cell(row, 'insurance_expiry', 'انتهاء التأمين')) : null,
-          registration_expiry: cell(row, 'registration_expiry', 'انتهاء التسجيل') != null ? String(cell(row, 'registration_expiry', 'انتهاء التسجيل')) : null,
-          authorization_expiry: cell(row, 'authorization_expiry', 'انتهاء التفويض') != null ? String(cell(row, 'authorization_expiry', 'انتهاء التفويض')) : null,
-          chassis_number: cell(row, 'chassis_number', 'رقم الهيكل') != null ? String(cell(row, 'chassis_number', 'رقم الهيكل')).trim() || null : null,
-          serial_number: cell(row, 'serial_number', 'الرقم التسلسلي') != null ? String(cell(row, 'serial_number', 'الرقم التسلسلي')).trim() || null : null,
-          notes: cell(row, 'notes', 'ملاحظات') != null ? String(cell(row, 'notes', 'ملاحظات')) : null,
-        });
+        const validation = validateMotorcycleRow(row);
+        if (!validation.isValid || !validation.plate) continue;
+        const payload = mapRowToVehiclePayload(row, validation.plate);
+        await vehicleService.upsert(payload);
         success++;
       }
       toast({ title: `تم استيراد ${success} مركبة ✅` });

@@ -208,6 +208,92 @@ const renderMonthlyTotalsRow = (
   </tr>
 );
 
+const renderDailyLoadingRow = (): React.ReactNode => (
+  <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>
+);
+
+const renderDailyEmptyRidersRow = (): React.ReactNode => (
+  <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>
+);
+
+type DailyExpandedArgs = {
+  days: DailyRow[];
+  editingDaily: { id: string; km_total: string; fuel_cost: string; notes: string } | null;
+  permissionsCanEdit: boolean;
+  savingEntry: boolean;
+  updateEditingDaily: (field: 'km_total' | 'fuel_cost' | 'notes', value: string) => void;
+  saveEditedDaily: (row: DailyRow) => Promise<void>;
+  setEditingDaily: React.Dispatch<React.SetStateAction<{ id: string; km_total: string; fuel_cost: string; notes: string } | null>>;
+  handleDeleteDaily: (id: string) => Promise<void>;
+};
+
+const renderDailyExpandedContent = ({
+  days,
+  editingDaily,
+  permissionsCanEdit,
+  savingEntry,
+  updateEditingDaily,
+  saveEditedDaily,
+  setEditingDaily,
+  handleDeleteDaily,
+}: DailyExpandedArgs): React.ReactNode => {
+  if (days.length === 0) {
+    return <p className="text-xs text-muted-foreground px-2">لا سجلات يومية لهذا الشهر</p>;
+  }
+  return (
+    <table className="w-full text-xs border border-border/40 rounded-lg overflow-hidden">
+      <thead className="bg-muted/50">
+        <tr>
+          <th className="px-2 py-1.5 text-start">التاريخ</th>
+          <th className="px-2 py-1.5 text-center">كم</th>
+          <th className="px-2 py-1.5 text-center">بنزين</th>
+          <th className="px-2 py-1.5 text-start">ملاحظات</th>
+          <th className="px-2 py-1.5 text-center w-24">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {days.map(dr => (
+          <tr key={dr.id} className="border-t border-border/30">
+            <td className="px-2 py-1.5 font-mono">{dr.date}</td>
+            <td className="px-2 py-1.5 text-center">
+              {editingDaily?.id === dr.id ? (
+                <Input className="h-7 text-xs" type="number" value={editingDaily.km_total} onChange={e => updateEditingDaily('km_total', e.target.value)} />
+              ) : (dr.km_total || '—')}
+            </td>
+            <td className="px-2 py-1.5 text-center">
+              {editingDaily?.id === dr.id ? (
+                <Input className="h-7 text-xs" type="number" value={editingDaily.fuel_cost} onChange={e => updateEditingDaily('fuel_cost', e.target.value)} />
+              ) : (dr.fuel_cost || '—')}
+            </td>
+            <td className="px-2 py-1.5">
+              {editingDaily?.id === dr.id ? (
+                <Input className="h-7 text-xs" value={editingDaily.notes} onChange={e => updateEditingDaily('notes', e.target.value)} />
+              ) : (dr.notes || '—')}
+            </td>
+            <td className="px-2 py-1.5 text-center">
+              {permissionsCanEdit && (
+                <div className="flex gap-1 justify-center">
+                  {editingDaily?.id === dr.id ? (
+                    <>
+                      <Button type="button" size="sm" className="h-7 text-[10px] px-2" disabled={savingEntry} onClick={() => saveEditedDaily(dr)}>حفظ</Button>
+                      <Button type="button" size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => setEditingDaily(null)}>إلغاء</Button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="p-1 rounded hover:bg-muted" onClick={() => setEditingDaily({ id: dr.id, km_total: String(dr.km_total), fuel_cost: String(dr.fuel_cost), notes: dr.notes || '' })}><Edit2 size={13} /></button>
+                      <button type="button" className="p-1 rounded hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteDaily(dr.id)}><Trash2 size={13} /></button>
+                    </>
+                  )}
+                </div>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
 const toCellString = (value: unknown): string => {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -664,7 +750,10 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
     const { error } = await fuelService.deleteDailyMileage(id);
-    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+    if (error) {
+      toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      return;
+    }
     toast({ title: 'تم الحذف' });
     fetchDaily();
     fetchMonthly();
@@ -699,7 +788,10 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     if (!permissions.can_edit || !editingDaily) return;
     const km = Number.parseFloat(editingDaily.km_total) || 0;
     const fuel = Number.parseFloat(editingDaily.fuel_cost) || 0;
-    if (!km && !fuel) return toast({ title: 'أدخل الكيلومترات أو تكلفة البنزين', variant: 'destructive' });
+    if (!km && !fuel) {
+      toast({ title: 'أدخل الكيلومترات أو تكلفة البنزين', variant: 'destructive' });
+      return;
+    }
     setSavingEntry(true);
     const { error } = await saveVehicleMileageDaily(
       {
@@ -712,7 +804,10 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       row.id
     );
     setSavingEntry(false);
-    if (error) return toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+    if (error) {
+      toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+      return;
+    }
     toast({ title: 'تم تحديث السجل' });
     setEditingDaily(null);
     refresh();
@@ -854,9 +949,9 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   }
   let dailyRiderRows: React.ReactNode;
   if (loading) {
-    dailyRiderRows = <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>;
+    dailyRiderRows = renderDailyLoadingRow();
   } else if (ridersForTab.length === 0) {
-    dailyRiderRows = <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>;
+    dailyRiderRows = renderDailyEmptyRidersRow();
   } else {
     dailyRiderRows = ridersForTab.map(emp => {
       const open = expandedRider === emp.id;
@@ -892,60 +987,16 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
             <tr className="bg-muted/10">
               <td colSpan={5} className="p-0">
                 <div className="p-3 space-y-2">
-                  {days.length === 0 ? (
-                    <p className="text-xs text-muted-foreground px-2">لا سجلات يومية لهذا الشهر</p>
-                  ) : (
-                    <table className="w-full text-xs border border-border/40 rounded-lg overflow-hidden">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="px-2 py-1.5 text-start">التاريخ</th>
-                          <th className="px-2 py-1.5 text-center">كم</th>
-                          <th className="px-2 py-1.5 text-center">بنزين</th>
-                          <th className="px-2 py-1.5 text-start">ملاحظات</th>
-                          <th className="px-2 py-1.5 text-center w-24">إجراء</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {days.map(dr => (
-                          <tr key={dr.id} className="border-t border-border/30">
-                            <td className="px-2 py-1.5 font-mono">{dr.date}</td>
-                            <td className="px-2 py-1.5 text-center">
-                              {editingDaily?.id === dr.id ? (
-                                <Input className="h-7 text-xs" type="number" value={editingDaily.km_total} onChange={e => updateEditingDaily('km_total', e.target.value)} />
-                              ) : (dr.km_total || '—')}
-                            </td>
-                            <td className="px-2 py-1.5 text-center">
-                              {editingDaily?.id === dr.id ? (
-                                <Input className="h-7 text-xs" type="number" value={editingDaily.fuel_cost} onChange={e => updateEditingDaily('fuel_cost', e.target.value)} />
-                              ) : (dr.fuel_cost || '—')}
-                            </td>
-                            <td className="px-2 py-1.5">
-                              {editingDaily?.id === dr.id ? (
-                                <Input className="h-7 text-xs" value={editingDaily.notes} onChange={e => updateEditingDaily('notes', e.target.value)} />
-                              ) : (dr.notes || '—')}
-                            </td>
-                            <td className="px-2 py-1.5 text-center">
-                              {permissions.can_edit && (
-                                <div className="flex gap-1 justify-center">
-                                  {editingDaily?.id === dr.id ? (
-                                    <>
-                                      <Button type="button" size="sm" className="h-7 text-[10px] px-2" disabled={savingEntry} onClick={() => saveEditedDaily(dr)}>حفظ</Button>
-                                      <Button type="button" size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => setEditingDaily(null)}>إلغاء</Button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button type="button" className="p-1 rounded hover:bg-muted" onClick={() => setEditingDaily({ id: dr.id, km_total: String(dr.km_total), fuel_cost: String(dr.fuel_cost), notes: dr.notes || '' })}><Edit2 size={13} /></button>
-                                      <button type="button" className="p-1 rounded hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteDaily(dr.id)}><Trash2 size={13} /></button>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+                  {renderDailyExpandedContent({
+                    days,
+                    editingDaily,
+                    permissionsCanEdit: permissions.can_edit,
+                    savingEntry,
+                    updateEditingDaily,
+                    saveEditedDaily,
+                    setEditingDaily,
+                    handleDeleteDaily,
+                  })}
                 </div>
               </td>
             </tr>
