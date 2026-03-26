@@ -50,11 +50,20 @@ type SalaryImportMapped = {
   net_salary?: number;
   is_approved?: boolean;
 };
+const NUMERIC_KEYS = new Set<keyof SalaryImportMapped>([
+  'base_salary',
+  'allowances',
+  'attendance_deduction',
+  'advance_deduction',
+  'external_deduction',
+  'manual_deduction',
+  'net_salary',
+]);
 
 function normalizeHeader(raw: unknown): string {
   return String(raw ?? '')
-    .replace(/\uFEFF/g, '')
-    .replace(/\s+/g, ' ')
+    .replaceAll('\uFEFF', '')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 
@@ -63,6 +72,100 @@ function parseApproved(val: unknown): boolean {
   const s = String(val ?? '').trim().toLowerCase();
   if (s === '1' || s === 'true' || s === 'yes' || s === 'نعم' || s === 'معتمد') return true;
   return false;
+}
+
+function parseMonthOrYear(cell: unknown): number | undefined {
+  const parsed = Number.parseInt(String(cell).replaceAll(',', '').trim(), 10);
+  return Number.isInteger(parsed) ? parsed : undefined;
+}
+
+function parseMappedCell(
+  key: keyof SalaryImportMapped,
+  cell: unknown,
+  raw: Partial<SalaryImportMapped>
+): void {
+  if (key === 'employee_id') {
+    raw.employee_id = String(cell).trim();
+    return;
+  }
+  if (key === 'month_year') {
+    raw.month_year = String(cell).trim();
+    return;
+  }
+  if (key === 'year') {
+    raw.year = parseMonthOrYear(cell);
+    return;
+  }
+  if (key === 'month') {
+    raw.month = parseMonthOrYear(cell);
+    return;
+  }
+  if (key === 'is_approved') {
+    raw.is_approved = parseApproved(cell);
+    return;
+  }
+  if (NUMERIC_KEYS.has(key)) {
+    raw[key] = parseSalaryAmount(cell);
+  }
+}
+
+function mapHeadersToKeys(headerRow: string[], parseErrors: string[]): (keyof SalaryImportMapped | null)[] {
+  return headerRow.map((h) => {
+    const key = HEADER_ALIASES[h];
+    if (!h) return null;
+    if (!key) parseErrors.push(`عمود غير معروف: ${h}`);
+    return key ?? null;
+  });
+}
+
+function isEmptyLine(line: unknown[] | undefined): boolean {
+  if (!line) return true;
+  return line.every((cell) => cell === '' || cell === null || cell === undefined);
+}
+
+function parseRawRow(line: unknown[], colToKey: (keyof SalaryImportMapped | null)[]): Partial<SalaryImportMapped> {
+  const raw: Partial<SalaryImportMapped> = {};
+  for (let c = 0; c < colToKey.length; c++) {
+    const key = colToKey[c];
+    if (!key) continue;
+    const cell = line[c];
+    if (cell === '' || cell === null || cell === undefined) continue;
+    parseMappedCell(key, cell, raw);
+  }
+  return raw;
+}
+
+function resolveMonthYear(
+  raw: Partial<SalaryImportMapped>,
+  defaultMy?: string
+): string | undefined {
+  const direct = raw.month_year?.trim();
+  if (direct) return direct;
+
+  const fromParts =
+    raw.year !== undefined && raw.month !== undefined
+      ? monthYearFromParts(raw.year, raw.month) ?? undefined
+      : undefined;
+  if (fromParts) return fromParts;
+
+  if (defaultMy && isValidSalaryMonthYear(defaultMy)) return defaultMy;
+  return undefined;
+}
+
+function formatPayload(raw: Partial<SalaryImportMapped>, employeeId: string, monthYear: string): Record<string, unknown> {
+  return {
+    employee_id: employeeId,
+    month_year: monthYear,
+    base_salary: Number(raw.base_salary ?? 0),
+    allowances: Number(raw.allowances ?? 0),
+    attendance_deduction: Number(raw.attendance_deduction ?? 0),
+    advance_deduction: Number(raw.advance_deduction ?? 0),
+    external_deduction: Number(raw.external_deduction ?? 0),
+    manual_deduction: Number(raw.manual_deduction ?? 0),
+    net_salary: Number(raw.net_salary ?? 0),
+    is_approved: raw.is_approved ?? false,
+    payment_method: 'cash',
+  };
 }
 
 export type SalaryImportRowResult = {
@@ -93,12 +196,7 @@ export function parseSalaryImportWorkbook(
   if (matrix.length < 2) return { rows: [], parseErrors: ['لا توجد صفوف بيانات'] };
 
   const headerRow = matrix[0].map(normalizeHeader);
-  const colToKey: (keyof SalaryImportMapped | null)[] = headerRow.map((h) => {
-    const key = HEADER_ALIASES[h];
-    if (!h) return null;
-    if (!key) parseErrors.push(`عمود غير معروف: ${h}`);
-    return key ?? null;
-  });
+  const colToKey = mapHeadersToKeys(headerRow, parseErrors);
 
   if (!colToKey.some(Boolean)) {
     return { rows: [], parseErrors: ['لم يُعثر على أعمدة مطابقة — استخدم تحميل القالب'] };
@@ -109,68 +207,10 @@ export function parseSalaryImportWorkbook(
 
   for (let r = 1; r < matrix.length; r++) {
     const line = matrix[r];
-    if (!line || line.every((c) => c === '' || c === null || c === undefined)) continue;
+    if (isEmptyLine(line)) continue;
+    const raw = parseRawRow(line, colToKey);
 
-    const raw: Partial<SalaryImportMapped> = {};
-    for (let c = 0; c < colToKey.length; c++) {
-      const key = colToKey[c];
-      if (!key) continue;
-      const cell = line[c];
-      if (cell === '' || cell === null || cell === undefined) continue;
-
-      switch (key) {
-        case 'employee_id':
-          raw.employee_id = String(cell).trim();
-          break;
-        case 'month_year':
-          raw.month_year = String(cell).trim();
-          break;
-        case 'year': {
-          const y = parseInt(String(cell).replace(/,/g, '').trim(), 10);
-          if (Number.isInteger(y)) raw.year = y;
-          break;
-        }
-        case 'month': {
-          const mo = parseInt(String(cell).replace(/,/g, '').trim(), 10);
-          if (Number.isInteger(mo)) raw.month = mo;
-          break;
-        }
-        case 'base_salary':
-          raw.base_salary = parseSalaryAmount(cell);
-          break;
-        case 'allowances':
-          raw.allowances = parseSalaryAmount(cell);
-          break;
-        case 'attendance_deduction':
-          raw.attendance_deduction = parseSalaryAmount(cell);
-          break;
-        case 'advance_deduction':
-          raw.advance_deduction = parseSalaryAmount(cell);
-          break;
-        case 'external_deduction':
-          raw.external_deduction = parseSalaryAmount(cell);
-          break;
-        case 'manual_deduction':
-          raw.manual_deduction = parseSalaryAmount(cell);
-          break;
-        case 'net_salary':
-          raw.net_salary = parseSalaryAmount(cell);
-          break;
-        case 'is_approved':
-          raw.is_approved = parseApproved(cell);
-          break;
-        default:
-          break;
-      }
-    }
-
-    let monthYear = raw.month_year?.trim();
-    if (!monthYear && raw.year !== undefined && raw.month !== undefined) {
-      monthYear = monthYearFromParts(raw.year, raw.month) ?? undefined;
-    }
-    if (!monthYear && defaultMy && isValidSalaryMonthYear(defaultMy)) {
-      monthYear = defaultMy;
-    }
+    const monthYear = resolveMonthYear(raw, defaultMy);
 
     const employeeId = raw.employee_id?.trim();
     if (!employeeId || !isEmployeeIdUuid(employeeId)) {
@@ -182,19 +222,7 @@ export function parseSalaryImportWorkbook(
       continue;
     }
 
-    const record: Record<string, unknown> = {
-      employee_id: employeeId,
-      month_year: monthYear,
-      base_salary: Number(raw.base_salary ?? 0),
-      allowances: Number(raw.allowances ?? 0),
-      attendance_deduction: Number(raw.attendance_deduction ?? 0),
-      advance_deduction: Number(raw.advance_deduction ?? 0),
-      external_deduction: Number(raw.external_deduction ?? 0),
-      manual_deduction: Number(raw.manual_deduction ?? 0),
-      net_salary: Number(raw.net_salary ?? 0),
-      is_approved: raw.is_approved ?? false,
-      payment_method: 'cash',
-    };
+    const record = formatPayload(raw, employeeId, monthYear);
 
     rows.push({ record, rowIndex: r + 1 });
   }

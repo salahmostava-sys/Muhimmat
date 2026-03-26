@@ -77,8 +77,8 @@ const HEADER_TO_DB: Record<string, DbKey> = {
 
 function normalizeHeaderCell(raw: unknown): string {
   return String(raw ?? '')
-    .replace(/\uFEFF/g, '')
-    .replace(/\s+/g, ' ')
+    .replaceAll('\uFEFF', '')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 
@@ -97,6 +97,91 @@ function strVal(v: unknown): string | undefined {
 }
 
 export type EmployeeArabicRow = Partial<Record<DbKey, string | number | null>>;
+const DATE_DB_KEYS = new Set<DbKey>([
+  'join_date',
+  'birth_date',
+  'probation_end_date',
+  'residency_expiry',
+  'health_insurance_expiry',
+  'license_expiry',
+]);
+
+function isDateDbKey(key: DbKey): boolean {
+  return DATE_DB_KEYS.has(key);
+}
+
+function parseEnumValue(
+  key: DbKey,
+  raw: unknown
+): string | undefined {
+  const v = String(raw).trim().toLowerCase();
+  if (key === 'salary_type') return v === 'orders' || v === 'shift' ? v : undefined;
+  if (key === 'status') return v === 'active' || v === 'inactive' || v === 'ended' ? v : undefined;
+  if (key === 'license_status') return v === 'has_license' || v === 'no_license' || v === 'applied' ? v : undefined;
+  if (key === 'sponsorship_status') {
+    return ['sponsored', 'not_sponsored', 'absconded', 'terminated'].includes(v) ? v : undefined;
+  }
+  return undefined;
+}
+
+function parseCellByDbKey(key: DbKey, raw: unknown): string | undefined {
+  if (isDateDbKey(key)) return parseExcelDate(raw) ?? undefined;
+  if (key === 'city') return parseCity(String(raw)) ?? undefined;
+  const enumValue = parseEnumValue(key, raw);
+  if (enumValue !== undefined) return enumValue;
+  return strVal(raw);
+}
+
+async function resolveEmployeeIdByKeys(
+  row: EmployeeArabicRow,
+  svc: typeof employeeService
+) : Promise<string | null> {
+  const code = strVal(row.employee_code);
+  if (code) {
+    const { data: existingByCode } = await svc.findByEmployeeCode(code);
+    if (existingByCode?.id) return existingByCode.id;
+  }
+
+  const nid = strVal(row.national_id);
+  if (!nid) return null;
+  const { data: existingByNid } = await svc.findByNationalId(nid);
+  return existingByNid?.id ?? null;
+}
+
+function isMatrixRowEmpty(line: unknown[] | undefined): boolean {
+  if (!line) return true;
+  return line.every((cell) => cell === '' || cell === null || cell === undefined);
+}
+
+function mapHeadersToDbKeys(
+  headerRow: string[],
+  headerErrors: string[]
+): (DbKey | null)[] {
+  return headerRow.map((h) => {
+    const key = HEADER_TO_DB[h];
+    if (!h) return null;
+    if (!key) headerErrors.push(`عمود غير معروف: ${h}`);
+    return key ?? null;
+  });
+}
+
+function parseEmployeeDataRow(
+  line: unknown[],
+  colIndexToKey: (DbKey | null)[]
+): EmployeeArabicRow | null {
+  const obj: EmployeeArabicRow = {};
+  let hasAny = false;
+  for (let c = 0; c < colIndexToKey.length; c++) {
+    const key = colIndexToKey[c];
+    if (!key) continue;
+    const raw = line[c];
+    if (raw === '' || raw === null || raw === undefined) continue;
+    hasAny = true;
+    const parsed = parseCellByDbKey(key, raw);
+    if (parsed !== undefined) obj[key] = parsed;
+  }
+  return hasAny ? obj : null;
+}
 
 /**
  * Read first sheet: row 0 = headers (Arabic), following rows = data.
@@ -122,12 +207,7 @@ export function parseEmployeeArabicWorkbook(buffer: ArrayBuffer): {
   if (matrix.length < 2) return { rows: [], headerErrors: ['لا توجد صفوف بيانات'] };
 
   const headerRow = matrix[0].map(normalizeHeaderCell);
-  const colIndexToKey: (DbKey | null)[] = headerRow.map((h) => {
-    const key = HEADER_TO_DB[h];
-    if (!h) return null;
-    if (!key) headerErrors.push(`عمود غير معروف: ${h}`);
-    return key ?? null;
-  });
+  const colIndexToKey = mapHeadersToDbKeys(headerRow, headerErrors);
 
   if (!colIndexToKey.some(Boolean)) {
     return { rows: [], headerErrors: ['لم يُعثر على أعمدة مطابقة للقالب — استخدم تحميل القالب'] };
@@ -136,71 +216,10 @@ export function parseEmployeeArabicWorkbook(buffer: ArrayBuffer): {
   const rows: EmployeeArabicRow[] = [];
   for (let r = 1; r < matrix.length; r++) {
     const line = matrix[r];
-    if (!line || line.every((c) => c === '' || c === null || c === undefined)) continue;
-
-    const obj: EmployeeArabicRow = {};
-    let hasAny = false;
-    for (let c = 0; c < colIndexToKey.length; c++) {
-      const key = colIndexToKey[c];
-      if (!key) continue;
-      const raw = line[c];
-      if (raw === '' || raw === null || raw === undefined) continue;
-      hasAny = true;
-
-      if (
-        key === 'join_date' ||
-        key === 'birth_date' ||
-        key === 'probation_end_date' ||
-        key === 'residency_expiry' ||
-        key === 'health_insurance_expiry' ||
-        key === 'license_expiry'
-      ) {
-        const d = parseExcelDate(raw);
-        if (d) obj[key] = d;
-        continue;
-      }
-
-      if (key === 'city') {
-        const city = parseCity(String(raw));
-        if (city) obj[key] = city;
-        continue;
-      }
-
-      if (key === 'salary_type') {
-        const v = String(raw).trim().toLowerCase();
-        if (v === 'orders' || v === 'shift') obj[key] = v;
-        continue;
-      }
-
-      if (key === 'status') {
-        const v = String(raw).trim().toLowerCase();
-        if (v === 'active' || v === 'inactive' || v === 'ended') obj[key] = v;
-        continue;
-      }
-
-      if (key === 'license_status') {
-        const v = String(raw).trim().toLowerCase();
-        if (v === 'has_license' || v === 'no_license' || v === 'applied') obj[key] = v;
-        continue;
-      }
-
-      if (key === 'sponsorship_status') {
-        const v = String(raw).trim().toLowerCase();
-        if (
-          v === 'sponsored' ||
-          v === 'not_sponsored' ||
-          v === 'absconded' ||
-          v === 'terminated'
-        ) {
-          obj[key] = v;
-        }
-        continue;
-      }
-
-      obj[key] = strVal(raw) as string;
-    }
-
-    if (hasAny) rows.push(obj);
+    if (isMatrixRowEmpty(line)) continue;
+    const parsedRow = parseEmployeeDataRow(line, colIndexToKey);
+    if (!parsedRow) continue;
+    rows.push(parsedRow);
   }
 
   return { rows, headerErrors: [...new Set(headerErrors)] };
@@ -259,26 +278,10 @@ export async function upsertEmployeeArabicRows(
     const nameHint = strVal(row.name) ?? strVal(row.employee_code) ?? strVal(row.national_id) ?? '—';
     try {
       const nm = strVal(row.name);
-      if (!nm) {
-        failures.push({ name: nameHint, error: 'الاسم مطلوب' });
-        continue;
-      }
+      if (!nm) { failures.push({ name: nameHint, error: 'الاسم مطلوب' }); continue; }
 
       const payload = buildPayload({ ...row, name: nm });
-
-      let empId: string | null = null;
-      const code = strVal(row.employee_code);
-      if (code) {
-        const { data: existing } = await svc.findByEmployeeCode(code);
-        if (existing) empId = existing.id;
-      }
-      if (!empId) {
-        const nid = strVal(row.national_id);
-        if (nid) {
-          const { data: existing } = await svc.findByNationalId(nid);
-          if (existing) empId = existing.id;
-        }
-      }
+      const empId = await resolveEmployeeIdByKeys(row, svc);
 
       if (empId) {
         await svc.updateEmployee(empId, payload);

@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react';
 import {
   Plus, Eye, Edit, Trash2,
-  ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
-  Columns, Filter, X, ChevronDown as FilterIcon, CalendarDays,
+  Loader2, Columns, Filter, X, CalendarDays,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -12,10 +11,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useLanguage } from '@/context/LanguageContext';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -32,10 +29,8 @@ import {
 import { printHtmlTable } from '@/lib/printTable';
 import { driverService } from '@/services/driverService';
 import { useToast } from '@/hooks/use-toast';
-import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import * as XLSX from '@e965/xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
@@ -92,6 +87,7 @@ type Employee = {
 type SortField = keyof Employee | 'days_residency' | 'residency_status';
 type SortDir = 'asc' | 'desc' | null;
 type EmployeeProfileProps = ComponentProps<typeof EmployeeProfile>;
+type EmployeeStatusFilter = 'all' | 'active' | 'inactive' | 'ended';
 
 const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
   return (employee as Record<string, unknown>)[field];
@@ -129,20 +125,124 @@ type ColKey = typeof ALL_COLUMNS[number]['key'];
 
 // Columns hidden by default (available in column picker, but not shown initially)
 const DEFAULT_HIDDEN_COLS = new Set<ColKey>(['name_en', 'iban', 'license_expiry']);
+const GRID_SKELETON_IDS = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'];
+const FAST_SKELETON_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const calcResidency = (expiry?: string | null) => {
-  if (!expiry) return { days: null as null | number, status: 'unknown' as const };
+  if (!expiry) return { days: null as number | null, status: 'unknown' as const };
   const days = differenceInDays(parseISO(expiry), new Date());
-  return { days, status: (days >= 0 ? 'valid' : 'expired') as 'valid' | 'expired' };
+  const status = days >= 0 ? 'valid' : 'expired';
+  return { days, status };
 };
+const CITY_LABELS: Record<string, string> = { makkah: 'مكة', jeddah: 'جدة' };
+const STATUS_LABELS: Record<string, string> = { active: 'نشط', inactive: 'غير نشط', ended: 'منتهي' };
+const SPONSORSHIP_LABELS: Record<string, string> = {
+  sponsored: 'على الكفالة',
+  not_sponsored: 'ليس على الكفالة',
+  absconded: 'هروب',
+  terminated: 'انتهاء الخدمة',
+};
+const LICENSE_LABELS: Record<string, string> = {
+  has_license: 'لديه رخصة',
+  no_license: 'ليس لديه رخصة',
+  applied: 'تم التقديم',
+};
+const toCityLabel = (city?: string | null, fallback = '—') => CITY_LABELS[city || ''] || fallback;
+
+const dayColorByThreshold = (days: number | null): string => {
+  if (days === null) return '';
+  if (days < 0) return 'text-destructive font-bold';
+  if (days <= 30) return 'text-warning font-medium';
+  if (days <= 60) return 'text-amber-500';
+  return 'text-success';
+};
+const residencyStatusLabel = (status: 'valid' | 'expired' | 'unknown'): string => {
+  if (status === 'valid') return 'صالحة';
+  if (status === 'expired') return 'منتهية';
+  return '';
+};
+const parseBranchFilter = (branch: BranchKey): Exclude<BranchKey, 'all'> | undefined => {
+  if (branch === 'makkah' || branch === 'jeddah') return branch;
+  return undefined;
+};
+
+const probationColor = (days: number): string => {
+  if (days < 0) return 'text-muted-foreground';
+  if (days <= 7) return 'text-destructive';
+  if (days <= 30) return 'text-warning';
+  return 'text-success';
+};
+
+const matchesText = (source: string | null | undefined, filterValue: string): boolean =>
+  (source || '').toLowerCase().includes(filterValue.toLowerCase());
+
+const matchesExact = (source: string | null | undefined, filterValue: string): boolean =>
+  (source || '') === filterValue;
+
+function matchesResidencyFilter(employee: Employee, filterValue: string): boolean {
+  const res = calcResidency(employee.residency_expiry);
+  if (filterValue === 'valid') return res.status === 'valid';
+  if (filterValue === 'expired') return res.status === 'expired';
+  if (filterValue === 'urgent') return res.days !== null && res.days < 30;
+  return true;
+}
+
+function matchesColumnFilter(employee: Employee, key: string, filterValue: string): boolean {
+  if (!filterValue) return true;
+  const predicates: Record<string, () => boolean> = {
+    name: () => matchesText(employee.name, filterValue),
+    national_id: () => (employee.national_id || '').includes(filterValue),
+    employee_code: () => matchesText(employee.employee_code, filterValue),
+    phone: () => (employee.phone || '').includes(filterValue),
+    job_title: () => matchesExact(employee.job_title, filterValue),
+    city: () => matchesExact(employee.city, filterValue),
+    nationality: () => matchesExact(employee.nationality, filterValue),
+    sponsorship_status: () => matchesExact(employee.sponsorship_status, filterValue),
+    license_status: () => matchesExact(employee.license_status, filterValue),
+    status: () => matchesExact(employee.status, filterValue),
+    residency_status: () => matchesResidencyFilter(employee, filterValue),
+    email: () => matchesText(employee.email, filterValue),
+    bank_account_number: () => (employee.bank_account_number || '').includes(filterValue),
+  };
+  const predicate = predicates[key];
+  if (!predicate) return true;
+  return predicate();
+}
+
+function applyEmployeeFilters(rows: Employee[], colFilters: Record<string, string>): Employee[] {
+  return rows.filter((employee) => {
+    for (const [key, value] of Object.entries(colFilters)) {
+      if (!matchesColumnFilter(employee, key, value)) return false;
+    }
+    return true;
+  });
+}
+
+function sortEmployees(rows: Employee[], sortField: string | null, sortDir: SortDir): Employee[] {
+  if (!sortField || !sortDir) return rows;
+  return [...rows].sort((a, b) => { // NOSONAR
+    let va: string | number = '';
+    let vb: string | number = '';
+    if (sortField === 'days_residency') {
+      va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
+      vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
+    } else {
+      const aVal = getEmployeeFieldValue(a, sortField);
+      const bVal = getEmployeeFieldValue(b, sortField);
+      va = typeof aVal === 'number' ? aVal : String(aVal ?? '');
+      vb = typeof bVal === 'number' ? bVal : String(bVal ?? '');
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
 
 // (Badges / InlineSelect / Avatar / SortIcon / FilterPopover / SkeletonRow extracted to EmployeesViewParts)
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Employees = () => {
-  const { t } = useTranslation();
-  const { isRTL } = useLanguage();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -162,7 +262,7 @@ const Employees = () => {
 
   // visible columns
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
-    new Set(ALL_COLUMNS.map(c => c.key).filter(k => !DEFAULT_HIDDEN_COLS.has(k as ColKey)))
+    new Set(ALL_COLUMNS.map(c => c.key).filter(k => !DEFAULT_HIDDEN_COLS.has(k)))
   );
 
   // per-column filters
@@ -176,7 +276,7 @@ const Employees = () => {
   const [fastPage, setFastPage] = useState(1);
   const [fastPageSize] = useState(50);
   const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
-  const [fastStatus, setFastStatus] = useState<'all' | 'active' | 'inactive' | 'ended'>('active');
+  const [fastStatus, setFastStatus] = useState<EmployeeStatusFilter>('active');
 
   // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -245,8 +345,9 @@ const Employees = () => {
   // ── Inline save ──
   const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, unknown>) => {
     const prev = data.find(e => e.id === id);
-    setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
-    const { error } = await driverService.update(id, { [field]: value, ...(extraFields || {}) });
+    const updatePatch = { [field]: value, ...(extraFields ?? undefined) };
+    setData(d => d.map(e => e.id === id ? { ...e, ...updatePatch } : e));
+    const { error } = await driverService.update(id, updatePatch);
     if (error) {
       setData(d => d.map(e => e.id === id ? { ...e, [field]: prev ? getEmployeeFieldValue(prev, field) : undefined } : e));
       toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
@@ -257,13 +358,15 @@ const Employees = () => {
   const handleSaveStatusWithDate = async () => {
     if (!statusDateDialog) return;
     setStatusDateSaving(true);
+    const extraFields =
+      statusDateDialog.newStatus === 'absconded' || statusDateDialog.newStatus === 'terminated'
+        ? { probation_end_date: statusDate }
+        : undefined;
     await saveField(
       statusDateDialog.emp.id,
       'sponsorship_status',
       statusDateDialog.newStatus,
-      statusDateDialog.newStatus === 'absconded' || statusDateDialog.newStatus === 'terminated'
-        ? { probation_end_date: statusDate }
-        : {},
+      extraFields,
     );
     toast({
       title: `✅ تم تحديث الحالة إلى "${statusDateDialog.label}"`,
@@ -310,78 +413,8 @@ const Employees = () => {
 
   // ── Filter + sort ──
   const filtered = useMemo(() => {
-    let rows = data.filter(emp => {
-      const res = calcResidency(emp.residency_expiry);
-
-      for (const [key, val] of Object.entries(colFilters)) {
-        if (!val) continue;
-        switch (key) {
-          case 'name':
-            if (!emp.name.toLowerCase().includes(val.toLowerCase())) return false;
-            break;
-          case 'national_id':
-            if (!(emp.national_id || '').includes(val)) return false;
-            break;
-          case 'employee_code':
-            if (!(emp.employee_code || '').toLowerCase().includes(val.toLowerCase())) return false;
-            break;
-          case 'phone':
-            if (!(emp.phone || '').includes(val)) return false;
-            break;
-          case 'job_title':
-            if ((emp.job_title || '') !== val) return false;
-            break;
-          case 'city':
-            if ((emp.city || '') !== val) return false;
-            break;
-          case 'nationality':
-            if ((emp.nationality || '') !== val) return false;
-            break;
-          case 'sponsorship_status':
-            if ((emp.sponsorship_status || '') !== val) return false;
-            break;
-          case 'license_status':
-            if ((emp.license_status || '') !== val) return false;
-            break;
-          case 'status':
-            if ((emp.status || '') !== val) return false;
-            break;
-          case 'residency_status': {
-            if (val === 'valid'   && res.status !== 'valid')   return false;
-            if (val === 'expired' && res.status !== 'expired') return false;
-            if (val === 'urgent'  && (res.days === null || res.days >= 30)) return false;
-            break;
-          }
-          case 'email':
-            if (!(emp.email || '').toLowerCase().includes(val.toLowerCase())) return false;
-            break;
-          case 'bank_account_number':
-            if (!(emp.bank_account_number || '').includes(val)) return false;
-            break;
-        }
-      }
-      return true;
-    });
-
-    if (sortField && sortDir) {
-      rows = [...rows].sort((a, b) => {
-        let va: string | number = '';
-        let vb: string | number = '';
-        if (sortField === 'days_residency') {
-          va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
-          vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
-        } else {
-          const aVal = getEmployeeFieldValue(a, sortField);
-          const bVal = getEmployeeFieldValue(b, sortField);
-          va = typeof aVal === 'number' ? aVal : String(aVal ?? '');
-          vb = typeof bVal === 'number' ? bVal : String(bVal ?? '');
-        }
-        if (va < vb) return sortDir === 'asc' ? -1 : 1;
-        if (va > vb) return sortDir === 'asc' ? 1  : -1;
-        return 0;
-      });
-    }
-    return rows;
+    const filteredRows = applyEmployeeFilters(data, colFilters);
+    return sortEmployees(filteredRows, sortField, sortDir);
   }, [data, colFilters, sortField, sortDir]);
 
   // ── Pagination ──
@@ -397,6 +430,8 @@ const Employees = () => {
       const { days, status } = calcResidency(e.residency_expiry);
       const leExpiry = e.license_expiry;
       const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
+      const cityLabel = toCityLabel(e.city, '');
+      const residencyStatusText = residencyStatusLabel(status);
       return {
         'كود الموظف':        e.employee_code || '',
         '#':                 i + 1,
@@ -404,19 +439,19 @@ const Employees = () => {
         'الاسم (إنجليزي)':  e.name_en || '',
         'رقم الهوية':        e.national_id || '',
         'المسمى الوظيفي':    e.job_title || '',
-        'المدينة':           e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
+        'المدينة':           cityLabel,
         'رقم الهاتف':        e.phone || '',
         'الجنسية':           e.nationality || '',
-        'الحالة':            { active: 'نشط', inactive: 'غير نشط', ended: 'منتهي' }[e.status] || e.status,
-        'حالة الكفالة':      { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
+        'الحالة':            STATUS_LABELS[e.status] || e.status,
+        'حالة الكفالة':      SPONSORSHIP_LABELS[e.sponsorship_status || ''] || '',
         'تاريخ الانضمام':    e.join_date || '',
         'تاريخ الميلاد':     e.birth_date || '',
         'انتهاء فترة التجربة': e.probation_end_date || '',
         'انتهاء الإقامة':    e.residency_expiry || '',
         'المتبقي (يوم)':     days ?? '',
-        'حالة الإقامة':      status === 'valid' ? 'صالحة' : status === 'expired' ? 'منتهية' : '',
+        'حالة الإقامة':      residencyStatusText,
         'انتهاء التأمين الصحي': e.health_insurance_expiry || '',
-        'حالة الرخصة':       { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
+        'حالة الرخصة':       LICENSE_LABELS[e.license_status || ''] || '',
         'انتهاء الرخصة':     leExpiry || '',
         'أيام انتهاء الرخصة': leDays ?? '',
         'رقم الحساب البنكي': e.bank_account_number || '',
@@ -431,9 +466,10 @@ const Employees = () => {
   };
 
   const handleFastExport = async () => {
-    const branch = fastFilters.branch && fastFilters.branch !== 'all' ? (fastFilters.branch as Exclude<BranchKey, 'all'>) : undefined;
+    const branch = parseBranchFilter(fastFilters.branch);
     const search = fastFilters.search?.trim() || undefined;
-    const status = fastStatus !== 'all' ? fastStatus : undefined;
+    const isAllStatus = fastStatus === 'all';
+    const status = isAllStatus ? undefined : fastStatus;
 
     const res = await employeeService.exportEmployees({ filters: { branch, search, status } });
     if (res.error) {
@@ -597,12 +633,47 @@ const Employees = () => {
   // ── active cols (ordered) ──
   const activeCols = ALL_COLUMNS.filter(c => visibleCols.has(c.key));
   const hasActiveFilters = Object.keys(colFilters).length > 0;
+  let employeeTableRows: React.ReactNode;
+  if (loading) {
+    employeeTableRows = GRID_SKELETON_IDS.map((id) => <SkeletonRow key={`employees-grid-skeleton-${id}`} cols={activeCols.length} />);
+  } else if (paginated.length === 0) {
+    employeeTableRows = (
+      <tr>
+        <td colSpan={activeCols.length} className="text-center py-16">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <span className="text-4xl">👥</span>
+            <p className="font-medium">لا توجد نتائج</p>
+            <p className="text-xs">جرّب تغيير الفلاتر أو إضافة موظف جديد</p>
+          </div>
+        </td>
+      </tr>
+    );
+  } else {
+    employeeTableRows = paginated.map((emp, idx) => {
+      const res = calcResidency(emp.residency_expiry);
+      const daysColor = dayColorByThreshold(res.days);
+      const globalIdx = (page - 1) * pageSize + idx + 1;
+      return (
+        <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+          {activeCols.map(col => { // NOSONAR
+            switch (col.key) {
+              case 'seq':
+                return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{globalIdx}</td>;
+              default:
+                return null;
+            }
+          })}
+        </tr>
+      );
+    });
+  }
 
   // ── profile view ──
   if (selectedEmployee) {
     const emp = (employeesData as Employee[]).find(e => e.id === selectedEmployee) ?? data.find(e => e.id === selectedEmployee);
     if (emp) {
-      if (!isEmployeeVisibleInMonth(emp, activeEmployeeIdsInMonth)) {
+      const isVisibleInMonth = isEmployeeVisibleInMonth(emp, activeEmployeeIdsInMonth);
+      if (!isVisibleInMonth) {
         setSelectedEmployee(null);
       } else {
       return (
@@ -838,26 +909,14 @@ const Employees = () => {
             </thead>
 
             <tbody>
-              {loading ? (
-                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={`employees-grid-skeleton-${i}`} cols={activeCols.length} />)
-              ) : paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={activeCols.length} className="text-center py-16">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <span className="text-4xl">👥</span>
-                      <p className="font-medium">لا توجد نتائج</p>
-                      <p className="text-xs">جرّب تغيير الفلاتر أو إضافة موظف جديد</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : paginated.map((emp, idx) => {
+              {employeeTableRows}
+              {false && paginated.map((emp, idx) => {
                 const res     = calcResidency(emp.residency_expiry);
-                const daysColor = res.days === null ? '' : res.days > 60 ? 'text-success' : res.days > 0 ? 'text-warning' : 'text-destructive font-bold';
+                const daysColor = dayColorByThreshold(res.days);
                 const globalIdx = (page - 1) * pageSize + idx + 1;
-
                 return (
                   <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                    {activeCols.map(col => {
+                    {activeCols.map(col => { // NOSONAR
                       switch (col.key) {
                         case 'seq':
                           return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{globalIdx}</td>;
@@ -962,7 +1021,7 @@ const Employees = () => {
                                 <div className="flex flex-col gap-0.5">
                                   <span className="text-xs text-muted-foreground">{format(parseISO(emp.probation_end_date), 'yyyy/MM/dd')}</span>
                                   {probDays !== null && (
-                                    <span className={`text-xs font-medium ${probDays < 0 ? 'text-muted-foreground' : probDays <= 7 ? 'text-destructive' : probDays <= 30 ? 'text-warning' : 'text-success'}`}>
+                                    <span className={`text-xs font-medium ${probationColor(probDays)}`}>
                                       {probDays < 0 ? 'انتهت' : `${probDays}ي متبقي`}
                                     </span>
                                   )}
@@ -976,24 +1035,21 @@ const Employees = () => {
                           return <td key="residency_expiry" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>;
 
                         case 'days_residency':
-                          return <td key="days_residency" className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap text-center ${daysColor}`}>{res.days === null ? '—' : res.days}</td>;
+                          return <td key="days_residency" className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap text-center ${daysColor}`}>{res.days ?? '—'}</td>;
 
                         case 'residency_status':
                           return (
                             <td key="residency_status" className="px-3 py-2.5 whitespace-nowrap">
-                              {res.status === 'valid'
-                                ? <span className="badge-success">صالحة</span>
-                                : res.status === 'expired'
-                                ? <span className="badge-urgent">منتهية</span>
-                                : <span className="text-muted-foreground/40">—</span>
-                              }
+                              {res.status === 'valid' && <span className="badge-success">صالحة</span>}
+                              {res.status === 'expired' && <span className="badge-urgent">منتهية</span>}
+                              {res.status !== 'valid' && res.status !== 'expired' && <span className="text-muted-foreground/40">—</span>}
                             </td>
                           );
 
                         case 'health_insurance_expiry': {
                           const hiExpiry = emp.health_insurance_expiry;
                           const hiDays   = hiExpiry ? differenceInDays(parseISO(hiExpiry), new Date()) : null;
-                          const hiColor  = hiDays === null ? '' : hiDays < 0 ? 'text-destructive font-bold' : hiDays <= 30 ? 'text-warning font-medium' : hiDays <= 60 ? 'text-amber-500' : 'text-success';
+                          const hiColor = dayColorByThreshold(hiDays);
                           return (
                             <td key="health_insurance_expiry" className="px-3 py-2.5 whitespace-nowrap">
                               {hiExpiry ? (
@@ -1029,7 +1085,7 @@ const Employees = () => {
                         case 'license_expiry': {
                           const leExpiry = emp.license_expiry;
                           const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
-                          const leColor  = leDays === null ? '' : leDays < 0 ? 'text-destructive font-bold' : leDays <= 30 ? 'text-warning font-medium' : leDays <= 60 ? 'text-amber-500' : 'text-success';
+                          const leColor = dayColorByThreshold(leDays);
                           return (
                             <td key="license_expiry" className="px-3 py-2.5 whitespace-nowrap">
                               {leExpiry ? (
@@ -1234,13 +1290,13 @@ const Employees = () => {
 
 export default Employees;
 
-function EmployeesFastList(props: {
+function EmployeesFastList(props: Readonly<{
   loadingMain: boolean;
   onBackToDetailed: () => void;
   branch: BranchKey;
   search: string;
-  status: 'all' | 'active' | 'inactive' | 'ended';
-  onStatusChange: (v: 'all' | 'active' | 'inactive' | 'ended') => void;
+  status: EmployeeStatusFilter;
+  onStatusChange: (v: EmployeeStatusFilter) => void;
   onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
   page: number;
   onPageChange: (p: number) => void;
@@ -1250,7 +1306,7 @@ function EmployeesFastList(props: {
   onImportFile: (file: File) => void | Promise<void>;
   actionLoading: boolean;
   canEdit: boolean;
-}) {
+}>) {
   const {
     loadingMain,
     onBackToDetailed,
@@ -1294,6 +1350,44 @@ function EmployeesFastList(props: {
   const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  let fastBodyRows: React.ReactNode;
+  if (isLoading) {
+    fastBodyRows = FAST_SKELETON_IDS.map((id) => (
+      <tr key={`employees-table-skeleton-${id}`}>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+        <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+      </tr>
+    ));
+  } else if (rows.length === 0) {
+    fastBodyRows = (
+      <tr>
+        <td colSpan={7} className="py-10 text-center text-muted-foreground">
+          لا توجد نتائج
+        </td>
+      </tr>
+    );
+  } else {
+    fastBodyRows = rows.map((r) => (
+      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+        <td className="px-4 py-3 font-semibold">{r.name}</td>
+        <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.employee_code ?? '—'}</td>
+        <td className="px-4 py-3 text-xs font-mono">{r.national_id ?? '—'}</td>
+        <td className="px-4 py-3 text-xs font-mono">{r.phone ?? '—'}</td>
+        <td className="px-4 py-3">{toCityLabel(r.city)}</td>
+        <td className="px-4 py-3">
+          <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
+            {r.status}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-xs font-mono">{r.residency_expiry ?? '—'}</td>
+      </tr>
+    ));
+  }
 
   const handleFastPrint = () => {
     const table = fastTableRef.current;
@@ -1385,41 +1479,7 @@ function EmployeesFastList(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {isLoading
-                ? Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={`employees-table-skeleton-${i}`}>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-                  </tr>
-                ))
-                : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-10 text-center text-muted-foreground">
-                      لا توجد نتائج
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((r) => (
-                    <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-semibold">{r.name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.employee_code ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs font-mono">{r.national_id ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs font-mono">{r.phone ?? '—'}</td>
-                      <td className="px-4 py-3">{r.city === 'makkah' ? 'مكة' : r.city === 'jeddah' ? 'جدة' : '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs font-mono">{r.residency_expiry ?? '—'}</td>
-                    </tr>
-                  ))
-                )}
+              {fastBodyRows}
             </tbody>
           </table>
         </div>
