@@ -1,34 +1,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, forwardRef } from 'react';
+import { useState, forwardRef, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
-  BarChart2, Download, Activity, MapPin, ShieldCheck,
-  Target, Clock, AlertTriangle, ChevronUp, ChevronDown, DollarSign,
-  Star, ThumbsUp, ThumbsDown, Minus, Settings2,
+  BarChart2, Activity, MapPin,
+  Target, Clock, ChevronUp, ChevronDown, DollarSign,
+  Minus, Settings2,
 } from 'lucide-react';
 import AlertsList from '@/components/AlertsList';
 import { dashboardService } from '@/services/dashboardService';
 import {
-  format, subDays, formatDistanceToNow,
+  format, formatDistanceToNow,
   subMonths, startOfMonth, endOfMonth, getDaysInMonth, getDate,
 } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, Line, Legend,
 } from 'recharts';
-import { useLanguage } from '@/context/LanguageContext';
-import { useAppColors } from '@/hooks/useAppColors';
 import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@/hooks/useRealtimePostgresChanges';
-import { Button } from '@/components/ui/button';
-import * as XLSX from '@e965/xlsx';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+
+const SKELETON_KEYS_2 = ['sk-1', 'sk-2'] as const;
+const SKELETON_KEYS_4 = ['sk-1', 'sk-2', 'sk-3', 'sk-4'] as const;
+const SKELETON_KEYS_5 = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const;
+
+const parsePositiveIntOrNull = (raw: string) => {
+  const n = Number.parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 1) return null;
+  return n;
+};
 
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -42,7 +48,11 @@ const CustomTooltip = forwardRef<HTMLDivElement, any>(({ active, payload, label 
   return (
     <div ref={ref} className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
-      {payload.map((p: any) => <p key={p.name} style={{ color: p.color }}>{p.name}: {p.value?.toLocaleString()}</p>)}
+      {payload.map((p: any) => (
+        <p key={`${p.dataKey ?? p.name}-${p.name}`} style={{ color: p.color }}>
+          {p.name}: {p.value?.toLocaleString()}
+        </p>
+      ))}
     </div>
   );
 });
@@ -108,7 +118,7 @@ const Leaderboard = ({ entries, loading, max }: { entries: { name: string; order
   return (
     <div className="space-y-1">
       {loading
-        ? Array.from({ length: 5 }).map((_, i) => <div key={`leaderboard-skeleton-${i}`} className="h-12 bg-muted/40 rounded-xl animate-pulse" />)
+        ? SKELETON_KEYS_5.map((k) => <div key={`leaderboard-skeleton-${k}`} className="h-12 bg-muted/40 rounded-xl animate-pulse" />)
         : entries.length === 0
           ? <p className="text-sm text-muted-foreground text-center py-8">لا توجد بيانات هذا الشهر</p>
           : entries.map((e, i) => (
@@ -167,6 +177,80 @@ const MONTHS_BACK = 6;
 
 interface RiderMonthly { id: string; name: string; months: number[]; avg: number; trend: 'up' | 'down' | 'stable'; lastMonth: number; thisMonth: number; }
 
+type AnalyticsMonth = { label: string; ym: string; start: string; end: string };
+type AnalyticsTrendRow = { month: string; orders: number; riders: number; avg: number };
+type AnalyticsAppBreakdownRow = { name: string; brand_color: string; thisMonth: number; lastMonth: number; growth: number };
+type AnalyticsOrderRow = { employee_id: string; app_id: string; orders_count: number };
+
+const buildHistoricalMonths = (): AnalyticsMonth[] => {
+  return Array.from({ length: MONTHS_BACK }, (_, i) => {
+    const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
+    return {
+      label: format(d, 'MMM yy'),
+      ym: format(d, 'yyyy-MM'),
+      start: format(startOfMonth(d), 'yyyy-MM-dd'),
+      end: format(endOfMonth(d), 'yyyy-MM-dd'),
+    };
+  });
+};
+
+const sumOrders = (rows: AnalyticsOrderRow[]) => rows.reduce((s, r) => s + r.orders_count, 0);
+
+const countUniqueRiders = (rows: AnalyticsOrderRow[]) => new Set(rows.map(r => r.employee_id)).size;
+
+const buildMonthlyTrend = (months: AnalyticsMonth[], monthOrdersResults: Array<{ data: AnalyticsOrderRow[] | null }>): AnalyticsTrendRow[] => {
+  return months.map((m, i) => {
+    const rows = monthOrdersResults[i]?.data || [];
+    const total = sumOrders(rows);
+    const activeRiders = countUniqueRiders(rows);
+    return {
+      month: m.label,
+      orders: total,
+      riders: activeRiders,
+      avg: activeRiders > 0 ? Math.round(total / activeRiders) : 0,
+    };
+  });
+};
+
+const buildAppBreakdown = (
+  apps: Array<{ id: string; name: string; brand_color: string }>,
+  currOrders: AnalyticsOrderRow[],
+  lastMonthOrders: AnalyticsOrderRow[],
+): AnalyticsAppBreakdownRow[] => {
+  return apps
+    .map((app) => {
+      const thisM = currOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
+      const lastM = lastMonthOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
+      const growth = lastM > 0 ? Math.round(((thisM - lastM) / lastM) * 100) : 0;
+      return { name: app.name, brand_color: app.brand_color, thisMonth: thisM, lastMonth: lastM, growth };
+    })
+    .sort((a, b) => b.thisMonth - a.thisMonth);
+};
+
+const accumulateRiderOrders = (results: Array<{ data: AnalyticsOrderRow[] | null }>) => {
+  const riderData: Record<string, number[]> = {};
+  results.forEach((res, mi) => {
+    (res.data || []).forEach((r) => {
+      if (!riderData[r.employee_id]) riderData[r.employee_id] = [0, 0, 0, 0];
+      riderData[r.employee_id][mi] += r.orders_count;
+    });
+  });
+  return riderData;
+};
+
+const buildRiderMetrics = (riderData: Record<string, number[]>, empMap: Record<string, string>) => {
+  return Object.entries(riderData)
+    .filter(([id]) => empMap[id])
+    .map(([id, monthlyOrders]) => {
+      const avg = Math.round(monthlyOrders.reduce((s, v) => s + v, 0) / 4);
+      const lastMonth = monthlyOrders[2];
+      const thisMonth = monthlyOrders[3];
+      const trend: 'up' | 'down' | 'stable' =
+        thisMonth > lastMonth * 1.05 ? 'up' : thisMonth < lastMonth * 0.95 ? 'down' : 'stable';
+      return { id, name: empMap[id] || '—', months: monthlyOrders, avg, trend, lastMonth, thisMonth } satisfies RiderMonthly;
+    });
+};
+
 const AnalyticsTab = () => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
@@ -177,56 +261,27 @@ const AnalyticsTab = () => {
     queryKey: ['dashboard-analytics', uid],
     enabled,
     queryFn: async () => {
-      const months = Array.from({ length: MONTHS_BACK }, (_, i) => {
-        const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
-        return { label: format(d, 'MMM yy'), ym: format(d, 'yyyy-MM'), start: format(startOfMonth(d), 'yyyy-MM-dd'), end: format(endOfMonth(d), 'yyyy-MM-dd') };
-      });
+      const months = buildHistoricalMonths();
       const monthLabels = months.map(m => m.label);
 
       const { appsRes, empRes, monthOrdersResults } = await dashboardService.fetchHistoricalData(months);
       const apps = appsRes.data || [];
-      const appMap = Object.fromEntries(apps.map(a => [a.id, a]));
       const empMap = Object.fromEntries((empRes.data || []).map(e => [e.id, e.name]));
 
       const monthOrderResults = monthOrdersResults;
 
-      const trendData = months.map((m, i) => {
-        const rows = monthOrderResults[i].data || [];
-        const total = rows.reduce((s, r) => s + r.orders_count, 0);
-        const activeRiders = new Set(rows.map(r => r.employee_id)).size;
-        return { month: m.label, orders: total, riders: activeRiders, avg: activeRiders > 0 ? Math.round(total / activeRiders) : 0 };
-      });
+      const trendData = buildMonthlyTrend(months, monthOrderResults as Array<{ data: AnalyticsOrderRow[] | null }>);
 
       const currOrders = monthOrderResults[MONTHS_BACK - 1].data || [];
-      const currTotal = currOrders.reduce((s, r) => s + r.orders_count, 0);
+      const currTotal = sumOrders(currOrders);
       const projectedOrders = daysPassed > 0 ? Math.round((currTotal / daysPassed) * daysInMonth) : 0;
 
       const lastMonthOrders = monthOrderResults[MONTHS_BACK - 2].data || [];
-      const appBreakdown = apps.map(app => {
-        const thisM = currOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
-        const lastM = lastMonthOrders.filter(r => r.app_id === app.id).reduce((s, r) => s + r.orders_count, 0);
-        const growth = lastM > 0 ? Math.round(((thisM - lastM) / lastM) * 100) : 0;
-        return { name: app.name, brand_color: app.brand_color, thisMonth: thisM, lastMonth: lastM, growth };
-      }).sort((a, b) => b.thisMonth - a.thisMonth);
+      const appBreakdown = buildAppBreakdown(apps, currOrders, lastMonthOrders);
 
       const last4 = monthOrderResults.slice(MONTHS_BACK - 4);
-      const riderData: Record<string, number[]> = {};
-      last4.forEach((res, mi) => {
-        (res.data || []).forEach(r => {
-          if (!riderData[r.employee_id]) riderData[r.employee_id] = [0, 0, 0, 0];
-          riderData[r.employee_id][mi] += r.orders_count;
-        });
-      });
-
-      const riderMetrics: RiderMonthly[] = Object.entries(riderData)
-        .filter(([id]) => empMap[id])
-        .map(([id, monthlyOrders]) => {
-          const avg = Math.round(monthlyOrders.reduce((s, v) => s + v, 0) / 4);
-          const lastMonth = monthlyOrders[2];
-          const thisMonth = monthlyOrders[3];
-          const trend: 'up' | 'down' | 'stable' = thisMonth > lastMonth * 1.05 ? 'up' : thisMonth < lastMonth * 0.95 ? 'down' : 'stable';
-          return { id, name: empMap[id] || '—', months: monthlyOrders, avg, trend, lastMonth, thisMonth };
-        });
+      const riderData = accumulateRiderOrders(last4 as Array<{ data: AnalyticsOrderRow[] | null }>);
+      const riderMetrics = buildRiderMetrics(riderData, empMap);
 
       return { monthLabels, monthlyTrend: trendData, riderMetrics, projectedOrders, currentOrders: currTotal, appBreakdown };
     },
@@ -415,6 +470,89 @@ interface EmpDetail {
   sponsorship_status: string | null;
 }
 
+type DashboardApp = { id: string; name: string; brand_color: string; text_color: string };
+type DashboardAttendanceToday = { present?: number; absent?: number; late?: number; leave?: number; sick?: number };
+type DashboardOrdersByCityRow = { city: string; orders: number };
+type DashboardAttendanceWeekRow = { date: string; present: number; absent: number; late: number; leave: number; sick: number };
+type DashboardOrdersByAppRow = {
+  app: string;
+  orders: number;
+  appId: string;
+  riders: number;
+  brandColor: string;
+  textColor: string;
+  target: number;
+  estRevenue: number;
+};
+
+const DASHBOARD_DAY_NAMES_AR = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'] as const;
+
+const mapOrdersCityLabel = (city: string) => {
+  if (city === 'makkah') return 'مكة المكرمة';
+  if (city === 'jeddah') return 'جدة';
+  return city;
+};
+
+const getAttendanceTodayCounts = (att: DashboardAttendanceToday | null | undefined) => ({
+  presentToday: att?.present || 0,
+  absentToday: att?.absent || 0,
+  lateToday: att?.late || 0,
+  leaveToday: att?.leave || 0,
+  sickToday: att?.sick || 0,
+});
+
+const buildAttendanceWeek = (rows: DashboardAttendanceWeekRow[]) =>
+  rows.map((r) => ({ day: DASHBOARD_DAY_NAMES_AR[new Date(`${r.date}T12:00:00`).getDay()], ...r }));
+
+const DASHBOARD_ICON_MAP: Record<string, any> = {
+  employees: Users,
+  attendance: UserCheck,
+  daily_orders: Package,
+  vehicles: Bike,
+  apps: Smartphone,
+  alerts: Bell,
+};
+
+const DASHBOARD_TABLE_LABELS_AR: Record<string, string> = {
+  employees: 'الموظفون',
+  attendance: 'الحضور',
+  advances: 'السلف',
+  salary_records: 'الرواتب',
+  daily_orders: 'الطلبات',
+  vehicles: 'المركبات',
+  apps: 'التطبيقات',
+  user_roles: 'الأدوار',
+  system_settings: 'الإعدادات',
+  alerts: 'التنبيهات',
+};
+
+const DASHBOARD_ACTION_LABELS_AR: Record<string, string> = {
+  INSERT: 'إضافة',
+  UPDATE: 'تعديل',
+  DELETE: 'حذف',
+};
+
+type DashboardAuditRow = {
+  action: string;
+  table_name: string;
+  created_at: string;
+  profiles?: { name?: string | null; email?: string | null } | null;
+};
+
+const buildRecentActivity = (rows: DashboardAuditRow[]) => {
+  return rows.map((a) => {
+    const userName = 'مستخدم';
+    const actionLabel = DASHBOARD_ACTION_LABELS_AR[a.action] || a.action;
+    const tableLabel = DASHBOARD_TABLE_LABELS_AR[a.table_name] || a.table_name;
+    const icon = DASHBOARD_ICON_MAP[a.table_name] || Activity;
+    return {
+      text: `${userName} — ${actionLabel} في ${tableLabel}`,
+      time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }),
+      icon,
+    };
+  });
+};
+
 const useDashboardRealtimeInvalidation = (
   userId: string | undefined,
   currentMonth: string,
@@ -436,36 +574,24 @@ const fetchDashboardKpis = async (
   if (error) throw error;
 
   const rpc = (rpcData || {}) as any;
-  const apps = (rpc.apps || []) as { id: string; name: string; brand_color: string; text_color: string }[];
+  const apps = (rpc.apps || []) as DashboardApp[];
 
-  const att = (rpc.attendanceToday || {}) as { present?: number; absent?: number; late?: number; leave?: number; sick?: number };
-  const presentToday = att.present || 0;
-  const absentToday = att.absent || 0;
-  const lateToday = att.late || 0;
-  const leaveToday = att.leave || 0;
-  const sickToday = att.sick || 0;
+  const { presentToday, absentToday, lateToday, leaveToday, sickToday } = getAttendanceTodayCounts(
+    (rpc.attendanceToday || {}) as DashboardAttendanceToday
+  );
 
   const rawEmpDetails = (rpc.empDetails || []) as EmpDetail[];
   const empDetails = rawEmpDetails.filter((e) =>
     isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
   );
 
-  const ordersByApp = (rpc.ordersByApp || []) as {
-    app: string;
-    orders: number;
-    appId: string;
-    riders: number;
-    brandColor: string;
-    textColor: string;
-    target: number;
-    estRevenue: number;
-  }[];
+  const ordersByApp = (rpc.ordersByApp || []) as DashboardOrdersByAppRow[];
   const totalOrders = ordersByApp.reduce((s, r) => s + (r.orders || 0), 0);
   const estRevenueByApp = ordersByApp;
   const estRevenueTotal = (rpc.kpis?.estRevenueTotal as number) || estRevenueByApp.reduce((s, r) => s + (r.estRevenue || 0), 0);
 
-  const ordersByCity = ((rpc.ordersByCity || []) as { city: string; orders: number }[]).map((r) => ({
-    city: r.city === 'makkah' ? 'مكة المكرمة' : r.city === 'jeddah' ? 'جدة' : r.city,
+  const ordersByCity = ((rpc.ordersByCity || []) as DashboardOrdersByCityRow[]).map((r) => ({
+    city: mapOrdersCityLabel(r.city),
     orders: r.orders,
   }));
 
@@ -492,23 +618,13 @@ const fetchDashboardKpis = async (
     estRevenueTotal,
   };
 
-  const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-  const attendanceWeek = ((rpc.attendanceWeek || []) as { date: string; present: number; absent: number; late: number; leave: number; sick: number }[])
-    .map((r) => ({ day: dayNames[new Date(r.date + 'T12:00:00').getDay()], ...r }));
+  const attendanceWeek = buildAttendanceWeek(
+    (rpc.attendanceWeek || []) as DashboardAttendanceWeekRow[]
+  );
 
-  const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
-  const tableAr: Record<string, string> = { employees: 'الموظفون', attendance: 'الحضور', advances: 'السلف', salary_records: 'الرواتب', daily_orders: 'الطلبات', vehicles: 'المركبات', apps: 'التطبيقات', user_roles: 'الأدوار', system_settings: 'الإعدادات', alerts: 'التنبيهات' };
-  const actionAr: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
-  type AuditRow = {
-    action: string;
-    table_name: string;
-    created_at: string;
-    profiles?: { name?: string | null; email?: string | null } | null;
-  };
-  const recentActivity = (((rpc.recentActivity || []) as AuditRow[]) || []).map((a) => {
-    const userName = 'مستخدم';
-    return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
-  });
+  const recentActivity = buildRecentActivity(
+    ((rpc.recentActivity || []) as DashboardAuditRow[]) || []
+  );
 
   return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
 };
@@ -549,23 +665,97 @@ const Dashboard = () => {
   } = data ?? {};
 
   // ── Derived ──
-  const orderGrowth = kpis.prevMonthOrders > 0 ? ((kpis.totalOrders - kpis.prevMonthOrders) / kpis.prevMonthOrders) * 100 : 0;
+  const orderGrowth = useMemo(
+    () => (kpis.prevMonthOrders > 0 ? ((kpis.totalOrders - kpis.prevMonthOrders) / kpis.prevMonthOrders) * 100 : 0),
+    [kpis.prevMonthOrders, kpis.totalOrders],
+  );
 
-  // Employee cross-filters
-  const crossFilter = (city: string | null, license: string | null, sponsorship: string | null) =>
-    empDetails.filter(e =>
-      (city === null || e.city === city) &&
-      (license === null || e.license_status === license) &&
-      (sponsorship === null || e.sponsorship_status === sponsorship)
-    ).length;
+  const employeeCounts = useMemo(() => {
+    const counts = {
+      makkah: {
+        has_license: 0,
+        applied: 0,
+        no_license: 0,
+        sponsored: 0,
+        not_sponsored: 0,
+        has_license_sponsored: 0,
+        has_license_not_sponsored: 0,
+      },
+      jeddah: {
+        has_license: 0,
+        applied: 0,
+        no_license: 0,
+        sponsored: 0,
+        not_sponsored: 0,
+        has_license_sponsored: 0,
+        has_license_not_sponsored: 0,
+      },
+      global: {
+        sponsored: 0,
+        not_sponsored: 0,
+        absconded: 0,
+        terminated: 0,
+      },
+    };
 
-  // Top N riders overall and per platform
-  const topRidersOverall = allRiders.slice(0, topN);
-  const topRidersPerApp = apps.map(app => ({
-    ...app,
-    riders: allRiders.filter(r => r.appId === app.id).slice(0, topN),
-  })).filter(a => a.riders.length > 0);
-  const maxOrderOverall = topRidersOverall[0]?.orders || 1;
+    for (const e of empDetails) {
+      const city = e.city === 'makkah' ? 'makkah' : e.city === 'jeddah' ? 'jeddah' : null;
+      const license = e.license_status || 'no_license';
+      const sponsorship = e.sponsorship_status;
+
+      if (sponsorship === 'sponsored') counts.global.sponsored++;
+      else if (sponsorship === 'not_sponsored') counts.global.not_sponsored++;
+      else if (sponsorship === 'absconded') counts.global.absconded++;
+      else if (sponsorship === 'terminated') counts.global.terminated++;
+
+      if (!city) continue;
+
+      if (license === 'has_license') counts[city].has_license++;
+      else if (license === 'applied') counts[city].applied++;
+      else counts[city].no_license++;
+
+      if (sponsorship === 'sponsored') counts[city].sponsored++;
+      else if (sponsorship === 'not_sponsored') counts[city].not_sponsored++;
+
+      if (license === 'has_license' && sponsorship === 'sponsored') counts[city].has_license_sponsored++;
+      if (license === 'has_license' && sponsorship === 'not_sponsored') counts[city].has_license_not_sponsored++;
+    }
+
+    return counts;
+  }, [empDetails]);
+
+  const ridersByAppId = useMemo(() => {
+    const map = new Map<string, typeof allRiders>();
+    for (const r of allRiders) {
+      const arr = map.get(r.appId);
+      if (arr) arr.push(r);
+      else map.set(r.appId, [r]);
+    }
+    return map;
+  }, [allRiders]);
+
+  const topRidersOverall = useMemo(() => allRiders.slice(0, topN), [allRiders, topN]);
+  const maxOrderOverall = useMemo(() => topRidersOverall[0]?.orders || 1, [topRidersOverall]);
+
+  const topRidersPerApp = useMemo(
+    () =>
+      apps
+        .map((app) => ({
+          ...app,
+          riders: (ridersByAppId.get(app.id) || []).slice(0, topN),
+        }))
+        .filter((a) => a.riders.length > 0),
+    [apps, ridersByAppId, topN],
+  );
+
+  const handleTopNBlur = useCallback(() => {
+    const parsed = parsePositiveIntOrNull(topNInput);
+    if (parsed !== null) {
+      setTopN(parsed);
+      return;
+    }
+    setTopNInput(String(topN));
+  }, [topN, topNInput]);
 
   return (
     <div className="space-y-5">
@@ -633,23 +823,23 @@ const Dashboard = () => {
                     </div>
                     <span className="text-3xl font-black text-foreground">{kpis.makkahCount}</span>
                   </div>
-                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={`makkah-skeleton-${i}`} h="h-10"/>)}</div> : (
+                  {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`makkah-skeleton-${k}`} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
-                        <Chip label="لديه رخصة" value={crossFilter('makkah','has_license',null)} color="bg-emerald-50 text-emerald-700" />
-                        <Chip label="قيد التقديم" value={crossFilter('makkah','applied',null)} color="bg-amber-50 text-amber-700" />
-                        <Chip label="بدون رخصة" value={crossFilter('makkah','no_license',null)} color="bg-red-50 text-red-700" />
+                        <Chip label="لديه رخصة" value={employeeCounts.makkah.has_license} color="bg-emerald-50 text-emerald-700" />
+                        <Chip label="قيد التقديم" value={employeeCounts.makkah.applied} color="bg-amber-50 text-amber-700" />
+                        <Chip label="بدون رخصة" value={employeeCounts.makkah.no_license} color="bg-red-50 text-red-700" />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <Chip label="مكفول" value={crossFilter('makkah',null,'sponsored')} color="bg-blue-50 text-blue-700" />
-                        <Chip label="غير مكفول" value={crossFilter('makkah',null,'not_sponsored')} color="bg-muted/40 text-foreground/75" />
+                        <Chip label="مكفول" value={employeeCounts.makkah.sponsored} color="bg-blue-50 text-blue-700" />
+                        <Chip label="غير مكفول" value={employeeCounts.makkah.not_sponsored} color="bg-muted/40 text-foreground/75" />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">مكة + رخصة + كفالة</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <Chip label="رخصة + مكفول" value={crossFilter('makkah','has_license','sponsored')} color="bg-indigo-50 text-indigo-700" />
-                        <Chip label="رخصة + غير مكفول" value={crossFilter('makkah','has_license','not_sponsored')} color="bg-sky-50 text-sky-700" />
+                        <Chip label="رخصة + مكفول" value={employeeCounts.makkah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
+                        <Chip label="رخصة + غير مكفول" value={employeeCounts.makkah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
                       </div>
                     </div>
                   )}
@@ -667,23 +857,23 @@ const Dashboard = () => {
                     </div>
                     <span className="text-3xl font-black text-foreground">{kpis.jeddahCount}</span>
                   </div>
-                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={`jeddah-skeleton-${i}`} h="h-10"/>)}</div> : (
+                  {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`jeddah-skeleton-${k}`} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
-                        <Chip label="لديه رخصة" value={crossFilter('jeddah','has_license',null)} color="bg-emerald-50 text-emerald-700" />
-                        <Chip label="قيد التقديم" value={crossFilter('jeddah','applied',null)} color="bg-amber-50 text-amber-700" />
-                        <Chip label="بدون رخصة" value={crossFilter('jeddah','no_license',null)} color="bg-red-50 text-red-700" />
+                        <Chip label="لديه رخصة" value={employeeCounts.jeddah.has_license} color="bg-emerald-50 text-emerald-700" />
+                        <Chip label="قيد التقديم" value={employeeCounts.jeddah.applied} color="bg-amber-50 text-amber-700" />
+                        <Chip label="بدون رخصة" value={employeeCounts.jeddah.no_license} color="bg-red-50 text-red-700" />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <Chip label="مكفول" value={crossFilter('jeddah',null,'sponsored')} color="bg-blue-50 text-blue-700" />
-                        <Chip label="غير مكفول" value={crossFilter('jeddah',null,'not_sponsored')} color="bg-muted/40 text-foreground/75" />
+                        <Chip label="مكفول" value={employeeCounts.jeddah.sponsored} color="bg-blue-50 text-blue-700" />
+                        <Chip label="غير مكفول" value={employeeCounts.jeddah.not_sponsored} color="bg-muted/40 text-foreground/75" />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">جدة + رخصة + كفالة</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <Chip label="رخصة + مكفول" value={crossFilter('jeddah','has_license','sponsored')} color="bg-indigo-50 text-indigo-700" />
-                        <Chip label="رخصة + غير مكفول" value={crossFilter('jeddah','has_license','not_sponsored')} color="bg-sky-50 text-sky-700" />
+                        <Chip label="رخصة + مكفول" value={employeeCounts.jeddah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
+                        <Chip label="رخصة + غير مكفول" value={employeeCounts.jeddah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
                       </div>
                     </div>
                   )}
@@ -692,12 +882,12 @@ const Dashboard = () => {
 
               {/* Sponsorship global breakdown */}
               <Card title="توزيع الكفالة — جميع المناديب">
-                {loading ? <div className="grid grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={`sponsorship-skeleton-${i}`} h="h-14"/>)}</div> : (
+                {loading ? <div className="grid grid-cols-4 gap-3">{SKELETON_KEYS_4.map((k)=><Sk key={`sponsorship-skeleton-${k}`} h="h-14"/>)}</div> : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Chip label="مكفول" value={empDetails.filter(e=>e.sponsorship_status==='sponsored').length} color="bg-blue-50 text-blue-700" />
-                    <Chip label="غير مكفول" value={empDetails.filter(e=>e.sponsorship_status==='not_sponsored').length} color="bg-muted/40 text-foreground/75" />
-                    <Chip label="هارب" value={empDetails.filter(e=>e.sponsorship_status==='absconded').length} color="bg-red-50 text-red-700" />
-                    <Chip label="منهي الكفالة" value={empDetails.filter(e=>e.sponsorship_status==='terminated').length} color="bg-orange-50 text-orange-700" />
+                    <Chip label="مكفول" value={employeeCounts.global.sponsored} color="bg-blue-50 text-blue-700" />
+                    <Chip label="غير مكفول" value={employeeCounts.global.not_sponsored} color="bg-muted/40 text-foreground/75" />
+                    <Chip label="هارب" value={employeeCounts.global.absconded} color="bg-red-50 text-red-700" />
+                    <Chip label="منهي الكفالة" value={employeeCounts.global.terminated} color="bg-orange-50 text-orange-700" />
                   </div>
                 )}
               </Card>
@@ -717,7 +907,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
                 {loading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={`app-card-skeleton-${i}`} h="h-28"/>)}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{SKELETON_KEYS_4.map((k)=><Sk key={`app-card-skeleton-${k}`} h="h-28"/>)}</div>
                 ) : ordersByApp.length === 0 ? (
                   <p className="text-sm text-muted-foreground/80 text-center py-8">لا توجد بيانات طلبات لهذا الشهر</p>
                 ) : (
@@ -764,7 +954,7 @@ const Dashboard = () => {
                     <input
                       type="number" min={1} max={50} value={topNInput}
                       onChange={e => setTopNInput(e.target.value)}
-                      onBlur={() => { const n = parseInt(topNInput); if (!isNaN(n) && n >= 1) setTopN(n); else setTopNInput(String(topN)); }}
+                      onBlur={handleTopNBlur}
                       className="w-14 text-center border border-border rounded-lg text-sm font-bold py-1 bg-background text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -812,7 +1002,7 @@ const Dashboard = () => {
               {/* Today's breakdown */}
               <Card title="الحضور اليوم" subtitle={format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}>
                 {loading ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{[1,2,3,4,5].map(i=><Sk key={`attendance-skeleton-${i}`} h="h-16"/>)}</div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{SKELETON_KEYS_5.map((k)=><Sk key={`attendance-skeleton-${k}`} h="h-16"/>)}</div>
                 ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     <div className="rounded-xl bg-emerald-50 p-4 text-center">
