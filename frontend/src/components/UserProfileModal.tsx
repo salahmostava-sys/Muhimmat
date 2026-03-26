@@ -330,7 +330,7 @@ const UserProfileModal = ({ onClose }: Props) => {
                 <div className="flex gap-1">
                   {[1, 2, 3].map(i => (
                     <div
-                      key={i}
+                      key={`pw-strength-${i}`}
                       className={cn('h-1.5 flex-1 rounded-full transition-colors',
                         strength >= i ? strengthColor(strength) : 'bg-muted'
                       )}

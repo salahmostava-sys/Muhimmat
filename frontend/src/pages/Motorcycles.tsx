@@ -250,7 +250,7 @@ const VehicleFormModal = ({
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
     {Array.from({ length: 17 }).map((_, i) => (
-      <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
+      <td key={`motorcycles-skeleton-cell-${i}`} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
 );
@@ -579,7 +579,7 @@ const Motorcycles = () => {
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={`motorcycles-skeleton-row-${i}`} />)
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={17} className="text-center py-16">

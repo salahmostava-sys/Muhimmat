@@ -50,6 +50,7 @@ type AppRow = { id: string; name: string };
 type DailyMileageResponseRow = DailyRow & { employees?: Employee };
 
 type ImportRow = {
+  row_key: string;
   raw_name: string;
   km_total: number;
   fuel_cost: number;
@@ -145,7 +146,7 @@ const ImportModal = ({
 
   const buildPreview = () => {
     if (!mapping.name || !mapping.km) return toast({ title: 'حدد عمود الاسم والكيلومترات', variant: 'destructive' });
-    const preview: ImportRow[] = rawData.map(r => {
+    const preview: ImportRow[] = rawData.map((r, idx) => {
       const raw_name = toCellString(r[mapping.name]).trim();
       const km_total = Number.parseFloat(toCellString(r[mapping.km])) || 0;
       const fuel_cost =
@@ -155,7 +156,14 @@ const ImportModal = ({
       const notes = mapping.notes && mapping.notes !== '__none__' ? toCellString(r[mapping.notes]) : '';
       const exact = employees.find(e => e.name === raw_name);
       const partial = !exact ? employees.find(e => e.name.includes(raw_name) || raw_name.includes(e.name)) : null;
-      return { raw_name, km_total, fuel_cost, notes, matched_employee: exact || partial || null };
+      return {
+        row_key: `${idx}-${raw_name || 'unknown'}-${km_total}-${fuel_cost}`,
+        raw_name,
+        km_total,
+        fuel_cost,
+        notes,
+        matched_employee: exact || partial || null,
+      };
     }).filter(r => r.raw_name);
     setRows(preview);
     setStep(3);
@@ -261,17 +269,20 @@ const ImportModal = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, i) => {
+                    {rows.map((row) => {
                       const emp = row.manual_employee_id ? employees.find(e => e.id === row.manual_employee_id) : row.matched_employee;
                       const isMatched = !!emp;
                       return (
-                        <tr key={i} className={`border-t border-border/30 ${isMatched ? '' : 'bg-warning/5'}`}>
+                        <tr key={row.row_key} className={`border-t border-border/30 ${isMatched ? '' : 'bg-warning/5'}`}>
                           <td className="px-3 py-2 font-medium">{row.raw_name}</td>
                           <td className="px-3 py-2">
                             {isMatched ? (
                               <span className="text-success text-xs flex items-center gap-1"><Check size={11} /> {emp!.name}</span>
                             ) : (
-                              <Select value={row.manual_employee_id || ''} onValueChange={v => setRows(rs => rs.map((r, j) => j === i ? { ...r, manual_employee_id: v } : r))}>
+                              <Select
+                                value={row.manual_employee_id || ''}
+                                onValueChange={v => setRows(rs => rs.map((r) => (r.row_key === row.row_key ? { ...r, manual_employee_id: v } : r)))}
+                              >
                                 <SelectTrigger className="h-7 text-xs border-warning/50"><SelectValue placeholder="اختر يدوياً..." /></SelectTrigger>
                                 <SelectContent className="max-h-48">
                                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
@@ -789,9 +800,9 @@ const FuelPage = () => {
                 <tbody>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/30">
+                      <tr key={`fuel-monthly-skeleton-row-${i}`} className="border-b border-border/30">
                         {Array.from({ length: 9 }).map((_, j) => (
-                          <td key={j} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
+                          <td key={`fuel-monthly-skeleton-cell-${i}-${j}`} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
                         ))}
                       </tr>
                     ))
@@ -1268,7 +1279,7 @@ function FuelDailyFastList(props: {
             <tbody className="divide-y divide-border/40">
               {isLoading ? (
                 Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`fuel-daily-skeleton-row-${i}`}>
                     <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
                     <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
                     <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
