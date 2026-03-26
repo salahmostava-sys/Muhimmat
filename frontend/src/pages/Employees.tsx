@@ -633,56 +633,23 @@ const Employees = () => {
   // ── active cols (ordered) ──
   const activeCols = ALL_COLUMNS.filter(c => visibleCols.has(c.key));
   const hasActiveFilters = Object.keys(colFilters).length > 0;
-  let employeeTableRows: React.ReactNode;
-  if (loading) {
-    employeeTableRows = GRID_SKELETON_IDS.map((id) => <SkeletonRow key={`employees-grid-skeleton-${id}`} cols={activeCols.length} />);
-  } else if (paginated.length === 0) {
-    employeeTableRows = (
-      <tr>
-        <td colSpan={activeCols.length} className="text-center py-16">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <span className="text-4xl">👥</span>
-            <p className="font-medium">لا توجد نتائج</p>
-            <p className="text-xs">جرّب تغيير الفلاتر أو إضافة موظف جديد</p>
-          </div>
-        </td>
-      </tr>
-    );
-  } else {
-    employeeTableRows = paginated.map((emp, idx) => {
-      const res = calcResidency(emp.residency_expiry);
-      const daysColor = dayColorByThreshold(res.days);
-      const globalIdx = (page - 1) * pageSize + idx + 1;
-      return (
-        <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-          {activeCols.map(col => { // NOSONAR
-            switch (col.key) {
-              case 'seq':
-                return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{globalIdx}</td>;
-              default:
-                return null;
-            }
-          })}
-        </tr>
-      );
-    });
-  }
+  const isTableLoading = loading;
+  const hasNoPaginatedRows = paginated.length === 0;
 
   // ── profile view ──
   if (selectedEmployee) {
     const emp = (employeesData as Employee[]).find(e => e.id === selectedEmployee) ?? data.find(e => e.id === selectedEmployee);
     if (emp) {
       const isVisibleInMonth = isEmployeeVisibleInMonth(emp, activeEmployeeIdsInMonth);
-      if (!isVisibleInMonth) {
-        setSelectedEmployee(null);
-      } else {
-      return (
-        <EmployeeProfile
-          employee={emp as EmployeeProfileProps['employee']}
-          onBack={() => setSelectedEmployee(null)}
-        />
-      );
+      if (isVisibleInMonth) {
+        return (
+          <EmployeeProfile
+            employee={emp as EmployeeProfileProps['employee']}
+            onBack={() => setSelectedEmployee(null)}
+          />
+        );
       }
+      setSelectedEmployee(null);
     }
   }
 
@@ -909,8 +876,21 @@ const Employees = () => {
             </thead>
 
             <tbody>
-              {employeeTableRows}
-              {false && paginated.map((emp, idx) => {
+              {isTableLoading && (
+                GRID_SKELETON_IDS.map((id) => <SkeletonRow key={`employees-grid-skeleton-${id}`} cols={activeCols.length} />)
+              )}
+              {!isTableLoading && hasNoPaginatedRows && (
+                <tr>
+                  <td colSpan={activeCols.length} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <span className="text-4xl">👥</span>
+                      <p className="font-medium">لا توجد نتائج</p>
+                      <p className="text-xs">جرّب تغيير الفلاتر أو إضافة موظف جديد</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!isTableLoading && !hasNoPaginatedRows && paginated.map((emp, idx) => {
                 const res     = calcResidency(emp.residency_expiry);
                 const daysColor = dayColorByThreshold(res.days);
                 const globalIdx = (page - 1) * pageSize + idx + 1;
