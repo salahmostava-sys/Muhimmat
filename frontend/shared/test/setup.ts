@@ -6,7 +6,7 @@ import { server } from './msw/server';
  * PHASE 1 — Stabilize tests without real VITE_SUPABASE_* or live Auth.
  * Hooks under test import useAuthQueryGate; many services import supabase client.
  */
-vi.mock('@/integrations/supabase/client', () => {
+vi.mock('@services/supabase/client', () => {
   const buildChain = () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
@@ -45,7 +45,7 @@ vi.mock('@/integrations/supabase/client', () => {
   };
 });
 
-vi.mock('@/hooks/useAuthQueryGate', () => ({
+vi.mock('@shared/hooks/useAuthQueryGate', () => ({
   authQueryUserId: (uid: string | null | undefined) => uid ?? '__none__',
   useAuthQueryGate: () => ({
     enabled: true,
