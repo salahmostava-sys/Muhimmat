@@ -40,7 +40,6 @@ export function useOrdersMonthPaged(params: {
           filters: { employeeId: driverId, appId, branch, search },
         })
       );
-      if (res.error) throw res.error;
       return res;
     },
     retry: safeRetry,

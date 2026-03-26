@@ -1,6 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { format, endOfMonth } from 'date-fns';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 export interface DashboardKPIs {
   totalOrders: number;
@@ -34,8 +34,8 @@ export const dashboardService = {
       p_month_year: monthYear,
       p_today: today,
     });
-    throwIfError(error, 'dashboardService.getOverviewRpc');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getOverviewRpc');
+    return data;
   },
 
   /** Active apps with basic metadata */
@@ -44,8 +44,8 @@ export const dashboardService = {
       .from('apps')
       .select('id, name, brand_color, text_color')
       .eq('is_active', true);
-    throwIfError(error, 'dashboardService.getActiveApps');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getActiveApps');
+    return data ?? [];
   },
 
   /** Active employee count */
@@ -54,8 +54,8 @@ export const dashboardService = {
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    throwIfError(error, 'dashboardService.getActiveEmployeeCount');
-    return { count: count ?? 0, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getActiveEmployeeCount');
+    return count ?? 0;
   },
 
   /** Approved salary totals for a given month (YYYY-MM) */
@@ -65,9 +65,8 @@ export const dashboardService = {
       .select('net_salary')
       .eq('month_year', monthYear)
       .eq('is_approved', true);
-    const total = data?.reduce((sum, r) => sum + (r.net_salary ?? 0), 0) ?? 0;
-    throwIfError(error, 'dashboardService.getMonthSalaryTotal');
-    return { total, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getMonthSalaryTotal');
+    return (data ?? []).reduce((sum, r) => sum + (r.net_salary ?? 0), 0);
   },
 
   /** Total active advance amount */
@@ -76,9 +75,8 @@ export const dashboardService = {
       .from('advances')
       .select('amount')
       .eq('status', 'active');
-    const total = data?.reduce((sum, r) => sum + (r.amount ?? 0), 0) ?? 0;
-    throwIfError(error, 'dashboardService.getActiveAdvancesTotal');
-    return { total, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getActiveAdvancesTotal');
+    return (data ?? []).reduce((sum, r) => sum + (r.amount ?? 0), 0);
   },
 
   /** Today's attendance breakdown */
@@ -87,11 +85,11 @@ export const dashboardService = {
       .from('attendance')
       .select('status')
       .eq('date', date);
+    if (error) throw toServiceError(error, 'dashboardService.getAttendanceToday');
     const present = data?.filter(r => r.status === 'present').length ?? 0;
     const absent  = data?.filter(r => r.status === 'absent').length  ?? 0;
     const leave   = data?.filter(r => r.status === 'leave').length   ?? 0;
-    throwIfError(error, 'dashboardService.getAttendanceToday');
-    return { present, absent, leave, error: null };
+    return { present, absent, leave };
   },
 
   /** Orders per month with employee+app detail (for platform breakdown) */
@@ -103,8 +101,8 @@ export const dashboardService = {
       .select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name)')
       .gte('date', start)
       .lte('date', end);
-    throwIfError(error, 'dashboardService.getMonthOrders');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getMonthOrders');
+    return data ?? [];
   },
 
   /** Simple orders count for a previous month (for trend comparison) */
@@ -116,19 +114,20 @@ export const dashboardService = {
       .select('orders_count')
       .gte('date', start)
       .lte('date', end);
-    const total = data?.reduce((sum, r) => sum + (r.orders_count ?? 0), 0) ?? 0;
-    throwIfError(error, 'dashboardService.getMonthOrdersCount');
-    return { total, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getMonthOrdersCount');
+    return data?.reduce((sum, r) => sum + (r.orders_count ?? 0), 0) ?? 0;
   },
 
   /** Attendance trend for the last N days */
-  getAttendanceTrend: async (from: string, to: string): Promise<{ data: AttendanceTrendPoint[]; error: unknown }> => {
+  getAttendanceTrend: async (from: string, to: string) => {
     const { data, error } = await supabase
       .from('attendance')
       .select('date, status')
       .gte('date', from)
       .lte('date', to)
       .order('date', { ascending: true });
+
+    if (error) throw toServiceError(error, 'dashboardService.getAttendanceTrend');
 
     const grouped: Record<string, AttendanceTrendPoint> = {};
     data?.forEach(r => {
@@ -137,9 +136,7 @@ export const dashboardService = {
       else if (r.status === 'absent') grouped[r.date].absent++;
       else if (r.status === 'leave') grouped[r.date].leave++;
     });
-
-    throwIfError(error, 'dashboardService.getAttendanceTrend');
-    return { data: Object.values(grouped), error: null };
+    return Object.values(grouped);
   },
 
   /** Latest audit log entries */
@@ -149,8 +146,8 @@ export const dashboardService = {
       .select('action, table_name, created_at, user_id')
       .order('created_at', { ascending: false })
       .limit(limit);
-    throwIfError(error, 'dashboardService.getRecentActivity');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getRecentActivity');
+    return data ?? [];
   },
 
   /** Active employee-app assignments (for platform employee map) */
@@ -159,8 +156,8 @@ export const dashboardService = {
       .from('employee_apps')
       .select('app_id, employee_id, apps(name, brand_color, text_color)')
       .eq('status', 'active');
-    throwIfError(error, 'dashboardService.getEmployeeAppAssignments');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getEmployeeAppAssignments');
+    return data ?? [];
   },
 
   /** System settings (project name, logo, subtitle) */
@@ -170,8 +167,8 @@ export const dashboardService = {
       .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
       .limit(1)
       .maybeSingle();
-    throwIfError(error, 'dashboardService.getSystemSettings');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getSystemSettings');
+    return data;
   },
 
   /** Employee city + license + sponsorship distribution (for map/stats) */
@@ -180,8 +177,8 @@ export const dashboardService = {
       .from('employees')
       .select('id, city, license_status, sponsorship_status')
       .eq('status', 'active');
-    throwIfError(error, 'dashboardService.getEmployeeDistribution');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getEmployeeDistribution');
+    return data ?? [];
   },
 
   /** Active vehicles count */
@@ -190,8 +187,8 @@ export const dashboardService = {
       .from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    throwIfError(error, 'dashboardService.getActiveVehiclesCount');
-    return { count: count ?? 0, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getActiveVehiclesCount');
+    return count ?? 0;
   },
 
   /** Unresolved alerts count */
@@ -200,8 +197,8 @@ export const dashboardService = {
       .from('alerts')
       .select('id', { count: 'exact', head: true })
       .eq('is_resolved', false);
-    throwIfError(error, 'dashboardService.getUnresolvedAlertsCount');
-    return { count: count ?? 0, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getUnresolvedAlertsCount');
+    return count ?? 0;
   },
 
   /** App monthly targets */
@@ -210,13 +207,12 @@ export const dashboardService = {
       .from('app_targets')
       .select('app_id, target_orders')
       .eq('month_year', monthYear);
-    throwIfError(error, 'dashboardService.getAppTargets');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'dashboardService.getAppTargets');
+    return data ?? [];
   },
 
   /**
    * Main dashboard data — all 11 queries in one parallel call.
-   * Returns raw Supabase response objects so callers need zero reshaping.
    */
   fetchMainData: async (today: string, currentMonth: string, prevStart: string, prevEnd: string, sixDaysAgo: string) => {
     const [empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes] = await Promise.all([
@@ -233,19 +229,32 @@ export const dashboardService = {
       supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
       supabase.from('pricing_rules').select('app_id, rule_type, rate_per_order, fixed_salary, is_active, priority, min_orders, max_orders').eq('is_active', true),
     ]);
-    throwIfError(empRes.error, 'dashboardService.fetchMainData.empRes');
-    throwIfError(attRes.error, 'dashboardService.fetchMainData.attRes');
-    throwIfError(ordersRes.error, 'dashboardService.fetchMainData.ordersRes');
-    throwIfError(prevOrdersRes.error, 'dashboardService.fetchMainData.prevOrdersRes');
-    throwIfError(weekAttRes.error, 'dashboardService.fetchMainData.weekAttRes');
-    throwIfError(auditRes.error, 'dashboardService.fetchMainData.auditRes');
-    throwIfError(empDetailsRes.error, 'dashboardService.fetchMainData.empDetailsRes');
-    throwIfError(vehiclesRes.error, 'dashboardService.fetchMainData.vehiclesRes');
-    throwIfError(alertsRes.error, 'dashboardService.fetchMainData.alertsRes');
-    throwIfError(appsRes.error, 'dashboardService.fetchMainData.appsRes');
-    throwIfError(targetsRes.error, 'dashboardService.fetchMainData.targetsRes');
-    throwIfError(pricingRes.error, 'dashboardService.fetchMainData.pricingRes');
-    return { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes };
+    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.fetchMainData.empRes');
+    if (attRes.error) throw toServiceError(attRes.error, 'dashboardService.fetchMainData.attRes');
+    if (ordersRes.error) throw toServiceError(ordersRes.error, 'dashboardService.fetchMainData.ordersRes');
+    if (prevOrdersRes.error) throw toServiceError(prevOrdersRes.error, 'dashboardService.fetchMainData.prevOrdersRes');
+    if (weekAttRes.error) throw toServiceError(weekAttRes.error, 'dashboardService.fetchMainData.weekAttRes');
+    if (auditRes.error) throw toServiceError(auditRes.error, 'dashboardService.fetchMainData.auditRes');
+    if (empDetailsRes.error) throw toServiceError(empDetailsRes.error, 'dashboardService.fetchMainData.empDetailsRes');
+    if (vehiclesRes.error) throw toServiceError(vehiclesRes.error, 'dashboardService.fetchMainData.vehiclesRes');
+    if (alertsRes.error) throw toServiceError(alertsRes.error, 'dashboardService.fetchMainData.alertsRes');
+    if (appsRes.error) throw toServiceError(appsRes.error, 'dashboardService.fetchMainData.appsRes');
+    if (targetsRes.error) throw toServiceError(targetsRes.error, 'dashboardService.fetchMainData.targetsRes');
+    if (pricingRes.error) throw toServiceError(pricingRes.error, 'dashboardService.fetchMainData.pricingRes');
+    return {
+      activeEmployeeCount: empRes.count ?? 0,
+      attendanceToday: attRes.data ?? [],
+      ordersCurrentMonth: ordersRes.data ?? [],
+      ordersPreviousRange: prevOrdersRes.data ?? [],
+      attendanceWeek: weekAttRes.data ?? [],
+      auditLog: auditRes.data ?? [],
+      employeeDetails: empDetailsRes.data ?? [],
+      activeVehiclesCount: vehiclesRes.count ?? 0,
+      unresolvedAlertsCount: alertsRes.count ?? 0,
+      apps: appsRes.data ?? [],
+      appTargets: targetsRes.data ?? [],
+      pricingRules: pricingRes.data ?? [],
+    };
   },
 
   /**
@@ -259,22 +268,31 @@ export const dashboardService = {
         supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', m.start).lte('date', m.end)
       ),
     ]);
-    throwIfError(appsRes.error, 'dashboardService.fetchHistoricalData.appsRes');
-    throwIfError(empRes.error, 'dashboardService.fetchHistoricalData.empRes');
+    if (appsRes.error) throw toServiceError(appsRes.error, 'dashboardService.fetchHistoricalData.appsRes');
+    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.fetchHistoricalData.empRes');
     monthOrdersResults.forEach((result, idx) => {
-      throwIfError(result.error, `dashboardService.fetchHistoricalData.monthOrdersResults.${idx}`);
+      if (result.error) throw toServiceError(result.error, `dashboardService.fetchHistoricalData.monthOrdersResults.${idx}`);
     });
-    return { appsRes, empRes, monthOrdersResults };
+    return {
+      apps: appsRes.data ?? [],
+      employees: empRes.data ?? [],
+      monthOrders: monthOrdersResults.map(r => r.data ?? []),
+    };
   },
 
   /** All KPIs in one parallel fetch */
-  getKPIs: async (monthYear: string, today: string): Promise<{ kpis: DashboardKPIs; error: unknown }> => {
+  getKPIs: async (monthYear: string, today: string) => {
     const [empRes, attRes, advRes, salRes] = await Promise.all([
       supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('attendance').select('status').eq('date', today),
       supabase.from('advances').select('amount').eq('status', 'active'),
       supabase.from('salary_records').select('net_salary').eq('month_year', monthYear).eq('is_approved', true),
     ]);
+
+    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.getKPIs.empRes');
+    if (attRes.error) throw toServiceError(attRes.error, 'dashboardService.getKPIs.attRes');
+    if (advRes.error) throw toServiceError(advRes.error, 'dashboardService.getKPIs.advRes');
+    if (salRes.error) throw toServiceError(salRes.error, 'dashboardService.getKPIs.salRes');
 
     const kpis: DashboardKPIs = {
       activeEmployees: empRes.count ?? 0,
@@ -285,10 +303,6 @@ export const dashboardService = {
       totalOrders:    0, // filled separately via getMonthOrders
     };
 
-    throwIfError(empRes.error, 'dashboardService.getKPIs.empRes');
-    throwIfError(attRes.error, 'dashboardService.getKPIs.attRes');
-    throwIfError(advRes.error, 'dashboardService.getKPIs.advRes');
-    throwIfError(salRes.error, 'dashboardService.getKPIs.salRes');
-    return { kpis, error: null };
+    return { kpis };
   },
 };

@@ -33,7 +33,7 @@ export const salaryDataService = {
   },
 
   async getMonthlyContext(selectedMonth: string) {
-    const [empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecordsRes, allAdvancesRes] =
+    const [employees, extRes, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvancesRes] =
       await Promise.all([
         employeeService.getActiveForSalaryContext(),
         externalDeductionService.getApprovedByMonth(selectedMonth),
@@ -46,25 +46,23 @@ export const salaryDataService = {
       ]);
 
     return {
-      empRes,
+      employees,
       extRes,
-      ordersRes,
+      orders,
       appsWithSchemeRes,
-      attendanceRes: { data: attendanceRes.data || [], error: attendanceRes.error },
+      attendanceRows,
       fuelRes,
-      savedRecords: savedRecordsRes.data || [],
+      savedRecords,
       allAdvances: allAdvancesRes.data || [],
     };
   },
 
   async upsertSalaryRecord(record: Record<string, unknown>) {
-    const { error } = await salaryService.upsertMany([record]);
-    return { error };
+    await salaryService.upsertMany([record]);
   },
 
   async upsertSalaryRecords(records: Record<string, unknown>[]) {
-    const { error } = await salaryService.upsertMany(records);
-    return { error };
+    await salaryService.upsertMany(records);
   },
 
   async markInstallmentsDeducted(installmentIds: string[], deductedAtIso: string) {

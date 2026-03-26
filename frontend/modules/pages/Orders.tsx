@@ -173,18 +173,15 @@ const SpreadsheetGrid = () => {
     queryKey: qk.spreadsheetBase,
     enabled,
     queryFn: async () => {
-      const [empRes, appRes, empAppsRes] = await Promise.all([
+      const [employees, apps, employeeApps] = await Promise.all([
         orderService.getActiveEmployees(),
         orderService.getActiveApps(),
         orderService.getEmployeeAppAssignments(),
       ]);
-      if (empRes.error) throw empRes.error;
-      if (appRes.error) throw appRes.error;
-      if (empAppsRes.error) throw empAppsRes.error;
       return {
-        employees: (empRes.data || []) as Employee[],
-        apps: (appRes.data || []) as App[],
-        employeeApps: (empAppsRes.data || []) as EmployeeAppAssignmentRow[],
+        employees: (employees || []) as Employee[],
+        apps: (apps || []) as App[],
+        employeeApps: (employeeApps || []) as EmployeeAppAssignmentRow[],
       };
     },
     retry: defaultQueryRetry,
@@ -202,8 +199,7 @@ const SpreadsheetGrid = () => {
     queryKey: qk.spreadsheetMonthRaw(year, month),
     enabled,
     queryFn: async () => {
-      const { data: rows, error } = await orderService.getMonthRaw(year, month);
-      if (error) throw error;
+      const rows = await orderService.getMonthRaw(year, month);
       return (rows || []) as OrderRawRow[];
     },
     select: (rows) => buildDailyDataMap(rows),
@@ -430,12 +426,15 @@ const SpreadsheetGrid = () => {
     const my = monthYear(year, month);
     if (!isPastMonth(year, month) || isMonthLocked) return;
     setLockingMonth(true);
-    const { error } = await orderService.lockMonth(my);
-    setLockingMonth(false);
-    if (error) {
-      toast({ title: 'فشل قفل الشهر', description: error.message, variant: 'destructive' });
+    try {
+      await orderService.lockMonth(my);
+    } catch (e: unknown) {
+      setLockingMonth(false);
+      const message = e instanceof Error ? e.message : 'فشل قفل الشهر';
+      toast({ title: 'فشل قفل الشهر', description: message, variant: 'destructive' });
       return;
     }
+    setLockingMonth(false);
     setIsMonthLocked(true);
     setCellPopover(null);
     toast({ title: '✅ تم قفل الشهر بنجاح' });
@@ -640,15 +639,13 @@ const MonthSummary = () => {
     queryKey: qk.summaryBase,
     enabled,
     queryFn: async () => {
-      const [empRes, appRes] = await Promise.all([
+      const [employees, apps] = await Promise.all([
         orderService.getActiveEmployees(),
         orderService.getActiveApps(),
       ]);
-      if (empRes.error) throw empRes.error;
-      if (appRes.error) throw appRes.error;
       return {
-        employees: (empRes.data || []) as Employee[],
-        apps: (appRes.data || []) as App[],
+        employees: (employees || []) as Employee[],
+        apps: (apps || []) as App[],
       };
     },
     retry: defaultQueryRetry,
@@ -660,13 +657,12 @@ const MonthSummary = () => {
     enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
-      const [targetsRes, lockRes] = await Promise.all([
+      const [targetsRows, lockRes] = await Promise.all([
         orderService.getAppTargets(my),
         orderService.getMonthLockStatus(my),
       ]);
-      if (targetsRes.error) throw targetsRes.error;
       return {
-        targets: (targetsRes.data || []) as AppTargetRow[],
+        targets: (targetsRows || []) as AppTargetRow[],
         locked: lockRes.locked,
       };
     },
@@ -684,8 +680,7 @@ const MonthSummary = () => {
     queryKey: qk.summaryMonthRaw(year, month),
     enabled,
     queryFn: async () => {
-      const { data: rows, error } = await orderService.getMonthRaw(year, month);
-      if (error) throw error;
+      const rows = await orderService.getMonthRaw(year, month);
       return (rows || []) as OrderRawRow[];
     },
     select: (rows) => buildDailyDataMap(rows),
@@ -732,10 +727,14 @@ const MonthSummary = () => {
     const targetOrders = Number.parseInt(value, 10) || 0;
     const my = monthYear(year, month);
     setSavingTarget(appId);
-    const { error } = await orderService.upsertAppTarget(appId, my, targetOrders);
-    setSavingTarget(null);
-    if (error) toast({ title: 'خطأ في حفظ التارجت', variant: 'destructive' });
-    else toast({ title: '✅ تم حفظ التارجت' });
+    try {
+      await orderService.upsertAppTarget(appId, my, targetOrders);
+      toast({ title: '✅ تم حفظ التارجت' });
+    } catch {
+      toast({ title: 'خطأ في حفظ التارجت', variant: 'destructive' });
+    } finally {
+      setSavingTarget(null);
+    }
   };
 
   const days = getDaysInMonth(year, month);
@@ -914,18 +913,16 @@ const OrdersList = () => {
   const { data: baseData } = useQuery({
     queryKey: ['orders', uid, 'list', 'base'] as const,
     queryFn: async () => {
-      const [empRes, appRes] = await Promise.all([
+      const [empRows, apps] = await Promise.all([
         orderService.getActiveEmployees(),
         orderService.getActiveApps(),
       ]);
-      if (empRes.error) throw empRes.error;
-      if (appRes.error) throw appRes.error;
       return {
         employees: filterVisibleEmployeesInMonth(
-          (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
+          (empRows || []) as unknown as { id: string; sponsorship_status?: string | null }[],
           activeEmployeeIdsInMonth
         ) as unknown as Employee[],
-        apps: (appRes.data || []) as App[],
+        apps: (apps || []) as App[],
       };
     },
     enabled: enabled && !!activeIdsData,
@@ -964,8 +961,7 @@ const OrdersList = () => {
   const handleExportMonth = async () => {
     try {
       const XLSX = await loadXlsx();
-      const { data: raw, error } = await orderService.getMonthRaw(year, month);
-      if (error) throw error;
+      const raw = await orderService.getMonthRaw(year, month);
       const empMap = Object.fromEntries((baseData?.employees ?? []).map((e) => [e.id, e]));
       const appMap = Object.fromEntries((baseData?.apps ?? []).map((a) => [a.id, a]));
       const out = (raw || []).map((r) => ({

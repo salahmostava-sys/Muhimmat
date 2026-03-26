@@ -14,18 +14,11 @@ export const useEmployees = () => {
   const q = useQuery({
     queryKey: employeesQueryKey(uid),
     queryFn: async () => {
-      const result = await Promise.race([
-        employeeService.getAll(),
-        new Promise<{ data: null; error: { message: string } }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: { message: 'انتهت مهلة تحميل البيانات. حاول مرة أخرى.' } }), 12000)
-        ),
-      ]);
-
-      if (result.error) {
-        throw new Error(result.error.message || 'تعذر تحميل الموظفين');
-      }
-
-      return result.data || [];
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('انتهت مهلة تحميل البيانات. حاول مرة أخرى.')), 12000)
+      );
+      const rows = await Promise.race([employeeService.getAll(), timeoutPromise]);
+      return rows || [];
     },
     staleTime: 60_000,
     enabled,

@@ -37,7 +37,6 @@ export function useEmployeesPaged(params: {
       const res = await withQueryTimeout(
         employeeService.getPaged({ page, pageSize, filters: { branch, status, search } })
       );
-      if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
     retry: safeRetry,

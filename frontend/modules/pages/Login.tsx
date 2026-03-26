@@ -31,7 +31,7 @@ const Login = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
 
   useEffect(() => {
-    dashboardService.getSystemSettings().then(({ data }) => {
+    dashboardService.getSystemSettings().then((data) => {
       if (!data) return;
       setSettings({
         project_name_ar: data.project_name_ar ?? '',

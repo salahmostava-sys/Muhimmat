@@ -14,8 +14,8 @@ export const useOrders = () => {
   const q = useQuery({
     queryKey: ordersQueryKey(uid),
     queryFn: async () => {
-      const { data } = await orderService.getAll();
-      return data || [];
+      const rows = await orderService.getAll();
+      return rows || [];
     },
     staleTime: 30_000,
     enabled,

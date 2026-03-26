@@ -534,8 +534,8 @@ const fetchPricingRulesMap = async (appNameToId: Record<string, string>) => {
   const appIds = Object.values(appNameToId);
   const rulesByApp = await Promise.all(
     appIds.map(async (appId) => {
-      const { data } = await salaryService.getPricingRules(appId);
-      return { appId, rules: data || [] };
+      const rules = await salaryService.getPricingRules(appId);
+      return { appId, rules: rules || [] };
     })
   );
   const rulesMap: Record<string, PricingRule[]> = {};
@@ -1073,10 +1073,7 @@ const Salaries = () => {
         if (timeoutId) clearTimeout(timeoutId);
       }
 
-      const { data: previewData, error: previewError } = await salaryDataService.getSalaryPreviewForMonth(selectedMonth);
-      if (previewError) {
-        throw new Error(`PREVIEW_BACKEND: ${previewError.message}`);
-      }
+      const previewData = await salaryDataService.getSalaryPreviewForMonth(selectedMonth);
 
       return {
         monthlyContext,
@@ -1112,7 +1109,7 @@ const Salaries = () => {
       if (cancelled) return;
       try {
         const { monthlyContext, previewData } = salaryBaseContext;
-        const { empRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
+        const { employees: empRows, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvances } = monthlyContext;
         const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
         const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
 
@@ -1123,16 +1120,16 @@ const Salaries = () => {
         if (cancelled) return;
 
         const employees = filterVisibleEmployeesInMonth(
-          (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
+          (empRows || []) as unknown as { id: string; sponsorship_status?: string | null }[],
           activeEmployeeIdsInMonth
         );
         if (employees.some((emp) => !previewMap[emp.id])) {
           throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
         }
 
-        const attendanceDaysMap = buildAttendanceDaysMap(attendanceRes.data as Array<{ employee_id: string }> | null | undefined);
+        const attendanceDaysMap = buildAttendanceDaysMap(attendanceRows as Array<{ employee_id: string }> | null | undefined);
         const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
-        const ordMap = buildOrdersMap(ordersRes.data as OrderWithAppRow[] | null);
+        const ordMap = buildOrdersMap(orders as OrderWithAppRow[] | null);
         const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
         const { appSchemeMap, appNameToId } = buildAppMaps(appsFromApi);
         const platformNames = appsFromApi.map(a => a.name);
@@ -3011,13 +3008,10 @@ function SalariesFastList(props: Readonly<{
       const branchKey: Exclude<BranchKey, 'all'> | undefined = branch === 'all' ? undefined : branch;
       const q = search?.trim() || undefined;
 
-      const res = await salaryService.exportMonth({
+      const out = (await salaryService.exportMonth({
         monthYear,
         filters: { branch: branchKey, search: q, approved },
-      });
-      if (res.error) throw res.error;
-
-      const out = (res.data || []) as Row[];
+      })) as Row[];
       const sheet = out.map((r) => ({
         'الموظف': r.employees?.name ?? '',
         'الهوية': r.employees?.national_id ?? '',

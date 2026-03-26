@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 
 export type EmployeeAppOption = {
   id: string;
@@ -19,8 +19,8 @@ export const employeeService = {
       .from('employees')
       .select('*')
       .order('name', { ascending: true });
-    throwIfError(error, 'employeeService.getAll');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.getAll');
+    return data ?? [];
   },
 
   /**
@@ -67,8 +67,8 @@ export const employeeService = {
     }
 
     const { data, error, count } = await query;
-    throwIfError(error, 'employeeService.getPaged');
-    return { data: data || [], error: null, count: count ?? 0 };
+    if (error) throw toServiceError(error, 'employeeService.getPaged');
+    return { data: data || [], count: count ?? 0 };
   },
 
   /** Export helper for large datasets (chunked). */
@@ -91,7 +91,7 @@ export const employeeService = {
       all.push(...(res.data || []));
       if ((res.data || []).length < chunkSize) break;
     }
-    return { data: all, error: null };
+    return all;
   },
 
   async updateCity(employeeId: string, city: 'makkah' | 'jeddah') {
@@ -99,8 +99,7 @@ export const employeeService = {
       .from('employees')
       .update({ city })
       .eq('id', employeeId);
-    throwIfError(error, 'employeeService.updateCity');
-    return { error: null };
+    if (error) throw toServiceError(error, 'employeeService.updateCity');
   },
 
   async getById(employeeId: string) {
@@ -109,8 +108,8 @@ export const employeeService = {
       .select('*')
       .eq('id', employeeId)
       .single();
-    throwIfError(error, 'employeeService.getById');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.getById');
+    return data;
   },
 
   async findByEmployeeCode(employeeCode: string) {
@@ -119,8 +118,8 @@ export const employeeService = {
       .select('id')
       .eq('employee_code', employeeCode)
       .maybeSingle();
-    throwIfError(error, 'employeeService.findByEmployeeCode');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.findByEmployeeCode');
+    return data;
   },
 
   async findByNationalId(nationalId: string) {
@@ -129,8 +128,8 @@ export const employeeService = {
       .select('id')
       .eq('national_id', nationalId)
       .maybeSingle();
-    throwIfError(error, 'employeeService.findByNationalId');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.findByNationalId');
+    return data;
   },
 
   async deleteById(employeeId: string) {
@@ -138,8 +137,7 @@ export const employeeService = {
       .from('employees')
       .delete()
       .eq('id', employeeId);
-    throwIfError(error, 'employeeService.deleteById');
-    return { error: null };
+    if (error) throw toServiceError(error, 'employeeService.deleteById');
   },
 
   async getActiveForSalaryContext() {
@@ -148,8 +146,8 @@ export const employeeService = {
       .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    throwIfError(error, 'employeeService.getActiveForSalaryContext');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.getActiveForSalaryContext');
+    return data ?? [];
   },
 
   async getActiveSalarySchemes() {
@@ -158,8 +156,8 @@ export const employeeService = {
       .select('id, name')
       .eq('status', 'active')
       .order('name');
-    throwIfError(error, 'employeeService.getActiveSalarySchemes');
-    return { data: (data || []) as SalarySchemeOption[], error: null };
+    if (error) throw toServiceError(error, 'employeeService.getActiveSalarySchemes');
+    return (data || []) as SalarySchemeOption[];
   },
 
   async getActiveApps() {
@@ -168,8 +166,8 @@ export const employeeService = {
       .select('id, name, brand_color, text_color')
       .eq('is_active', true)
       .order('name');
-    throwIfError(error, 'employeeService.getActiveApps');
-    return { data: (data || []) as EmployeeAppOption[], error: null };
+    if (error) throw toServiceError(error, 'employeeService.getActiveApps');
+    return (data || []) as EmployeeAppOption[];
   },
 
   async getEmployeeAssignedAppNames(employeeId: string) {
@@ -177,13 +175,11 @@ export const employeeService = {
       .from('employee_apps')
       .select('apps(name)')
       .eq('employee_id', employeeId);
-    throwIfError(error, 'employeeService.getEmployeeAssignedAppNames');
+    if (error) throw toServiceError(error, 'employeeService.getEmployeeAssignedAppNames');
 
-    const appNames = (data || [])
+    return (data || [])
       .map((row: { apps?: { name?: string | null } | null }) => row.apps?.name)
       .filter((name): name is string => Boolean(name));
-
-    return { data: appNames, error: null };
   },
 
   async createEmployee(payload: Record<string, unknown>) {
@@ -192,8 +188,8 @@ export const employeeService = {
       .insert(payload)
       .select()
       .single();
-    throwIfError(error, 'employeeService.createEmployee');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.createEmployee');
+    return data;
   },
 
   async updateEmployee(employeeId: string, payload: Record<string, unknown>) {
@@ -201,16 +197,15 @@ export const employeeService = {
       .from('employees')
       .update(payload)
       .eq('id', employeeId);
-    throwIfError(error, 'employeeService.updateEmployee');
-    return { error: null };
+    if (error) throw toServiceError(error, 'employeeService.updateEmployee');
   },
 
   async uploadEmployeeDocument(storagePath: string, file: File) {
     const { data, error } = await supabase.storage
       .from('employee-documents')
       .upload(storagePath, file, { upsert: true });
-    throwIfError(error, 'employeeService.uploadEmployeeDocument');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'employeeService.uploadEmployeeDocument');
+    return data;
   },
 
   async updateEmployeeDocumentPaths(employeeId: string, updates: Record<string, string>) {
@@ -218,8 +213,7 @@ export const employeeService = {
       .from('employees')
       .update(updates)
       .eq('id', employeeId);
-    throwIfError(error, 'employeeService.updateEmployeeDocumentPaths');
-    return { error: null };
+    if (error) throw toServiceError(error, 'employeeService.updateEmployeeDocumentPaths');
   },
 
   async replaceEmployeeApps(employeeId: string, appIds: string[]) {
@@ -227,9 +221,9 @@ export const employeeService = {
       .from('employee_apps')
       .delete()
       .eq('employee_id', employeeId);
-    throwIfError(deleteError, 'employeeService.replaceEmployeeApps.delete');
+    if (deleteError) throw toServiceError(deleteError, 'employeeService.replaceEmployeeApps.delete');
 
-    if (appIds.length === 0) return { error: null };
+    if (appIds.length === 0) return;
 
     const rows = appIds.map((appId) => ({
       employee_id: employeeId,
@@ -240,16 +234,14 @@ export const employeeService = {
     const { error: insertError } = await supabase
       .from('employee_apps')
       .insert(rows);
-    throwIfError(insertError, 'employeeService.replaceEmployeeApps.insert');
-    return { error: null };
+    if (insertError) throw toServiceError(insertError, 'employeeService.replaceEmployeeApps.insert');
   },
 
   async upsertEmployeeApp(employeeId: string, appId: string) {
     const { error } = await supabase
       .from('employee_apps')
       .upsert({ employee_id: employeeId, app_id: appId, status: 'active' }, { onConflict: 'employee_id,app_id' });
-    throwIfError(error, 'employeeService.upsertEmployeeApp');
-    return { error: null };
+    if (error) throw toServiceError(error, 'employeeService.upsertEmployeeApp');
   },
 };
 

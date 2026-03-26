@@ -301,9 +301,9 @@ const sumOrders = (rows: AnalyticsOrderRow[]) => rows.reduce((s, r) => s + r.ord
 
 const countUniqueRiders = (rows: AnalyticsOrderRow[]) => new Set(rows.map(r => r.employee_id)).size;
 
-const buildMonthlyTrend = (months: AnalyticsMonth[], monthOrdersResults: Array<{ data: AnalyticsOrderRow[] | null }>): AnalyticsTrendRow[] => {
+const buildMonthlyTrend = (months: AnalyticsMonth[], monthOrdersResults: Array<AnalyticsOrderRow[] | null>): AnalyticsTrendRow[] => {
   return months.map((m, i) => {
-    const rows = monthOrdersResults[i]?.data || [];
+    const rows = monthOrdersResults[i] || [];
     const total = sumOrders(rows);
     const activeRiders = countUniqueRiders(rows);
     return {
@@ -330,10 +330,10 @@ const buildAppBreakdown = (
     .sort((a, b) => b.thisMonth - a.thisMonth);
 };
 
-const accumulateRiderOrders = (results: Array<{ data: AnalyticsOrderRow[] | null }>) => {
+const accumulateRiderOrders = (results: Array<AnalyticsOrderRow[] | null>) => {
   const riderData: Record<string, number[]> = {};
-  results.forEach((res, mi) => {
-    (res.data || []).forEach((r) => {
+  results.forEach((rows, mi) => {
+    (rows || []).forEach((r) => {
       if (!riderData[r.employee_id]) riderData[r.employee_id] = [0, 0, 0, 0];
       riderData[r.employee_id][mi] += r.orders_count;
     });
@@ -378,23 +378,22 @@ const AnalyticsTab = () => {
       const months = buildHistoricalMonths();
       const monthLabels = months.map(m => m.label);
 
-      const { appsRes, empRes, monthOrdersResults } = await dashboardService.fetchHistoricalData(months);
-      const apps = appsRes.data || [];
-      const empMap = Object.fromEntries((empRes.data || []).map(e => [e.id, e.name]));
+      const { apps, employees, monthOrders } = await dashboardService.fetchHistoricalData(months);
+      const empMap = Object.fromEntries((employees || []).map(e => [e.id, e.name]));
 
-      const monthOrderResults = monthOrdersResults;
+      const monthOrderResults = monthOrders;
 
-      const trendData = buildMonthlyTrend(months, monthOrderResults as Array<{ data: AnalyticsOrderRow[] | null }>);
+      const trendData = buildMonthlyTrend(months, monthOrderResults as Array<AnalyticsOrderRow[] | null>);
 
-      const currOrders = monthOrderResults[MONTHS_BACK - 1].data || [];
+      const currOrders = monthOrderResults[MONTHS_BACK - 1] || [];
       const currTotal = sumOrders(currOrders);
       const projectedOrders = daysPassed > 0 ? Math.round((currTotal / daysPassed) * daysInMonth) : 0;
 
-      const lastMonthOrders = monthOrderResults[MONTHS_BACK - 2].data || [];
+      const lastMonthOrders = monthOrderResults[MONTHS_BACK - 2] || [];
       const appBreakdown = buildAppBreakdown(apps, currOrders, lastMonthOrders);
 
       const last4 = monthOrderResults.slice(MONTHS_BACK - 4);
-      const riderData = accumulateRiderOrders(last4 as Array<{ data: AnalyticsOrderRow[] | null }>);
+      const riderData = accumulateRiderOrders(last4 as Array<AnalyticsOrderRow[] | null>);
       const riderMetrics = buildRiderMetrics(riderData, empMap);
 
       return { monthLabels, monthlyTrend: trendData, riderMetrics, projectedOrders, currentOrders: currTotal, appBreakdown };
@@ -784,8 +783,7 @@ const fetchDashboardKpis = async (
   activeEmployeeIdsInMonth: ReadonlySet<string> | undefined
 ) => {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);
-  if (error) throw error;
+  const rpcData = await dashboardService.getOverviewRpc(currentMonth, today);
 
   const rpc = (rpcData || {}) as any;
   const apps = (rpc.apps || []) as DashboardApp[];

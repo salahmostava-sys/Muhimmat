@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { throwIfError } from '@services/serviceError';
+import { toServiceError } from '@services/serviceError';
 import { authService } from '@services/authService';
 
 export interface DailyOrder {
@@ -47,8 +47,8 @@ export const orderService = {
       .from('daily_orders')
       .select('*')
       .order('date', { ascending: false });
-    throwIfError(error, 'orderService.getAll');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getAll');
+    return data ?? [];
   },
 
   getOrdersByEmployeeMonth: async (employeeId: string, monthYear: string) => {
@@ -64,8 +64,8 @@ export const orderService = {
       .lte('date', to)
       .order('date', { ascending: true });
 
-    throwIfError(error, 'orderService.getOrdersByEmployeeMonth');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getOrdersByEmployeeMonth');
+    return data ?? [];
   },
 
   getSalaryContextOrdersByMonth: async (monthYear: string) => {
@@ -77,8 +77,8 @@ export const orderService = {
       .select('employee_id, app_id, orders_count, apps(name, id)')
       .gte('date', from)
       .lte('date', to);
-    throwIfError(error, 'orderService.getSalaryContextOrdersByMonth');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getSalaryContextOrdersByMonth');
+    return data ?? [];
   },
 
   getByDate: async (date: string, filters: Pick<OrderFilter, 'employeeId' | 'appId'> = {}) => {
@@ -92,8 +92,8 @@ export const orderService = {
     if (filters.appId) query = query.eq('app_id', filters.appId);
 
     const { data, error } = await query;
-    throwIfError(error, 'orderService.getByDate');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getByDate');
+    return data ?? [];
   },
 
   getByMonth: async (monthYear: string, filters: Pick<OrderFilter, 'employeeId' | 'appId'> = {}) => {
@@ -112,8 +112,8 @@ export const orderService = {
     if (filters.appId) query = query.eq('app_id', filters.appId);
 
     const { data, error } = await query;
-    throwIfError(error, 'orderService.getByMonth');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getByMonth');
+    return data ?? [];
   },
 
   /**
@@ -154,11 +154,10 @@ export const orderService = {
     }
 
     const { data, error, count } = await query;
-    throwIfError(error, 'orderService.getMonthPaged');
+    if (error) throw toServiceError(error, 'orderService.getMonthPaged');
     return {
       data: (data || []) as unknown[],
       count: count ?? 0,
-      error: null,
     };
   },
 
@@ -171,14 +170,13 @@ export const orderService = {
       )
       .select()
       .single();
-    throwIfError(error, 'orderService.upsert');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.upsert');
+    return data;
   },
 
   delete: async (id: string) => {
     const { error } = await supabase.from('daily_orders').delete().eq('id', id);
-    throwIfError(error, 'orderService.delete');
-    return { error: null };
+    if (error) throw toServiceError(error, 'orderService.delete');
   },
 
   getTotalByEmployee: async (employeeId: string, monthYear: string) => {
@@ -192,10 +190,9 @@ export const orderService = {
       .eq('employee_id', employeeId)
       .gte('date', from)
       .lte('date', to);
-    throwIfError(error, 'orderService.getTotalByEmployee');
+    if (error) throw toServiceError(error, 'orderService.getTotalByEmployee');
 
-    const total = data?.reduce((sum, row) => sum + (row.orders_count ?? 0), 0) ?? 0;
-    return { total, error: null };
+    return data?.reduce((sum, row) => sum + (row.orders_count ?? 0), 0) ?? 0;
   },
 
   getAppTargets: async (monthYear: string) => {
@@ -203,8 +200,8 @@ export const orderService = {
       .from('app_targets')
       .select('*, apps(name, name_en, brand_color)')
       .eq('month_year', monthYear);
-    throwIfError(error, 'orderService.getAppTargets');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getAppTargets');
+    return data ?? [];
   },
 
   upsertAppTarget: async (appId: string, monthYear: string, targetOrders: number) => {
@@ -216,8 +213,8 @@ export const orderService = {
       )
       .select()
       .single();
-    throwIfError(error, 'orderService.upsertAppTarget');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.upsertAppTarget');
+    return data;
   },
 
   getMonthRaw: async (year: number, month: number) => {
@@ -228,8 +225,8 @@ export const orderService = {
       .select('employee_id, app_id, date, orders_count')
       .gte('date', from)
       .lte('date', to);
-    throwIfError(error, 'orderService.getMonthRaw');
-    return { data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getMonthRaw');
+    return data ?? [];
   },
 
   bulkUpsert: async (rows: { employee_id: string; app_id: string; date: string; orders_count: number }[], chunkSize = 200) => {
@@ -240,7 +237,7 @@ export const orderService = {
       const { error } = await supabase
         .from('daily_orders')
         .upsert(chunk, { onConflict: 'employee_id,app_id,date' });
-      throwIfError(error, 'orderService.bulkUpsert');
+      if (error) throw toServiceError(error, 'orderService.bulkUpsert');
       saved += chunk.length;
     }
     return { saved, failed };
@@ -252,8 +249,8 @@ export const orderService = {
       .select('id, name, salary_type, status, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    throwIfError(error, 'orderService.getActiveEmployees');
-    return { data: (data || []) as ActiveEmployee[], error: null };
+    if (error) throw toServiceError(error, 'orderService.getActiveEmployees');
+    return (data || []) as ActiveEmployee[];
   },
 
   getActiveApps: async () => {
@@ -262,16 +259,16 @@ export const orderService = {
       .select('id, name, name_en, logo_url')
       .eq('is_active', true)
       .order('name');
-    throwIfError(error, 'orderService.getActiveApps');
-    return { data: (data || []) as ActiveApp[], error: null };
+    if (error) throw toServiceError(error, 'orderService.getActiveApps');
+    return (data || []) as ActiveApp[];
   },
 
   getEmployeeAppAssignments: async () => {
     const { data, error } = await supabase
       .from('employee_apps')
       .select('employee_id, app_id');
-    throwIfError(error, 'orderService.getEmployeeAppAssignments');
-    return { data: (data || []) as EmployeeAppRow[], error: null };
+    if (error) throw toServiceError(error, 'orderService.getEmployeeAppAssignments');
+    return (data || []) as EmployeeAppRow[];
   },
 
   getMonthLockStatus: async (month_year: string) => {
@@ -280,8 +277,8 @@ export const orderService = {
       .select('month_year')
       .eq('month_year', month_year)
       .maybeSingle();
-    throwIfError(error, 'orderService.getMonthLockStatus');
-    return { locked: !!data, error: null };
+    if (error) throw toServiceError(error, 'orderService.getMonthLockStatus');
+    return { locked: !!data };
   },
 
   lockMonth: async (month_year: string) => {
@@ -291,7 +288,6 @@ export const orderService = {
       { month_year, locked_at: new Date().toISOString(), locked_by: userId },
       { onConflict: 'month_year' }
     );
-    throwIfError(error, 'orderService.lockMonth');
-    return { error: null };
+    if (error) throw toServiceError(error, 'orderService.lockMonth');
   },
 };

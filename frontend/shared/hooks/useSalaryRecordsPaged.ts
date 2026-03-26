@@ -43,7 +43,6 @@ export function useSalaryRecordsPaged(params: {
           filters: { branch, approved, search },
         })
       );
-      if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
     retry: safeRetry,
