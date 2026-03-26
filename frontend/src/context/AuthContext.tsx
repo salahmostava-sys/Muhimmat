@@ -33,6 +33,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const recoverInFlightRef = useRef<Promise<boolean> | null>(null);
   const isFirstLoad = useRef(true);
+  const redirectToLoginIfNeeded = useCallback(() => {
+    const currentPath = globalThis.location?.pathname ?? '';
+    const isPublicAuthRoute = currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/reset-password';
+    if (!isPublicAuthRoute) {
+      globalThis.location.replace('/login');
+    }
+  }, []);
 
   const forceSignOut = useCallback(async () => {
     const { user: currentUser } = await authService.getCurrentUser();
@@ -46,7 +53,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setRole(null);
-  }, [user?.id]);
+    redirectToLoginIfNeeded();
+  }, [redirectToLoginIfNeeded, user?.id]);
 
   const recoverSessionSilently = useCallback(async (opts?: { refetchActiveQueries?: boolean }) => {
     if (recoverInFlightRef.current !== null) return recoverInFlightRef.current;
@@ -104,6 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           setRefreshing(false);
           setLoading(false);
+          redirectToLoginIfNeeded();
         }
         if (nextSession?.user) {
           const active = await authService.fetchIsActive(nextSession.user.id);
@@ -149,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
     return () => subscription.unsubscribe();
-  }, [forceSignOut, queryClient]);
+  }, [forceSignOut, queryClient, redirectToLoginIfNeeded]);
 
   // عند العودة للتبويب/الاتصال: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل البيانات
   useEffect(() => {
@@ -160,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const now = Date.now();
       if (now - lastRefreshAt < minMs) return;
       lastRefreshAt = now;
-      await recoverSessionSilently({ refetchActiveQueries: true });
+      await recoverSessionSilently({ refetchActiveQueries: false });
     };
     const onFocus = () => {
       void onWake();

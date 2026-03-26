@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
@@ -49,13 +49,48 @@ const RootLoader = () => {
   return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
 };
 
+const isUnauthenticatedError = (error: unknown): boolean => {
+  const anyError = error as { status?: number; message?: string; cause?: { status?: number; message?: string } } | null;
+  const status = anyError?.status ?? anyError?.cause?.status;
+  if (status === 401 || status === 403) return true;
+
+  const message = `${anyError?.message ?? ''} ${anyError?.cause?.message ?? ''}`.toLowerCase();
+  return (
+    message.includes('jwt') ||
+    message.includes('unauthorized') ||
+    message.includes('not authorized') ||
+    message.includes('auth') ||
+    message.includes('session')
+  );
+};
+
+const redirectToLoginIfNeeded = () => {
+  const currentPath = globalThis.location?.pathname ?? '';
+  const isPublicAuthRoute = currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/reset-password';
+  if (!isPublicAuthRoute) {
+    globalThis.location.replace('/login');
+  }
+};
+
+const handleGlobalAuthError = (error: unknown) => {
+  if (!isUnauthenticatedError(error)) return;
+  console.warn('[QueryClient] Ignoring unauthenticated query/mutation error and redirecting to login');
+  redirectToLoginIfNeeded();
+};
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: handleGlobalAuthError,
+  }),
+  mutationCache: new MutationCache({
+    onError: handleGlobalAuthError,
+  }),
   defaultOptions: {
     queries: {
-      staleTime: 0,
+      staleTime: 1000 * 60 * 5,
       gcTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       retry: (failureCount, error: any) => {
         if (!error) return false;
         if (error?.status === 401 || error?.status === 403) return false;
