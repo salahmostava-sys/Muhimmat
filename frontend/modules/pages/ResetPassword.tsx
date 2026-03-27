@@ -4,6 +4,7 @@ import { Lock, Loader2, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-
 import { Input } from '@shared/components/ui/input';
 import { authService } from '@services/authService';
 import { authGradientBtn, authBtnStyle } from '@shared/lib/authStyles';
+import { logError } from '@shared/lib/logger';
 
 function calcStrength(pw: string): 0 | 1 | 2 | 3 {
   if (!pw) return 0;
@@ -182,7 +183,7 @@ const ResetPassword = () => {
       setSuccess(true);
       setTimeout(() => navigate('/'), 2500);
     } catch (err) {
-      console.error('[ResetPassword] updatePassword failed', err);
+      logError('[ResetPassword] updatePassword failed', err);
       setError('حدث خطأ أثناء تحديث كلمة المرور');
     } finally {
       setLoading(false);

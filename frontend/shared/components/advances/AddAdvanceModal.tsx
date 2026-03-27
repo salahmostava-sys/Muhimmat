@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@shared/hooks/use-toast';
 import { advanceService } from '@services/advanceService';
 import { getErrorMessage } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 interface Props {
   onClose: () => void;
@@ -122,7 +123,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
       }
       onClose();
     } catch (err: unknown) {
-      console.error('[AddAdvanceModal] save failed', err);
+      logError('[AddAdvanceModal] save failed', err);
       toast({ title: 'خطأ', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSaving(false);

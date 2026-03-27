@@ -3,6 +3,7 @@ import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } f
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useAlertsData } from '@shared/hooks/useAlertsData';
 import { cn } from '@shared/lib/utils';
+import { logError } from '@shared/lib/logger';
 import { Link } from 'react-router-dom';
 import type { Alert } from '@shared/lib/alertsBuilder';
 
@@ -78,7 +79,7 @@ export default function NotificationCenter() {
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('nc_dismissed') || '[]')); }
     catch (e) {
-      console.warn('[NotificationCenter] invalid nc_dismissed in storage', e);
+      logError('[NotificationCenter] invalid nc_dismissed in storage', e, { level: 'warn' });
       return new Set();
     }
   });

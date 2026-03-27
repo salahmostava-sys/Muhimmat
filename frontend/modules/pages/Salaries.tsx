@@ -26,6 +26,7 @@ import { TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableAc
 import { SALARY_IMPORT_TEMPLATE_HEADERS, SALARY_IO_COLUMNS, type SalaryIoRecord, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 import { auditService } from '@services/auditService';
 import type JSZip from 'jszip';
 import { toCityArabicLabel, type FastApprovedFilter } from '@modules/salaries/model/salaryUtils';
@@ -632,7 +633,7 @@ const hydrateRowsWithDraft = (rows: SalaryRow[], draftKey: string) => {
       return patch ? { ...row, ...patch, isDirty: true } : row;
     });
   } catch (e) {
-    console.warn('[Salaries] ignored malformed salaries draft in localStorage', e);
+    logError('[Salaries] ignored malformed salaries draft in localStorage', e, { level: 'warn' });
   }
   return hydratedRows;
 };
@@ -813,7 +814,7 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
       pdf.save(`salary-slip-${row.employeeName}-${selectedMonth}.pdf`);
     } catch (e) {
-      console.warn('[Salaries] DOM PDF capture failed, using fallback slip', e);
+      logError('[Salaries] DOM PDF capture failed, using fallback slip', e, { level: 'warn' });
       // Fallback to service-based PDF when DOM capture fails.
       const simpleSlipBlob = await salarySlipService.generateSalaryPDF(
         { name: row.employeeName, nationalId: row.nationalId || null },

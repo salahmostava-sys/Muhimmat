@@ -6,6 +6,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { useSignedUrl, extractStoragePath } from '@shared/hooks/useSignedUrl';
 import { supabase } from '@services/supabase/client';
 import { useAuth } from '@app/providers/AuthContext';
+import { logError } from '@shared/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -276,7 +277,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
         if (appRes.data) setEmployeeApps(appRes.data as EmployeeApp[]);
         if (ordRes.data) setDailyOrders(ordRes.data as DailyOrder[]);
       } catch (err) {
-        console.error('[EmployeeProfile] fetch failed', err);
+        logError('[EmployeeProfile] fetch failed', err);
         setAdvances([]);
         setSalaries([]);
         setEmployeeApps([]);

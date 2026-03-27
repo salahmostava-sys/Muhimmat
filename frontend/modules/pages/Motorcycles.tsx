@@ -15,6 +15,7 @@ import { Skeleton } from '@shared/components/ui/skeleton';
 import { useMotorcyclesData } from '@shared/hooks/useMotorcyclesData';
 import { printHtmlTable } from '@shared/lib/printTable';
 import { MOTORCYCLE_IO_COLUMNS } from '@shared/constants/excelSchemas';
+import { logError } from '@shared/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended' | 'inactive';
@@ -158,7 +159,7 @@ const VehicleFormModal = ({
       toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });
       onSaved(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[Motorcycles] action failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -488,7 +489,7 @@ const Motorcycles = () => {
       toast({ title: 'تم حذف المركبة' });
       void refetchVehicles();
     } catch (e) {
-      console.error(e);
+      logError('[Motorcycles] import failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }

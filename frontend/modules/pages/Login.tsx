@@ -7,6 +7,7 @@ import { Checkbox } from '@shared/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@shared/lib/loginRememberStorage';
+import { logError } from '@shared/lib/logger';
 import './login.css';
 
 interface SystemSettings {
@@ -52,7 +53,7 @@ const Login = () => {
         setRememberMe(remember);
         if (storedEmail) setEmail(storedEmail);
       } catch (e) {
-        console.error('[Login] loadRememberedEmail failed', e);
+        logError('[Login] loadRememberedEmail failed', e);
       }
     })();
     return () => {
@@ -73,7 +74,7 @@ const Login = () => {
       const res = await signIn(email, password);
       error = res.error;
     } catch (err) {
-      console.error('[Login] signIn threw', err);
+      logError('[Login] signIn threw', err);
       error = { message: 'تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.' };
     } finally {
       setLoading(false);
@@ -89,7 +90,7 @@ const Login = () => {
       try {
         await persistRememberedEmail(email.trim(), rememberMe);
       } catch (e) {
-        console.error('[Login] persistRememberedEmail failed', e);
+        logError('[Login] persistRememberedEmail failed', e);
       }
       navigate('/', { replace: true });
     }

@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { settingsHubService } from '@services/settingsHubService';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 interface AuditLog {
   id: string;
@@ -87,7 +88,7 @@ const formatJson = (obj: Record<string, unknown> | null) => {
   try {
     return JSON.stringify(obj, null, 2);
   } catch (e) {
-    console.error('[ActivityLog] formatJson failed', e);
+    logError('[ActivityLog] formatJson failed', e);
     return '[unserializable-object]';
   }
 };

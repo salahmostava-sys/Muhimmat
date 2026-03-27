@@ -16,6 +16,7 @@ import { Sun, Moon, Menu, ChevronLeft, ChevronRight, LogOut, Settings, User, Che
 import NotificationCenter from '@shared/components/NotificationCenter';
 import GlobalSearch from '@shared/components/GlobalSearch';
 import { cn } from '@shared/lib/utils';
+import { logError } from '@shared/lib/logger';
 import { profileService } from '@services/profileService';
 
 interface AppLayoutProps {
@@ -70,7 +71,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
         if (row?.name) setProfileName(row.name);
       })
       .catch((e: unknown) => {
-        console.error('[AppLayout] getProfileName failed', e);
+        logError('[AppLayout] getProfileName failed', e);
       });
   }, [user?.id]);
 

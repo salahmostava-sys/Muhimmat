@@ -13,6 +13,7 @@ import { useLanguage } from "@app/providers/LanguageContext";
 import { usePermissions } from "@shared/hooks/usePermissions";
 import attendanceService from "@services/attendanceService";
 import { supabase } from "@services/supabase/client";
+import { logError } from "@shared/lib/logger";
 import {
   BUILT_IN_STATUSES,
   DEFAULT_COLOR,
@@ -60,7 +61,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const [customStatuses, setCustomStatuses] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("custom_attendance_statuses") || "[]"); }
     catch (e) {
-      console.warn('[DailyAttendance] invalid custom_attendance_statuses in storage', e);
+      logError('[DailyAttendance] invalid custom_attendance_statuses in storage', e, { level: 'warn' });
       return [];
     }
   });
@@ -129,7 +130,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           setAppEmployeeIds(map);
         }
       } catch (e) {
-        console.error('[DailyAttendance] fetchBase failed', e);
+        logError('[DailyAttendance] fetchBase failed', e);
       } finally {
         setLoading(false);
       }

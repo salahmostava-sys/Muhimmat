@@ -6,6 +6,7 @@ import { useToast } from '@shared/hooks/use-toast';
 import { employeeService } from '@services/employeeService';
 import * as XLSX from '@e965/xlsx';
 import { getErrorMessage } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ParsedEmployee {
@@ -619,7 +620,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
         }
         throw new TypeError('تعذر قراءة محتوى الملف');
       } catch (err: unknown) {
-        console.error('[ImportEmployeesModal] parse file failed', err);
+        logError('[ImportEmployeesModal] parse file failed', err);
         toast({ title: 'خطأ في قراءة الملف', description: getErrorMessage(err), variant: 'destructive' });
       }
     };

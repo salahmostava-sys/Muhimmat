@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@app/providers/LanguageContext";
 import attendanceService from "@services/attendanceService";
+import { logError } from "@shared/lib/logger";
 
 const MONTHS_AR = [
   "يناير",
@@ -64,7 +65,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
         setEmployees((empRows || []) as Employee[]);
         setAttendanceRows((attRows || []) as AttendanceRow[]);
       } catch (err) {
-        console.error('[MonthlyRecord] fetch failed', err);
+        logError('[MonthlyRecord] fetch failed', err);
         setEmployees([]);
         setAttendanceRows([]);
       } finally {
