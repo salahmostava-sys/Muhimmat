@@ -2,12 +2,13 @@ import { useState, useEffect, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@app/providers/LanguageContext';
 import {
-  Download, Search, RefreshCw, X, Activity,
+  Download, Search, RefreshCw, X, Activity, FolderOpen,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Badge } from '@shared/components/ui/badge';
 import { Skeleton } from '@shared/components/ui/skeleton';
 import * as XLSX from '@e965/xlsx';
@@ -215,9 +216,18 @@ export default function ActivityLogContent() {
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => void refetchLogs()}>
             <RefreshCw size={13} /> تحديث
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={handleExport}>
-            <Download size={13} /> تصدير
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 h-8">
+                <FolderOpen size={13} /> ملفات
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>
+                <Download size={13} className="ml-2" /> 📊 تصدير Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

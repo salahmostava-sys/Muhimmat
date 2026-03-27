@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Plus, Edit, Search, UserPlus, Loader2, X,
+  Plus, Edit, Search, UserPlus, Loader2, X, FolderOpen,
   ShieldCheck, History,
 } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
@@ -15,6 +15,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@shared/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@shared/components/ui/dropdown-menu';
 import { useToast } from '@shared/hooks/use-toast';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
@@ -1021,10 +1024,19 @@ function PlatformAccountsFastList(props: {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-xs text-muted-foreground">{total.toLocaleString()} نتيجة</div>
-        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={exportExcel} disabled={exporting}>
-          {exporting && <Loader2 size={14} className="animate-spin" />}
-          تصدير Excel
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 gap-2" disabled={exporting}>
+              <FolderOpen size={14} /> ملفات
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportExcel} disabled={exporting}>
+              {exporting && <Loader2 size={14} className="ml-2 animate-spin" />}
+              📊 تصدير Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="ds-card overflow-hidden">
