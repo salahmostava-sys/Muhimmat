@@ -2497,7 +2497,7 @@ const Salaries = () => {
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
                   <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
-                  <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
+                  <th colSpan={5} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-info whitespace-nowrap border-b border-border/40 bg-info/10 text-center border-l border-border/40">📊 بيانات المندوب الشهرية</th>
                   <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات (نقر مزدوج لتعديل الطلبات)
@@ -2519,6 +2519,12 @@ const Salaries = () => {
                   </th>
                   <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(264)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  <th className={`${thBase} cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('city')}>
+                    الفرع <SortIcon field="city" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  <th className={`${thBase} border-l border-border/40 cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('paymentMethod')}>
+                    طريقة الصرف <SortIcon field="paymentMethod" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {/* ── New info columns ── */}
                   <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-border/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('platformIncome')}>
@@ -2599,6 +2605,12 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 168, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/40 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 264, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      <td className={`${tdClass} text-center whitespace-nowrap`}>
+                        {r.city || '—'}
+                      </td>
+                      <td className={`${tdClass} border-l border-border/40 text-center whitespace-nowrap`}>
+                        {r.paymentMethod === 'bank' ? '🏦 بنك' : '💵 كاش'}
+                      </td>
                       {/* ── New info columns: income (manual), work days, fuel ── */}
                       <td className="px-2 py-2 text-xs text-center border border-border/40 bg-info/5 whitespace-nowrap">
                         <EditableCell value={r.platformIncome} onChange={v => updateRow(r.id, { platformIncome: v })} className="text-foreground" />
@@ -2695,6 +2707,8 @@ const Salaries = () => {
                   <td className={`${tfClass} sticky text-center border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 168, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 264, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
+                   <td className={tfClass}></td>
+                   <td className={`${tfClass} border-l border-border/30`}></td>
                    {/* New info columns totals */}
                    <td className="px-2 py-2 text-xs font-bold text-center border border-border/40 bg-info/10 text-foreground">
                      {filtered.reduce((s, r) => s + r.platformIncome, 0).toLocaleString()}

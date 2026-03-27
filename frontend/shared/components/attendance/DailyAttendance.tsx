@@ -13,8 +13,6 @@ import { useLanguage } from "@app/providers/LanguageContext";
 import { usePermissions } from "@shared/hooks/usePermissions";
 import attendanceService from "@services/attendanceService";
 import { supabase } from "@services/supabase/client";
-import { useMonthlyActiveEmployeeIds } from "@shared/hooks/useMonthlyActiveEmployeeIds";
-import { filterVisibleEmployeesInMonth } from "@shared/lib/employeeVisibility";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "sick" | "late";
 
@@ -82,9 +80,6 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { permissions } = usePermissions("attendance");
   const dateLocale = ar;
   const statusLabels = STATUS_LABELS_AR;
-  const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
-  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   const [date, setDate] = useState<Date>(() => {
     const d = new Date();
@@ -162,7 +157,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
         } else {
           employeeRows = (empRes.data as Employee[]) ?? [];
         }
-        setAllEmployees(filterVisibleEmployeesInMonth(employeeRows, activeEmployeeIdsInMonth));
+        setAllEmployees(employeeRows);
 
         if (appRes.error) throw appRes.error;
         if (appRes.data) setApps(appRes.data as App[]);
@@ -184,7 +179,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
       }
     };
     fetchBase();
-  }, [activeEmployeeIdsInMonth]);
+  }, [selectedMonth, selectedYear]);
 
   // ── Derive displayed employees based on platform filter ──
   const employees = selectedAppId
