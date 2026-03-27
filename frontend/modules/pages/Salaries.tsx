@@ -24,7 +24,7 @@ import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
 import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
 import { TableActions, TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableActions';
-import { SALARY_IMPORT_TEMPLATE_HEADERS, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
+import { SALARY_IMPORT_TEMPLATE_HEADERS, SALARY_IO_COLUMNS, type SalaryIoRecord, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
 import { printHtmlTable } from '@shared/lib/printTable';
 import { defaultQueryRetry } from '@shared/lib/query';
@@ -1795,35 +1795,25 @@ const Salaries = () => {
 
   const exportExcel = async () => {
     const XLSX = await loadXlsx();
-    const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
-    const data = filtered.map(r => {
+    const records: SalaryIoRecord[] = filtered.map((r) => {
       const c = computeRow(r);
-      const row: Record<string, string | number> = {
-        'الاسم': r.employeeName,
-        'المسمى الوظيفي': r.jobTitle,
-        'رقم الهوية': r.nationalId,
+      return {
+        employee_id: r.employeeId,
+        month_year: selectedMonth,
+        base_salary: Number(c.totalPlatformSalary || 0),
+        allowances: Number(c.totalAdditions || 0),
+        attendance_deduction: Number(r.violations || 0),
+        advance_deduction: Number(r.advanceDeduction || 0),
+        external_deduction: Number(r.externalDeduction || 0),
+        manual_deduction: Number(getManualDeductionTotal(r) || 0),
+        net_salary: Number(c.netSalary || 0),
+        is_approved: r.status === 'approved' || r.status === 'paid',
       };
-      platforms.forEach(p => {
-        row[p] = r.registeredApps.includes(p) ? (r.platformOrders[p] || 0) : '—';
-      });
-      row['إجمالي الراتب الأساسي'] = c.totalPlatformSalary;
-      row['الحوافز'] = r.incentives;
-      row['بدل مرضي'] = r.sickAllowance;
-      row['إجمالي الإضافات'] = c.totalAdditions;
-      row['المجموع مع الراتب'] = c.totalWithSalary;
-      row['قسط سلفة'] = r.advanceDeduction;
-      row['خصومات خارجية'] = r.externalDeduction;
-      row['المخالفات'] = r.violations;
-      row['إجمالي المستقطعات'] = c.totalDeductions;
-      row['إجمالي الراتب'] = c.netSalary;
-      row['التحويل'] = r.transfer;
-      row['المتبقي'] = c.remaining;
-      row['طريقة الصرف'] = r.bankAccount ? 'بنكي' : 'كاش';
-      row['المدينة'] = r.city;
-      row['الحالة'] = statusLabels[r.status];
-      return row;
     });
-    const ws = XLSX.utils.json_to_sheet(data);
+
+    const headerRow = SALARY_IO_COLUMNS.map((column) => column.label);
+    const rows = records.map((record) => SALARY_IO_COLUMNS.map((column) => record[column.key]));
+    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'الرواتب');
     const [year, month] = selectedMonth.split('-');
@@ -1977,8 +1967,7 @@ const Salaries = () => {
 
   const downloadSalaryTemplate = async () => {
     const XLSX = await loadXlsx();
-    const headers = [Array.from(SALARY_IMPORT_TEMPLATE_HEADERS)];
-    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const ws = XLSX.utils.aoa_to_sheet([Array.from(SALARY_IMPORT_TEMPLATE_HEADERS)]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'رواتب');
     XLSX.writeFile(wb, 'قالب_استيراد_الرواتب.xlsx');

@@ -23,6 +23,7 @@ import { useOrdersMonthPaged } from '@shared/hooks/useOrdersPaged';
 import { toast as sonnerToast } from '@shared/components/ui/sonner';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { buildOrdersIoHeaders } from '@shared/constants/excelSchemas';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -335,13 +336,14 @@ const SpreadsheetGrid = () => {
   // ── Export ──
   const exportExcel = async () => {
     const XLSX = await loadXlsx();
-    const rowsXlsx = filteredEmployees.map(emp => {
-      const row: Record<string, unknown> = { 'الاسم': emp.name };
-      dayArr.forEach(d => { row[String(d)] = empDayTotal(emp.id, d) || ''; });
-      row['المجموع'] = empMonthTotal(emp.id);
-      return row;
+    const headers = buildOrdersIoHeaders(dayArr);
+    const rows = filteredEmployees.map((emp) => {
+      const values: Array<string | number> = [emp.name];
+      dayArr.forEach((d) => values.push(empDayTotal(emp.id, d) || ''));
+      values.push(empMonthTotal(emp.id));
+      return values;
     });
-    const ws = XLSX.utils.json_to_sheet(rowsXlsx);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
     XLSX.writeFile(wb, `طلبات_${month}_${year}.xlsx`);
@@ -357,15 +359,35 @@ const SpreadsheetGrid = () => {
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+      if (matrix.length < 2) {
+        toast({ title: 'الملف فارغ', variant: 'destructive' });
+        return;
+      }
+      const expectedHeaders = buildOrdersIoHeaders(dayArr);
+      const actualHeaders = (matrix[0] || []).map((h) => String(h ?? '').trim());
+      const headersMatch =
+        actualHeaders.length === expectedHeaders.length &&
+        actualHeaders.every((h, i) => h === expectedHeaders[i]);
+      if (!headersMatch) {
+        toast({
+          title: 'هيكل الأعمدة غير مطابق للقالب',
+          description: 'تأكد من تحميل القالب واستخدامه بدون تعديل ترتيب أو أسماء الأعمدة',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const rows = matrix.slice(1);
       let imported = 0;
       const newData = { ...data };
       for (const row of rows) {
-        const empName = toCellText(row['الاسم']);
+        const line = Array.isArray(row) ? row : [];
+        const empName = toCellText(line[0]);
         const emp = employees.find(employee => employee.name === empName);
         if (!emp) continue;
-        for (const d of dayArr) {
-          const val = Number(row[String(d)]);
+        for (let idx = 0; idx < dayArr.length; idx++) {
+          const d = dayArr[idx];
+          const val = Number(line[idx + 1]);
           if (val <= 0) continue;
           for (const app of apps) {
             newData[`${emp.id}::${app.id}::${d}`] = val;
@@ -385,8 +407,7 @@ const SpreadsheetGrid = () => {
   // ── Template ──
   const handleTemplate = async () => {
     const XLSX = await loadXlsx();
-    const headers = [['الاسم', ...dayArr.map(String), 'المجموع']];
-    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const ws = XLSX.utils.aoa_to_sheet([buildOrdersIoHeaders(dayArr)]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'قالب الطلبات');
     XLSX.writeFile(wb, 'template_orders.xlsx');

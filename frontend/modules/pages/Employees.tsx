@@ -27,6 +27,7 @@ import {
   type EmployeeArabicRow,
   upsertEmployeeArabicRows,
 } from '@shared/lib/employeeArabicTemplateImport';
+import { EMPLOYEE_IMPORT_COLUMNS } from '@shared/constants/excelSchemas';
 import { printHtmlTable } from '@shared/lib/printTable';
 import { driverService } from '@services/driverService';
 import { useToast } from '@shared/hooks/use-toast';
@@ -542,40 +543,32 @@ const Employees = () => {
 
   // ── Export ──
   const handleExport = () => {
-    const rows = filtered.map((e, i) => {
-      const { days, status } = calcResidency(e.residency_expiry);
-      const leExpiry = e.license_expiry;
-      const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
-      const cityLabel = toCityLabel(e.city, '');
-      const residencyStatusText = residencyStatusLabel(status);
-      return {
-        'كود الموظف':        e.employee_code || '',
-        '#':                 i + 1,
-        'الاسم':             e.name,
-        'الاسم (إنجليزي)':  e.name_en || '',
-        'رقم الهوية':        e.national_id || '',
-        'المسمى الوظيفي':    e.job_title || '',
-        'المدينة':           cityLabel,
-        'رقم الهاتف':        e.phone || '',
-        'الجنسية':           e.nationality || '',
-        'الحالة':            STATUS_LABELS[e.status] || e.status,
-        'حالة الكفالة':      SPONSORSHIP_LABELS[e.sponsorship_status || ''] || '',
-        'تاريخ الانضمام':    e.join_date || '',
-        'تاريخ الميلاد':     e.birth_date || '',
-        'انتهاء فترة التجربة': e.probation_end_date || '',
-        'انتهاء الإقامة':    e.residency_expiry || '',
-        'المتبقي (يوم)':     days ?? '',
-        'حالة الإقامة':      residencyStatusText,
-        'انتهاء التأمين الصحي': e.health_insurance_expiry || '',
-        'حالة الرخصة':       LICENSE_LABELS[e.license_status || ''] || '',
-        'انتهاء الرخصة':     leExpiry || '',
-        'أيام انتهاء الرخصة': leDays ?? '',
-        'رقم الحساب البنكي': e.bank_account_number || '',
-        'IBAN':              e.iban || '',
-        'البريد الإلكتروني': e.email || '',
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const rows = filtered.map((e) => ({
+      employee_code: e.employee_code || '',
+      name: e.name || '',
+      name_en: e.name_en || '',
+      national_id: e.national_id || '',
+      phone: e.phone || '',
+      email: e.email || '',
+      city: e.city || '',
+      nationality: e.nationality || '',
+      job_title: e.job_title || '',
+      join_date: e.join_date || '',
+      birth_date: e.birth_date || '',
+      probation_end_date: e.probation_end_date || '',
+      residency_expiry: e.residency_expiry || '',
+      health_insurance_expiry: e.health_insurance_expiry || '',
+      license_expiry: e.license_expiry || '',
+      license_status: e.license_status || '',
+      sponsorship_status: e.sponsorship_status || '',
+      bank_account_number: e.bank_account_number || '',
+      iban: e.iban || '',
+      salary_type: e.salary_type || 'shift',
+      status: e.status || 'active',
+    }));
+    const headerRow = EMPLOYEE_IMPORT_COLUMNS.map((column) => column.label);
+    const aoaRows = rows.map((row) => EMPLOYEE_IMPORT_COLUMNS.map((column) => row[column.key]));
+    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...aoaRows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'بيانات الموظفين');
     XLSX.writeFile(wb, `بيانات_المناديب_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);

@@ -1,55 +1,41 @@
 import * as XLSX from '@e965/xlsx';
-import {
-  isEmployeeIdUuid,
-  isValidSalaryMonthYear,
-  monthYearFromParts,
-  parseSalaryAmount,
-} from '@shared/lib/salaryValidation';
+import { isEmployeeIdUuid, isValidSalaryMonthYear, parseSalaryAmount } from '@shared/lib/salaryValidation';
 
-/** Single-row template headers (Arabic) — must match `parseSalaryImportWorkbook` mapping. */
-export const SALARY_IMPORT_TEMPLATE_HEADERS = [
-  'معرف الموظف',
-  'الشهر والسنة',
-  'الراتب الأساسي',
-  'البدلات',
-  'خصم الحضور',
-  'خصم السلفة',
-  'خصم خارجي',
-  'خصم يدوي',
-  'صافي الراتب',
-  'معتمد',
+export const SALARY_IO_COLUMNS = [
+  { key: 'employee_id', label: 'معرف الموظف' },
+  { key: 'month_year', label: 'الشهر والسنة' },
+  { key: 'base_salary', label: 'الراتب الأساسي' },
+  { key: 'allowances', label: 'البدلات' },
+  { key: 'attendance_deduction', label: 'خصم الحضور' },
+  { key: 'advance_deduction', label: 'خصم السلفة' },
+  { key: 'external_deduction', label: 'خصم خارجي' },
+  { key: 'manual_deduction', label: 'خصم يدوي' },
+  { key: 'net_salary', label: 'صافي الراتب' },
+  { key: 'is_approved', label: 'معتمد' },
 ] as const;
 
-/** Alternate headers (optional columns instead of «الشهر والسنة»). */
-const HEADER_ALIASES: Record<string, keyof SalaryImportMapped> = {
-  'معرف الموظف': 'employee_id',
-  'الشهر والسنة': 'month_year',
-  'السنة': 'year',
-  'الشهر': 'month',
-  'الراتب الأساسي': 'base_salary',
-  'البدلات': 'allowances',
-  'خصم الحضور': 'attendance_deduction',
-  'خصم السلفة': 'advance_deduction',
-  'خصم خارجي': 'external_deduction',
-  'خصم يدوي': 'manual_deduction',
-  'صافي الراتب': 'net_salary',
-  'معتمد': 'is_approved',
+export type SalaryIoKey = typeof SALARY_IO_COLUMNS[number]['key'];
+
+export type SalaryIoRecord = {
+  employee_id: string;
+  month_year: string;
+  base_salary: number;
+  allowances: number;
+  attendance_deduction: number;
+  advance_deduction: number;
+  external_deduction: number;
+  manual_deduction: number;
+  net_salary: number;
+  is_approved: boolean;
 };
 
-type SalaryImportMapped = {
-  employee_id?: string;
-  month_year?: string;
-  year?: number;
-  month?: number;
-  base_salary?: number;
-  allowances?: number;
-  attendance_deduction?: number;
-  advance_deduction?: number;
-  external_deduction?: number;
-  manual_deduction?: number;
-  net_salary?: number;
-  is_approved?: boolean;
-};
+export const SALARY_IMPORT_TEMPLATE_HEADERS = SALARY_IO_COLUMNS.map((c) => c.label);
+
+const HEADER_LABEL_TO_KEY: Record<string, SalaryIoKey> = Object.fromEntries(
+  SALARY_IO_COLUMNS.map((c) => [c.label, c.key])
+) as Record<string, SalaryIoKey>;
+
+type SalaryImportMapped = Partial<SalaryIoRecord>;
 const NUMERIC_KEYS = new Set<keyof SalaryImportMapped>([
   'base_salary',
   'allowances',
@@ -74,11 +60,6 @@ function parseApproved(val: unknown): boolean {
   return false;
 }
 
-function parseMonthOrYear(cell: unknown): number | undefined {
-  const parsed = Number.parseInt(String(cell).replaceAll(',', '').trim(), 10);
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
-
 function parseMappedCell(
   key: keyof SalaryImportMapped,
   cell: unknown,
@@ -92,14 +73,6 @@ function parseMappedCell(
     raw.month_year = String(cell).trim();
     return;
   }
-  if (key === 'year') {
-    raw.year = parseMonthOrYear(cell);
-    return;
-  }
-  if (key === 'month') {
-    raw.month = parseMonthOrYear(cell);
-    return;
-  }
   if (key === 'is_approved') {
     raw.is_approved = parseApproved(cell);
     return;
@@ -109,12 +82,20 @@ function parseMappedCell(
   }
 }
 
-function mapHeadersToKeys(headerRow: string[], parseErrors: string[]): (keyof SalaryImportMapped | null)[] {
-  return headerRow.map((h) => {
-    const key = HEADER_ALIASES[h];
-    if (!h) return null;
-    if (!key) parseErrors.push(`عمود غير معروف: ${h}`);
-    return key ?? null;
+function mapHeadersToKeysStrict(headerRow: string[], parseErrors: string[]): (SalaryIoKey | null)[] {
+  const expected = SALARY_IMPORT_TEMPLATE_HEADERS;
+  if (headerRow.length !== expected.length) {
+    parseErrors.push(`عدد الأعمدة غير صحيح: المتوقع ${expected.length}، والموجود ${headerRow.length}`);
+    return [];
+  }
+
+  return headerRow.map((h, idx) => {
+    const expectedLabel = expected[idx];
+    if (h !== expectedLabel) {
+      parseErrors.push(`العمود رقم ${idx + 1} غير صحيح: المتوقع "${expectedLabel}" والموجود "${h || 'فارغ'}"`);
+      return null;
+    }
+    return HEADER_LABEL_TO_KEY[h] ?? null;
   });
 }
 
@@ -123,7 +104,7 @@ function isEmptyLine(line: unknown[] | undefined): boolean {
   return line.every((cell) => cell === '' || cell === null || cell === undefined);
 }
 
-function parseRawRow(line: unknown[], colToKey: (keyof SalaryImportMapped | null)[]): Partial<SalaryImportMapped> {
+function parseRawRow(line: unknown[], colToKey: (SalaryIoKey | null)[]): Partial<SalaryImportMapped> {
   const raw: Partial<SalaryImportMapped> = {};
   for (let c = 0; c < colToKey.length; c++) {
     const key = colToKey[c];
@@ -135,21 +116,11 @@ function parseRawRow(line: unknown[], colToKey: (keyof SalaryImportMapped | null
   return raw;
 }
 
-function resolveMonthYear(
-  raw: Partial<SalaryImportMapped>,
-  defaultMy?: string
-): string | undefined {
+function resolveMonthYear(raw: Partial<SalaryImportMapped>, defaultMy?: string): string | undefined {
   const direct = raw.month_year?.trim();
-  if (direct) return direct;
-
-  const fromParts =
-    raw.year !== undefined && raw.month !== undefined
-      ? monthYearFromParts(raw.year, raw.month) ?? undefined
-      : undefined;
-  if (fromParts) return fromParts;
-
+  if (direct && isValidSalaryMonthYear(direct)) return direct;
   if (defaultMy && isValidSalaryMonthYear(defaultMy)) return defaultMy;
-  return undefined;
+  return direct;
 }
 
 function formatPayload(raw: Partial<SalaryImportMapped>, employeeId: string, monthYear: string): Record<string, unknown> {
@@ -174,8 +145,8 @@ export type SalaryImportRowResult = {
 };
 
 /**
- * Parse first sheet: map Arabic headers to DB fields; coerce amounts with `parseSalaryAmount`.
- * `defaultMonthYear` applies when row has no month column (must be valid YYYY-MM).
+ * Parse first sheet using strict header order from `SALARY_IO_COLUMNS`.
+ * `defaultMonthYear` applies only when `month_year` cell is empty.
  */
 export function parseSalaryImportWorkbook(
   buffer: ArrayBuffer,
@@ -196,10 +167,9 @@ export function parseSalaryImportWorkbook(
   if (matrix.length < 2) return { rows: [], parseErrors: ['لا توجد صفوف بيانات'] };
 
   const headerRow = matrix[0].map(normalizeHeader);
-  const colToKey = mapHeadersToKeys(headerRow, parseErrors);
-
-  if (!colToKey.some(Boolean)) {
-    return { rows: [], parseErrors: ['لم يُعثر على أعمدة مطابقة — استخدم تحميل القالب'] };
+  const colToKey = mapHeadersToKeysStrict(headerRow, parseErrors);
+  if (parseErrors.length > 0 || !colToKey.every(Boolean)) {
+    return { rows: [], parseErrors: parseErrors.length > 0 ? parseErrors : ['هيكل الأعمدة غير مطابق للقالب'] };
   }
 
   const defaultMy = options.defaultMonthYear?.trim();

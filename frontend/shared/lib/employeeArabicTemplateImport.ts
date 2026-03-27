@@ -1,31 +1,9 @@
 import * as XLSX from '@e965/xlsx';
 import { parseExcelDate } from '@shared/lib/excelDateParse';
 import { employeeService } from '@services/employeeService';
+import { EMPLOYEE_IMPORT_COLUMNS } from '@shared/constants/excelSchemas';
 
-/** Must match `handleTemplate` row order in Employees.tsx */
-export const EMPLOYEE_TEMPLATE_AR_HEADERS = [
-  'كود الموظف',
-  'الاسم',
-  'الاسم (إنجليزي)',
-  'رقم الهوية',
-  'رقم الهاتف',
-  'البريد الإلكتروني',
-  'المدينة (makkah/jeddah)',
-  'الجنسية',
-  'المسمى الوظيفي',
-  'تاريخ الانضمام',
-  'تاريخ الميلاد',
-  'انتهاء فترة التجربة',
-  'انتهاء الإقامة',
-  'انتهاء التأمين الصحي',
-  'انتهاء الرخصة',
-  'حالة الرخصة (has_license/no_license/applied)',
-  'حالة الكفالة (sponsored/not_sponsored/absconded/terminated)',
-  'رقم الحساب البنكي',
-  'IBAN',
-  'نوع الراتب (orders/shift)',
-  'الحالة (active/inactive/ended)',
-] as const;
+export const EMPLOYEE_TEMPLATE_AR_HEADERS = EMPLOYEE_IMPORT_COLUMNS.map((c) => c.label);
 
 type DbKey =
   | 'employee_code'
@@ -51,29 +29,9 @@ type DbKey =
   | 'status'
   | 'base_salary';
 
-const HEADER_TO_DB: Record<string, DbKey> = {
-  'كود الموظف': 'employee_code',
-  'الاسم': 'name',
-  'الاسم (إنجليزي)': 'name_en',
-  'رقم الهوية': 'national_id',
-  'رقم الهاتف': 'phone',
-  'البريد الإلكتروني': 'email',
-  'المدينة (makkah/jeddah)': 'city',
-  'الجنسية': 'nationality',
-  'المسمى الوظيفي': 'job_title',
-  'تاريخ الانضمام': 'join_date',
-  'تاريخ الميلاد': 'birth_date',
-  'انتهاء فترة التجربة': 'probation_end_date',
-  'انتهاء الإقامة': 'residency_expiry',
-  'انتهاء التأمين الصحي': 'health_insurance_expiry',
-  'انتهاء الرخصة': 'license_expiry',
-  'حالة الرخصة (has_license/no_license/applied)': 'license_status',
-  'حالة الكفالة (sponsored/not_sponsored/absconded/terminated)': 'sponsorship_status',
-  'رقم الحساب البنكي': 'bank_account_number',
-  'IBAN': 'iban',
-  'نوع الراتب (orders/shift)': 'salary_type',
-  'الحالة (active/inactive/ended)': 'status',
-};
+const HEADER_TO_DB: Record<string, DbKey> = Object.fromEntries(
+  EMPLOYEE_IMPORT_COLUMNS.map((c) => [c.label, c.key])
+) as Record<string, DbKey>;
 
 function normalizeHeaderCell(raw: unknown): string {
   return String(raw ?? '')
@@ -153,15 +111,21 @@ function isMatrixRowEmpty(line: unknown[] | undefined): boolean {
   return line.every((cell) => cell === '' || cell === null || cell === undefined);
 }
 
-function mapHeadersToDbKeys(
+function mapHeadersToDbKeysStrict(
   headerRow: string[],
   headerErrors: string[]
 ): (DbKey | null)[] {
-  return headerRow.map((h) => {
-    const key = HEADER_TO_DB[h];
-    if (!h) return null;
-    if (!key) headerErrors.push(`عمود غير معروف: ${h}`);
-    return key ?? null;
+  if (headerRow.length !== EMPLOYEE_TEMPLATE_AR_HEADERS.length) {
+    headerErrors.push(`عدد الأعمدة غير صحيح: المتوقع ${EMPLOYEE_TEMPLATE_AR_HEADERS.length}، والموجود ${headerRow.length}`);
+    return [];
+  }
+  return headerRow.map((h, idx) => {
+    const expected = EMPLOYEE_TEMPLATE_AR_HEADERS[idx];
+    if (h !== expected) {
+      headerErrors.push(`العمود رقم ${idx + 1} غير صحيح: المتوقع "${expected}" والموجود "${h || 'فارغ'}"`);
+      return null;
+    }
+    return HEADER_TO_DB[h] ?? null;
   });
 }
 
@@ -207,10 +171,9 @@ export function parseEmployeeArabicWorkbook(buffer: ArrayBuffer): {
   if (matrix.length < 2) return { rows: [], headerErrors: ['لا توجد صفوف بيانات'] };
 
   const headerRow = matrix[0].map(normalizeHeaderCell);
-  const colIndexToKey = mapHeadersToDbKeys(headerRow, headerErrors);
-
-  if (!colIndexToKey.some(Boolean)) {
-    return { rows: [], headerErrors: ['لم يُعثر على أعمدة مطابقة للقالب — استخدم تحميل القالب'] };
+  const colIndexToKey = mapHeadersToDbKeysStrict(headerRow, headerErrors);
+  if (headerErrors.length > 0 || !colIndexToKey.every(Boolean)) {
+    return { rows: [], headerErrors: headerErrors.length > 0 ? headerErrors : ['هيكل الأعمدة غير مطابق للقالب'] };
   }
 
   const rows: EmployeeArabicRow[] = [];

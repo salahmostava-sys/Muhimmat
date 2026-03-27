@@ -6,7 +6,7 @@ import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
   BarChart2, Activity, MapPin,
-  Target, Clock, ChevronUp, ChevronDown, DollarSign,
+  Target, Clock, ChevronUp, ChevronDown,
   Minus, Settings2,
 } from 'lucide-react';
 import AlertsList from '@shared/components/AlertsList';
@@ -913,7 +913,6 @@ const OverviewTab = ({
         { label: 'متوسط طلبات/مندوب', value: kpis.activeEmployees > 0 ? Math.round(kpis.totalOrders / kpis.activeEmployees) : 0, icon: Award, color: 'text-amber-600', bg: 'bg-amber-50', sub: 'طلب/مندوب' },
         { label: 'المركبات النشطة', value: kpis.activeVehicles, icon: Bike, color: 'text-violet-600', bg: 'bg-violet-50' },
         { label: 'التنبيهات', value: kpis.activeAlerts, icon: Bell, color: 'text-rose-500', bg: 'bg-rose-50', sub: 'غير محلولة' },
-        { label: 'إيراد تقديري', value: kpis.estRevenueTotal.toLocaleString(), icon: DollarSign, color: 'text-green-700', bg: 'bg-green-50', sub: 'حسب تسعير المنصات' },
       ].map((kpi) => <KpiCard key={kpi.label} {...kpi} loading={loading} />)}
     </div>
 

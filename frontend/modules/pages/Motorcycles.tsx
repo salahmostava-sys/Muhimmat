@@ -14,6 +14,7 @@ import { usePermissions } from '@shared/hooks/usePermissions';
 import { Skeleton } from '@shared/components/ui/skeleton';
 import { useMotorcyclesData } from '@shared/hooks/useMotorcyclesData';
 import { printHtmlTable } from '@shared/lib/printTable';
+import { MOTORCYCLE_IO_COLUMNS } from '@shared/constants/excelSchemas';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended' | 'inactive';
@@ -266,23 +267,7 @@ const SkeletonRow = () => (
   </tr>
 );
 
-/** Matches public.vehicles columns (types.ts) for import/export */
-const VEHICLE_TEMPLATE_HEADERS = [
-  'plate_number',
-  'plate_number_en',
-  'type',
-  'brand',
-  'model',
-  'year',
-  'status',
-  'has_fuel_chip',
-  'insurance_expiry',
-  'registration_expiry',
-  'authorization_expiry',
-  'chassis_number',
-  'serial_number',
-  'notes',
-] as const;
+const VEHICLE_TEMPLATE_HEADERS = MOTORCYCLE_IO_COLUMNS.map((c) => c.label);
 
 const parseBool = (v: unknown): boolean => {
   if (typeof v === 'boolean') return v;
@@ -392,8 +377,28 @@ const Motorcycles = () => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const wb = XLSX.read(bytes, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-      if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+      if (matrix.length < 2) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      const actualHeaders = (matrix[0] || []).map((h) => String(h ?? '').trim());
+      const headersMatch =
+        actualHeaders.length === VEHICLE_TEMPLATE_HEADERS.length &&
+        actualHeaders.every((h, i) => h === VEHICLE_TEMPLATE_HEADERS[i]);
+      if (!headersMatch) {
+        toast({
+          title: 'هيكل الأعمدة غير مطابق للقالب',
+          description: 'تأكد من استخدام القالب كما هو بدون تغيير',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const rows = matrix.slice(1).map((line) => {
+        const values = Array.isArray(line) ? line : [];
+        const row: Record<string, unknown> = {};
+        MOTORCYCLE_IO_COLUMNS.forEach((column, idx) => {
+          row[column.key] = values[idx];
+        });
+        return row;
+      });
       let success = 0;
       for (const row of rows) {
         const validation = validateMotorcycleRow(row);
@@ -409,8 +414,7 @@ const Motorcycles = () => {
   };
 
   const handleTemplate = () => {
-    const headers = [VEHICLE_TEMPLATE_HEADERS.slice()];
-    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const ws = XLSX.utils.aoa_to_sheet([VEHICLE_TEMPLATE_HEADERS.slice()]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'vehicles');
     XLSX.writeFile(wb, 'template_vehicles.xlsx');
@@ -446,25 +450,23 @@ const Motorcycles = () => {
   };
 
   const handleExport = () => {
-    const rows = filtered.map((v, idx) => ({
-      '#': idx + 1,
-      'رقم اللوحة': v.plate_number,
-      'رقم اللوحة en': v.plate_number_en || '',
-      'النوع': typeLabels[v.type],
-      'الماركة': v.brand || '',
-      'الموديل': v.model || '',
-      'سنة الصنع': v.year ?? '',
-      'الرقم التسلسلي': v.serial_number || '',
-      'رقم الهيكل': v.chassis_number || '',
-      'ملاحظات': v.notes || '',
-      'المندوب الحالي': v.current_rider || '',
-      'الحالة': statusLabels[v.status] ?? v.status,
-      'شريحة البنزين': v.has_fuel_chip ? 'نعم' : 'لا',
-      'انتهاء التأمين': v.insurance_expiry || '',
-      'انتهاء التسجيل': v.registration_expiry || '',
-      'انتهاء التفويض': v.authorization_expiry || '',
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const rows = filtered.map((v) => [
+      v.plate_number,
+      v.plate_number_en || '',
+      v.type,
+      v.brand || '',
+      v.model || '',
+      v.year ?? '',
+      v.status,
+      v.has_fuel_chip ? 'true' : 'false',
+      v.insurance_expiry || '',
+      v.registration_expiry || '',
+      v.authorization_expiry || '',
+      v.chassis_number || '',
+      v.serial_number || '',
+      v.notes || '',
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([VEHICLE_TEMPLATE_HEADERS, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'المركبات');
     XLSX.writeFile(wb, `motorcycles_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);

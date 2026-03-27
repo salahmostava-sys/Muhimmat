@@ -16,6 +16,7 @@ import { usePermissions } from '@shared/hooks/usePermissions';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { printHtmlTable } from '@shared/lib/printTable';
+import { ADVANCE_IO_COLUMNS } from '@shared/constants/excelSchemas';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -863,21 +864,42 @@ const Advances = () => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const wb = XLSX.read(bytes, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws);
-      if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+      if (matrix.length < 2) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      const expectedHeaders = ADVANCE_IO_COLUMNS.map((c) => c.label);
+      const actualHeaders = (matrix[0] || []).map((h) => String(h ?? '').trim());
+      const headersMatch =
+        actualHeaders.length === expectedHeaders.length &&
+        actualHeaders.every((h, i) => h === expectedHeaders[i]);
+      if (!headersMatch) {
+        toast({
+          title: 'هيكل الأعمدة غير مطابق للقالب',
+          description: 'تأكد من استخدام القالب كما هو',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const rows = matrix.slice(1).map((line) => {
+        const values = Array.isArray(line) ? line : [];
+        const row: Record<string, unknown> = {};
+        ADVANCE_IO_COLUMNS.forEach((column, idx) => {
+          row[column.key] = values[idx];
+        });
+        return row;
+      });
       let success = 0;
       for (const row of rows) {
-        const empName = row['الاسم'];
+        const empName = row.name;
         if (!empName) continue;
         const emp = employees.find(e => e.name === empName);
         if (!emp) continue;
-        const amount = Number.parseFloat(row['المبلغ']) || 0;
-        const monthly = Number.parseFloat(row['القسط']) || amount;
+        const amount = Number.parseFloat(String(row.amount ?? '')) || 0;
+        const monthly = Number.parseFloat(String(row.monthly_amount ?? '')) || amount;
         const installments = monthly > 0 ? Math.ceil(amount / monthly) : 1;
         await advanceService.create({
           employee_id: emp.id, amount, monthly_amount: monthly, total_installments: installments,
-          disbursement_date: row['تاريخ الصرف'] || format(new Date(), 'yyyy-MM-dd'),
-          first_deduction_month: row['أول شهر خصم'] || format(new Date(), 'yyyy-MM'),
+          disbursement_date: String(row.disbursement_date || '') || format(new Date(), 'yyyy-MM-dd'),
+          first_deduction_month: String(row.first_deduction_month || '') || format(new Date(), 'yyyy-MM'),
           status: 'active',
         });
         success++;
@@ -1003,19 +1025,27 @@ const Advances = () => {
   };
 
   const handleExport = () => {
-    const rows = filtered.map((s, idx) => ({
-      '#': idx + 1, 'اسم المندوب': s.employeeName, 'رقم الإقامة': s.nationalId,
-      'إجمالي المديونية': s.totalDebt, 'المسدّد': s.totalPaid, 'المتبقي': s.remaining,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const filteredEmployeeIds = new Set(filtered.map((s) => s.employeeId));
+    const exportedAdvances = advances.filter((adv) => filteredEmployeeIds.has(adv.employee_id));
+    const headerRow = ADVANCE_IO_COLUMNS.map((c) => c.label);
+    const rows = exportedAdvances.map((adv) => {
+      const employeeName = adv.employees?.name || '';
+      return [
+        employeeName,
+        adv.amount,
+        adv.monthly_amount,
+        adv.disbursement_date || '',
+        adv.first_deduction_month || '',
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'السلف');
     XLSX.writeFile(wb, `السلف_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const handleTemplate = () => {
-    const headers = [['اسم المندوب', 'رقم الإقامة', 'مبلغ السلفة (ر.س)', 'تاريخ الاستحقاق (YYYY-MM-DD)', 'ملاحظات']];
-    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const ws = XLSX.utils.aoa_to_sheet([ADVANCE_IO_COLUMNS.map((c) => c.label)]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'قالب السلف');
     XLSX.writeFile(wb, 'template_advances.xlsx');
