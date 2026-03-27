@@ -19,6 +19,7 @@ import { invalidateAppColorsCache } from '@shared/hooks/useAppColors';
 import { useAppsData } from '@shared/hooks/useAppsData';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { appService } from '@services/appService';
+import { PageSection } from '@shared/components/layout/PageScaffold';
 
 interface CustomColumn {
   key: string;
@@ -336,6 +337,9 @@ const Apps = () => {
   };
 
   const filteredEmployees = appEmployees.filter(e => e.name.includes(search));
+  const activeAppsCount = apps.filter((a) => a.is_active).length;
+  const selectedEmployeesCount = filteredEmployees.length;
+  const totalEmployeesInApps = apps.reduce((sum, app) => sum + (app.employeeCount ?? 0), 0);
 
   return (
     <div className="space-y-4">
@@ -359,11 +363,34 @@ const Apps = () => {
         </div>
       </div>
 
-      {/* Apps grid */}
-      {loadingApps ? (
-        <div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <PageSection title="Stats">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3 text-sm">إجمالي التطبيقات: <span className="font-bold">{apps.length}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">المفعّلة: <span className="font-bold">{activeAppsCount}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">إجمالي المناديب: <span className="font-bold">{totalEmployeesInApps}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">نتيجة جدول المندوبين: <span className="font-bold">{selectedEmployeesCount}</span></div>
+        </div>
+      </PageSection>
+
+      <PageSection title="Filters">
+        <div className="bg-card rounded-xl border border-border/50 p-3">
+          <div className="relative max-w-sm">
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="بحث في مناديب التطبيق المختار..."
+              className="pr-9"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      </PageSection>
+
+      <PageSection title="Table">
+        {loadingApps ? (
+          <div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {apps.map(app => {
             const isSelected = selectedApp?.id === app.id;
             return (
@@ -465,19 +492,14 @@ const Apps = () => {
               <p className="text-sm text-muted-foreground group-hover:text-primary font-medium">إضافة تطبيق</p>
             </button>
           )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Selected app employees */}
-      {selectedApp && (
+        {selectedApp && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 rounded-full" style={{ backgroundColor: selectedApp.brand_color }} />
             <h3 className="font-semibold text-foreground">مناديب {selectedApp.name}</h3>
-            <div className="relative flex-1 max-w-sm">
-              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="بحث..." className="pr-9" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
           </div>
           <div className="ta-table-wrap">
             {loadingEmployees ? (
@@ -508,7 +530,8 @@ const Apps = () => {
             )}
           </div>
         </div>
-      )}
+        )}
+      </PageSection>
 
       {/* Edit/Add Modal */}
       {modalApp !== undefined && (

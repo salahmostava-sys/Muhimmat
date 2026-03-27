@@ -16,6 +16,7 @@ import { useAlerts } from '@shared/hooks/useAlerts';
 import type { Alert } from '@shared/lib/alertsBuilder';
 import { escapeHtml } from '@shared/lib/security';
 import { format } from 'date-fns';
+import { PageSection } from '@shared/components/layout/PageScaffold';
 
 // Static label map — not data (only residency, insurance, authorization, probation, platform_account)
 export const alertTypeLabels: Record<string, string> = {
@@ -273,58 +274,60 @@ const Alerts = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="stat-card border-r-4 border-r-destructive cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'urgent' ? 'all' : 'urgent')}>
-          <p className="text-sm text-muted-foreground">عاجل</p>
-          <p className="text-3xl font-bold text-destructive mt-1">{urgentCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">يتطلب تدخل فوري</p>
+      <PageSection title="Stats">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="stat-card border-r-4 border-r-destructive cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'urgent' ? 'all' : 'urgent')}>
+            <p className="text-sm text-muted-foreground">عاجل</p>
+            <p className="text-3xl font-bold text-destructive mt-1">{urgentCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">يتطلب تدخل فوري</p>
+          </div>
+          <div className="stat-card border-r-4 border-r-warning cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'warning' ? 'all' : 'warning')}>
+            <p className="text-sm text-muted-foreground">تحذير</p>
+            <p className="text-3xl font-bold text-warning mt-1">{warningCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">خلال 30-60 يوم</p>
+          </div>
+          <div className="stat-card border-r-4 border-r-info cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'info' ? 'all' : 'info')}>
+            <p className="text-sm text-muted-foreground">معلومات</p>
+            <p className="text-3xl font-bold text-info mt-1">{infoCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">للاطلاع</p>
+          </div>
+          <div className="stat-card border-r-4 border-r-success cursor-pointer hover:shadow-md transition-shadow">
+            <p className="text-sm text-muted-foreground">تم حسمه</p>
+            <p className="text-3xl font-bold text-success mt-1">{resolved.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">تنبيهات محسومة</p>
+          </div>
         </div>
-        <div className="stat-card border-r-4 border-r-warning cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'warning' ? 'all' : 'warning')}>
-          <p className="text-sm text-muted-foreground">تحذير</p>
-          <p className="text-3xl font-bold text-warning mt-1">{warningCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">خلال 30-60 يوم</p>
-        </div>
-        <div className="stat-card border-r-4 border-r-info cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'info' ? 'all' : 'info')}>
-          <p className="text-sm text-muted-foreground">معلومات</p>
-          <p className="text-3xl font-bold text-info mt-1">{infoCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">للاطلاع</p>
-        </div>
-        <div className="stat-card border-r-4 border-r-success cursor-pointer hover:shadow-md transition-shadow">
-          <p className="text-sm text-muted-foreground">تم حسمه</p>
-          <p className="text-3xl font-bold text-success mt-1">{resolved.length}</p>
-          <p className="text-xs text-muted-foreground mt-1">تنبيهات محسومة</p>
-        </div>
-      </div>
+      </PageSection>
 
-      {/* Filters */}
-      <div className="bg-card rounded-xl border border-border/50 p-3 space-y-2">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="بحث بالاسم..." className="pr-9" value={search} onChange={e => setSearch(e.target.value)} />
+      <PageSection title="Filters">
+        <div className="bg-card rounded-xl border border-border/50 p-3 space-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="بحث بالاسم..." className="pr-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {[{ v: 'all', l: 'الكل' }, { v: 'urgent', l: '🔴 عاجل' }, { v: 'warning', l: '🟠 تحذير' }, { v: 'info', l: '🔵 معلومات' }].map(s => (
+                <button key={s.v} onClick={() => setSeverityFilter(s.v)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${severityFilter === s.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
+                  {s.l}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {[{ v: 'all', l: 'الكل' }, { v: 'urgent', l: '🔴 عاجل' }, { v: 'warning', l: '🟠 تحذير' }, { v: 'info', l: '🔵 معلومات' }].map(s => (
-              <button key={s.v} onClick={() => setSeverityFilter(s.v)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${severityFilter === s.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
-                {s.l}
+            {typeOptions.map(t => (
+              <button key={t} onClick={() => setTypeFilter(t)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
+                {t === 'all' ? 'كل الأنواع' : `${typeIcons[t] || '📌'} ${alertTypeLabels[t] || t}`}
               </button>
             ))}
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {typeOptions.map(t => (
-            <button key={t} onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
-              {t === 'all' ? 'كل الأنواع' : `${typeIcons[t] || '📌'} ${alertTypeLabels[t] || t}`}
-            </button>
-          ))}
-        </div>
-      </div>
+      </PageSection>
 
-      {/* Alert list */}
-      <div className="space-y-3">
+      <PageSection title="Table">
+        <div className="space-y-3">
         {loading ? (
           <div className="bg-card rounded-xl border border-border/50 p-12 flex flex-col items-center justify-center gap-3 text-center min-h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -365,7 +368,8 @@ const Alerts = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      </PageSection>
 
       {/* Resolved section */}
       {resolved.length > 0 && (

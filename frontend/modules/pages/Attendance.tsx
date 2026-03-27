@@ -12,6 +12,7 @@ import { useLanguage } from '@app/providers/LanguageContext';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from '@e965/xlsx';
 import { printHtmlTable } from '@shared/lib/printTable';
+import { PageSection } from '@shared/components/layout/PageScaffold';
 
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -114,43 +115,55 @@ const Attendance = () => {
         </div>
       </div>
 
-      {/* ── Tabs ── */}
-      <Tabs defaultValue="daily" className="space-y-2">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="daily" className="gap-2">
-            <ClipboardCheck size={15} />
-            التسجيل اليومي
-          </TabsTrigger>
-          <TabsTrigger value="monthly" className="gap-2">
-            <CalendarDays size={15} />
-            السجل الشهري
-          </TabsTrigger>
-          <TabsTrigger value="stats" className="gap-2">
-            <BarChart2 size={15} />
-            الإحصائيات
-          </TabsTrigger>
-          <TabsTrigger value="archive" className="gap-2">
-            <Archive size={15} />
-            أرشيف
-          </TabsTrigger>
-        </TabsList>
+      <PageSection title="Stats">
+        <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+      </PageSection>
 
-        <TabsContent value="daily">
-          <DailyAttendance selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
-        </TabsContent>
+      <PageSection title="Filters">
+        <div className="bg-card rounded-xl border border-border/50 p-3 text-sm text-muted-foreground">
+          الشهر الحالي: <span className="font-semibold text-foreground">{MONTHS[Number(selectedMonth)]}</span>
+          {' '}— السنة: <span className="font-semibold text-foreground">{selectedYear}</span>
+        </div>
+      </PageSection>
 
-        <TabsContent value="monthly">
-          <MonthlyRecord selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
-        </TabsContent>
+      <PageSection title="Table">
+        <Tabs defaultValue="daily" className="space-y-2">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="daily" className="gap-2">
+              <ClipboardCheck size={15} />
+              التسجيل اليومي
+            </TabsTrigger>
+            <TabsTrigger value="monthly" className="gap-2">
+              <CalendarDays size={15} />
+              السجل الشهري
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-2">
+              <BarChart2 size={15} />
+              الإحصائيات
+            </TabsTrigger>
+            <TabsTrigger value="archive" className="gap-2">
+              <Archive size={15} />
+              أرشيف
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="stats">
-          <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
-        </TabsContent>
+          <TabsContent value="daily">
+            <DailyAttendance selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+          </TabsContent>
 
-        <TabsContent value="archive">
-          <ArchiveAttendance />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="monthly">
+            <MonthlyRecord selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+          </TabsContent>
+
+          <TabsContent value="stats">
+            <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+          </TabsContent>
+
+          <TabsContent value="archive">
+            <ArchiveAttendance />
+          </TabsContent>
+        </Tabs>
+      </PageSection>
     </div>
   );
 };
