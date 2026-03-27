@@ -61,6 +61,49 @@ export interface SalarySchemeTier {
   incremental_price?: number | null;
 }
 
+const sortSalarySchemeTiers = (tiers: SalarySchemeTier[]): SalarySchemeTier[] => {
+  return [...tiers].sort((a, b) => a.tier_order - b.tier_order);
+};
+
+const findMatchedSalaryTier = (tiers: SalarySchemeTier[], orders: number): SalarySchemeTier => {
+  let matchedTier = tiers[0];
+  for (const tier of tiers) {
+    const from = tier.from_orders;
+    const to = tier.to_orders ?? Infinity;
+    if (orders >= from && orders <= to) {
+      matchedTier = tier;
+      break;
+    }
+    if (orders > to) matchedTier = tier;
+  }
+  return matchedTier;
+};
+
+const calculateTotalMultiplierSalary = (orders: number, tiers: SalarySchemeTier[]): number => {
+  let total = 0;
+  for (const tier of tiers) {
+    const from = tier.from_orders;
+    const to = tier.to_orders ?? Infinity;
+    if (orders < from) break;
+    const inTier = Math.min(orders, to) - from + 1;
+    if (inTier <= 0) continue;
+    total += inTier * tier.price_per_order;
+  }
+  return total;
+};
+
+const addTargetBonusIfEligible = (
+  total: number,
+  orders: number,
+  targetOrders: number | null,
+  targetBonus: number | null
+): number => {
+  if (targetOrders && targetBonus && orders >= targetOrders) {
+    return total + targetBonus;
+  }
+  return total;
+};
+
 export const salaryService = {
   calculateTierSalary: (
     orders: number,
@@ -69,21 +112,11 @@ export const salaryService = {
     targetBonus: number | null
   ): number => {
     if (!tiers || tiers.length === 0 || orders === 0) return 0;
-    const sorted = [...tiers].sort((a, b) => a.tier_order - b.tier_order);
-
-    let matchedTier = sorted[0];
-    for (const tier of sorted) {
-      const from = tier.from_orders;
-      const to = tier.to_orders ?? Infinity;
-      if (orders >= from && orders <= to) {
-        matchedTier = tier;
-        break;
-      }
-      if (orders > (tier.to_orders ?? Infinity)) matchedTier = tier;
-    }
+    const sorted = sortSalarySchemeTiers(tiers);
+    const matchedTier = findMatchedSalaryTier(sorted, orders);
 
     let total = 0;
-    const tierType = matchedTier?.tier_type || 'total_multiplier';
+    const tierType = matchedTier.tier_type || 'total_multiplier';
 
     if (tierType === 'fixed_amount') {
       total = matchedTier.price_per_order;
@@ -93,20 +126,10 @@ export const salaryService = {
       const extra = Math.max(0, orders - threshold);
       total = matchedTier.price_per_order + extra * incrPrice;
     } else {
-      for (const tier of sorted) {
-        const from = tier.from_orders;
-        const to = tier.to_orders ?? Infinity;
-        if (orders < from) break;
-        const inTier = Math.min(orders, to) - from + 1;
-        if (inTier <= 0) continue;
-        total += inTier * tier.price_per_order;
-      }
+      total = calculateTotalMultiplierSalary(orders, sorted);
     }
 
-    if (targetOrders && targetBonus && orders >= targetOrders) {
-      total += targetBonus;
-    }
-    return Math.round(total);
+    return Math.round(addTargetBonusIfEligible(total, orders, targetOrders, targetBonus));
   },
 
   calculateFixedMonthlySalary: (monthlyAmount: number, attendanceDays: number): number => {
