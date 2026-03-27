@@ -12,16 +12,20 @@ export class ServiceError extends Error {
 export function toServiceError(error: unknown, context?: string): ServiceError {
   if (error instanceof ServiceError) return error;
   if (error) console.error(error);
-  const message =
+  let message: string;
+  if (
     error &&
     typeof error === "object" &&
     "message" in error &&
     typeof (error as { message?: unknown }).message === "string" &&
     (error as { message: string }).message
-      ? (error as { message: string }).message
-      : context
-        ? `Service failure: ${context}`
-        : "Service failure";
+  ) {
+    message = (error as { message: string }).message;
+  } else if (context) {
+    message = `Service failure: ${context}`;
+  } else {
+    message = "Service failure";
+  }
   return new ServiceError(message, error);
 }
 
@@ -35,6 +39,6 @@ export const throwIfError = (error: unknown, context: string): void => {
  * Use after `const { data, error } = await ...` (or `res.error`):
  * `if (error) handleSupabaseError(error, 'serviceName.action')`
  */
-export function handleSupabaseError(error: any, context: string): never {
+export function handleSupabaseError(error: unknown, context: string): never {
   throw toServiceError(error, context);
 }

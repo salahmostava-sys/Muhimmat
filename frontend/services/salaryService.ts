@@ -115,9 +115,8 @@ export const salaryService = {
     const sorted = sortSalarySchemeTiers(tiers);
     const matchedTier = findMatchedSalaryTier(sorted, orders);
 
-    let total = 0;
     const tierType = matchedTier.tier_type || 'total_multiplier';
-
+    let total: number;
     if (tierType === 'fixed_amount') {
       total = matchedTier.price_per_order;
     } else if (tierType === 'base_plus_incremental') {

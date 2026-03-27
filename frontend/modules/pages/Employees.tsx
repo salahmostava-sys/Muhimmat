@@ -222,17 +222,19 @@ function applyEmployeeFilters(rows: Employee[], colFilters: Record<string, strin
 function sortEmployees(rows: Employee[], sortField: string | null, sortDir: SortDir): Employee[] {
   if (!sortField || !sortDir) return rows;
   return [...rows].sort((a, b) => { // NOSONAR
-    let va: string | number = '';
-    let vb: string | number = '';
-    if (sortField === 'days_residency') {
-      va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
-      vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
-    } else {
+    const [va, vb]: [string | number, string | number] = sortField === 'days_residency'
+      ? [
+          a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999,
+          b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999,
+        ]
+      : (() => {
       const aVal = getEmployeeFieldValue(a, sortField);
       const bVal = getEmployeeFieldValue(b, sortField);
-      va = typeof aVal === 'number' ? aVal : String(aVal ?? '');
-      vb = typeof bVal === 'number' ? bVal : String(bVal ?? '');
-    }
+      return [
+        typeof aVal === 'number' ? aVal : String(aVal ?? ''),
+        typeof bVal === 'number' ? bVal : String(bVal ?? ''),
+      ];
+    })();
     if (va < vb) return sortDir === 'asc' ? -1 : 1;
     if (va > vb) return sortDir === 'asc' ? 1 : -1;
     return 0;

@@ -263,7 +263,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(id);
   }, [forceSignOut, user?.id]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       const data = await withTimeout(
         authService.signIn(email, password),
@@ -291,11 +291,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       return { error: { message: msg } };
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await authService.signOut();
-  };
+  }, []);
 
   const busy = loading || refreshing;
   const contextValue = useMemo<AuthContextType>(() => ({

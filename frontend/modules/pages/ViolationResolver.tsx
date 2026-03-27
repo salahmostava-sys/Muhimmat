@@ -86,6 +86,101 @@ type ViolationForm = {
   use_time: boolean;
 };
 
+type ViolationSortFieldKey =
+  | 'employee_name'
+  | 'violation_details'
+  | 'incident_date'
+  | 'amount'
+  | 'status'
+  | 'advance_status';
+
+type VehicleAssignmentForViolation = {
+  start_at?: string | null;
+  start_date: string;
+  returned_at?: string | null;
+  end_date?: string | null;
+};
+
+function assignmentStartMs(a: VehicleAssignmentForViolation): number {
+  return a.start_at ? new Date(a.start_at).getTime() : new Date(a.start_date).getTime();
+}
+
+function assignmentEndMs(a: VehicleAssignmentForViolation): number {
+  if (a.returned_at) return new Date(a.returned_at).getTime();
+  if (a.end_date) return new Date(a.end_date + 'T23:59:59').getTime();
+  return Date.now() + 1;
+}
+
+function formatViolationFormDateDisplay(form: ViolationForm): string {
+  if (form.use_time) {
+    if (!form.violation_datetime) return '—';
+    return format(new Date(form.violation_datetime), 'dd/MM/yyyy HH:mm', { locale: ar });
+  }
+  if (!form.violation_date_only) return '—';
+  return format(parseISO(form.violation_date_only), 'dd/MM/yyyy', { locale: ar });
+}
+
+function searchResultAssignButtonLabel(row: ResultRow, assigningEmployeeId: string | null): string {
+  if (assigningEmployeeId === row.employee_id) return '...';
+  if (row.status === 'recorded') return 'مسجّلة ✓';
+  return 'تأكيد ✓';
+}
+
+function violationApprovalStatusLabel(status: string): string {
+  if (status === 'pending') return 'قيد المراجعة';
+  if (status === 'approved') return 'موافَق';
+  if (status === 'rejected') return 'مرفوض';
+  return status;
+}
+
+function convertToAdvanceTitle(convertedAdv: boolean): string {
+  if (convertedAdv) return 'تم تحويل هذه المخالفة لسلفة';
+  return 'تحويل لسلفة';
+}
+
+function convertToAdvanceButtonLabel(convertingId: string | null, violationId: string, convertedAdv: boolean): string {
+  if (convertingId === violationId) return '...';
+  if (convertedAdv) return 'تم التحويل لسلفة ✓';
+  return 'تحويل لسلفة';
+}
+
+function deleteViolationButtonLabel(deletingId: string | null, violationId: string): string {
+  return deletingId === violationId ? '...' : 'حذف';
+}
+
+function savedViolationsCountLabel(loading: boolean, count: number): string {
+  if (loading) return 'جارٍ التحميل...';
+  return `${count} سجل`;
+}
+
+type ViolationAdvanceStatusCellProps = Readonly<{
+  v: ViolationRecord;
+  convertedAdv: boolean;
+}>;
+
+function ViolationAdvanceStatusCell({ v, convertedAdv }: ViolationAdvanceStatusCellProps) {
+  if (v.linked_advance_id) {
+    return (
+      <span className="inline-flex flex-col items-center gap-0.5">
+        <span className="text-[11px] px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/25 font-medium">
+          محوّل لسلفة
+        </span>
+        <span className="text-[10px] font-mono text-muted-foreground dir-ltr" title={v.linked_advance_id}>
+          {v.linked_advance_id.slice(0, 8)}…
+        </span>
+      </span>
+    );
+  }
+  if (convertedAdv) {
+    return (
+      <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground" title="سجل قديم: مذكور في الملاحظة فقط">
+        محوّل (قديم)
+      </span>
+    );
+  }
+  return <span className="text-[11px] text-muted-foreground">—</span>;
+}
+
 function violationApprovalBadgeClasses(status: string): string {
   if (status === 'approved') return 'bg-success/10 text-success border-success/20';
   if (status === 'rejected') return 'bg-destructive/10 text-destructive border-destructive/20';
@@ -94,7 +189,7 @@ function violationApprovalBadgeClasses(status: string): string {
 
 function getViolationSortValue(
   row: ViolationRecord,
-  field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status',
+  field: ViolationSortFieldKey,
   isConverted: (v: ViolationRecord) => boolean
 ): string | number {
   switch (field) {
@@ -178,7 +273,7 @@ const ViolationResolver = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
-  const [vSortField, setVSortField] = useState<'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status'>('incident_date');
+  const [vSortField, setVSortField] = useState<ViolationSortFieldKey>('incident_date');
   const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
 
   const isAdvanceLegacyNote = useCallback(
@@ -262,13 +357,9 @@ const ViolationResolver = () => {
     setSearching(true); setResults(null); setNoVehicle(false); setAssigningEmployeeId(null);
 
     // Find vehicle(s)
-    let vehicleIds: string[] = [];
-    if (vehicleId) {
-      vehicleIds = [vehicleId];
-    } else {
-      const vData = await violationService.findVehicleIdsByPlate(plate);
-      vehicleIds = (vData || []).map(v => v.id);
-    }
+    const vehicleIds = vehicleId
+      ? [vehicleId]
+      : ((await violationService.findVehicleIdsByPlate(plate)) || []).map(v => v.id);
 
     if (!vehicleIds.length) { setSearching(false); setNoVehicle(true); return; }
 
@@ -283,11 +374,9 @@ const ViolationResolver = () => {
 
     const violationTime = new Date(violationTs).getTime();
 
-    let matched = assignments.filter(a => {
-      const start = a.start_at ? new Date(a.start_at).getTime() : new Date(a.start_date).getTime();
-      const end = a.returned_at
-        ? new Date(a.returned_at).getTime()
-        : a.end_date ? new Date(a.end_date + 'T23:59:59').getTime() : Date.now() + 1;
+    let matched = assignments.filter((a) => {
+      const start = assignmentStartMs(a as VehicleAssignmentForViolation);
+      const end = assignmentEndMs(a as VehicleAssignmentForViolation);
       return violationTime >= start && violationTime <= end;
     });
 
@@ -295,11 +384,9 @@ const ViolationResolver = () => {
     if (!matched.length && !form.use_time) {
       const dayStart = new Date(dateVal + 'T00:00:00').getTime();
       const dayEnd = new Date(dateVal + 'T23:59:59').getTime();
-      matched = assignments.filter(a => {
-        const start = a.start_at ? new Date(a.start_at).getTime() : new Date(a.start_date).getTime();
-        const end = a.returned_at
-          ? new Date(a.returned_at).getTime()
-          : a.end_date ? new Date(a.end_date + 'T23:59:59').getTime() : Date.now() + 1;
+      matched = assignments.filter((a) => {
+        const start = assignmentStartMs(a as VehicleAssignmentForViolation);
+        const end = assignmentEndMs(a as VehicleAssignmentForViolation);
         return start <= dayEnd && end >= dayStart;
       });
     }
@@ -551,7 +638,7 @@ const ViolationResolver = () => {
     return rows;
   }, [isViolationConvertedToAdvance, violations, vSortDir, vSortField]);
 
-  const toggleVSort = (field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status') => {
+  const toggleVSort = (field: ViolationSortFieldKey) => {
     if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
       setVSortField(field);
@@ -564,9 +651,7 @@ const ViolationResolver = () => {
     setResults(null); setNoVehicle(false); setAssigningEmployeeId(null); setSuggestions([]);
   };
 
-  const dateDisplay = form.use_time
-    ? (form.violation_datetime ? format(new Date(form.violation_datetime), 'dd/MM/yyyy HH:mm', { locale: ar }) : '—')
-    : (form.violation_date_only ? format(parseISO(form.violation_date_only), 'dd/MM/yyyy', { locale: ar }) : '—');
+  const dateDisplay = formatViolationFormDateDisplay(form);
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -818,7 +903,7 @@ const ViolationResolver = () => {
                           onClick={() => handleAssign(row)}
                           className="h-7 text-xs px-3"
                         >
-                          {assigningEmployeeId === row.employee_id ? '...' : row.status === 'recorded' ? 'مسجّلة ✓' : 'تأكيد ✓'}
+                          {searchResultAssignButtonLabel(row, assigningEmployeeId)}
                         </Button>
                       </td>
                     </tr>
@@ -845,19 +930,24 @@ const ViolationResolver = () => {
               <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setActiveTab('search')}>
                 ← رجوع للاستعلام
               </Button>
-              <span className="text-xs text-muted-foreground">{violationsLoading ? 'جارٍ التحميل...' : `${violations.length} سجل`}</span>
+              <span className="text-xs text-muted-foreground">{savedViolationsCountLabel(violationsLoading, violations.length)}</span>
             </div>
           </div>
 
-          {violationsLoading ? (
-            <div className="p-10 text-center text-muted-foreground text-sm">جارٍ التحميل...</div>
-          ) : violations.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <CheckCircle2 className="mx-auto mb-3 text-success opacity-30" size={48} />
-              <p className="font-medium">لا توجد مخالفات مسجلة</p>
-              <p className="text-sm mt-1">قم بعمل بحث ثم تأكيد ✓ للحفظ.</p>
-            </div>
-          ) : (
+          {(() => {
+            if (violationsLoading) {
+              return <div className="p-10 text-center text-muted-foreground text-sm">جارٍ التحميل...</div>;
+            }
+            if (violations.length === 0) {
+              return (
+                <div className="p-12 text-center text-muted-foreground">
+                  <CheckCircle2 className="mx-auto mb-3 text-success opacity-30" size={48} />
+                  <p className="font-medium">لا توجد مخالفات مسجلة</p>
+                  <p className="text-sm mt-1">قم بعمل بحث ثم تأكيد ✓ للحفظ.</p>
+                </div>
+              );
+            }
+            return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b border-border">
@@ -898,26 +988,11 @@ const ViolationResolver = () => {
                         <td className="px-4 py-3 text-center font-medium whitespace-nowrap">{v.amount?.toLocaleString()} ر.س</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] ${statusBadge}`}>
-                            {v.status === 'pending' ? 'قيد المراجعة' : v.status === 'approved' ? 'موافَق' : v.status === 'rejected' ? 'مرفوض' : v.status}
+                            {violationApprovalStatusLabel(v.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap align-top">
-                          {v.linked_advance_id ? (
-                            <span className="inline-flex flex-col items-center gap-0.5">
-                              <span className="text-[11px] px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/25 font-medium">
-                                محوّل لسلفة
-                              </span>
-                              <span className="text-[10px] font-mono text-muted-foreground dir-ltr" title={v.linked_advance_id}>
-                                {v.linked_advance_id.slice(0, 8)}…
-                              </span>
-                            </span>
-                          ) : convertedAdv ? (
-                            <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground" title="سجل قديم: مذكور في الملاحظة فقط">
-                              محوّل (قديم)
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">—</span>
-                          )}
+                          <ViolationAdvanceStatusCell v={v} convertedAdv={convertedAdv} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
@@ -937,17 +1012,17 @@ const ViolationResolver = () => {
                               disabled={!perms.can_delete || deletingId === v.id}
                               onClick={() => handleDeleteViolation(v.id)}
                             >
-                              <Trash2 size={14} /> {deletingId === v.id ? '...' : 'حذف'}
+                              <Trash2 size={14} /> {deleteViolationButtonLabel(deletingId, v.id)}
                             </Button>
                             <Button
                               size="sm"
                               className="h-8 px-2 text-xs gap-2"
                               disabled={!perms.can_edit || convertingId === v.id || convertedAdv}
                               onClick={() => handleConvertToAdvance(v)}
-                              title={convertedAdv ? 'تم تحويل هذه المخالفة لسلفة' : 'تحويل لسلفة'}
+                              title={convertToAdvanceTitle(convertedAdv)}
                             >
                               <CreditCard size={14} />
-                              {convertingId === v.id ? '...' : convertedAdv ? 'تم التحويل لسلفة ✓' : 'تحويل لسلفة'}
+                              {convertToAdvanceButtonLabel(convertingId, v.id, convertedAdv)}
                             </Button>
                           </div>
                         </td>
@@ -957,7 +1032,8 @@ const ViolationResolver = () => {
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </div>
         )}
 

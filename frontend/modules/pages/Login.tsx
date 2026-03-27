@@ -68,7 +68,7 @@ const Login = () => {
     setLoginError('');
     if (!email || !password) return;
     setLoading(true);
-    let error: { message: string } | null = null;
+    let error: { message: string } | null;
     try {
       const res = await signIn(email, password);
       error = res.error;

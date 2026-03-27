@@ -32,6 +32,8 @@ type AppTargetRow = { app_id: string; target_orders: number };
 type EmployeeAppAssignmentRow = { employee_id: string; app_id: string };
 type OrderRawRow = { employee_id: string; app_id: string; date: string; orders_count: number };
 
+type OrdersEmployeeSortField = 'name' | 'total' | `app:${string}`;
+
 const ordersQueryKeys = (uid: string) => ({
   spreadsheetBase: ['orders', uid, 'spreadsheet', 'base-data'] as const,
   spreadsheetMonthRaw: (year: number, month: number) => ['orders', uid, 'spreadsheet', 'month-raw', year, month] as const,
@@ -77,6 +79,26 @@ const calculatePlatformTotals = (
   });
   return totals;
 };
+
+function getOrdersEmployeeSortPair(
+  a: Employee,
+  b: Employee,
+  sortField: OrdersEmployeeSortField,
+  empTotal: (id: string) => number,
+  dayArr: number[],
+  data: DailyData
+): [number | string, number | string] {
+  if (sortField === 'name') {
+    return [a.name, b.name];
+  }
+  if (sortField === 'total') {
+    return [empTotal(a.id), empTotal(b.id)];
+  }
+  const appId = sortField.replace('app:', '');
+  const aSum = dayArr.reduce((s, d) => s + (data[`${a.id}::${appId}::${d}`] ?? 0), 0);
+  const bSum = dayArr.reduce((s, d) => s + (data[`${b.id}::${appId}::${d}`] ?? 0), 0);
+  return [aSum, bSum];
+}
 
 const getDaysInMonth = (y: number, m: number) => new Date(y, m, 0).getDate();
 const monthLabel = (y: number, m: number) =>
@@ -625,7 +647,7 @@ const MonthSummary = () => {
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [isMonthLocked, setIsMonthLocked] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
+  const [sortField, setSortField] = useState<OrdersEmployeeSortField>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const monthKey = monthYear(year, month);
   const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
@@ -749,19 +771,7 @@ const MonthSummary = () => {
   const grandTotal = employees.reduce((s, e) => s + empTotal(e.id), 0);
   const sortedEmployees = useMemo(() => {
     const sorted = [...employees].sort((a, b) => {
-      let aVal: number | string = '';
-      let bVal: number | string = '';
-      if (sortField === 'name') {
-        aVal = a.name;
-        bVal = b.name;
-      } else if (sortField === 'total') {
-        aVal = empTotal(a.id);
-        bVal = empTotal(b.id);
-      } else {
-        const appId = sortField.replace('app:', '');
-        aVal = dayArr.reduce((s, d) => s + (data[`${a.id}::${appId}::${d}`] ?? 0), 0);
-        bVal = dayArr.reduce((s, d) => s + (data[`${b.id}::${appId}::${d}`] ?? 0), 0);
-      }
+      const [aVal, bVal] = getOrdersEmployeeSortPair(a, b, sortField, empTotal, dayArr, data);
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         const cmp = aVal.localeCompare(bVal, 'ar');
         return sortDir === 'asc' ? cmp : -cmp;
@@ -772,7 +782,7 @@ const MonthSummary = () => {
     return sorted;
   }, [employees, sortField, sortDir, data, dayArr, empTotal]);
 
-  const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
+  const handleSort = (field: OrdersEmployeeSortField) => {
     if (sortField === field) setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
     else {
       setSortField(field);
