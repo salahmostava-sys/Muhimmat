@@ -241,11 +241,11 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className={`${embedded ? 'text-lg' : 'text-xl'} font-bold flex items-center gap-2`}>
-            <Shield size={18} />
+            <Shield size={18} className="me-1" />
             المستخدمون والصلاحيات
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -253,7 +253,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => void refetchUsersData()}>
-          <RefreshCw size={14} />
+          <RefreshCw size={14} className="me-1" />
           تحديث
         </Button>
       </div>
@@ -333,7 +333,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
                     الأسماء أدناه هي صفحات النظام الفعلية. عند المطابقة مع افتراضات الدور لا تُخزّن صفوف إضافية في قاعدة البيانات.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center justify-start gap-2">
                   <Select value={permUserId ?? ''} onValueChange={(v) => setPermUserId(v)}>
                     <SelectTrigger className="w-[240px]">
                       <SelectValue placeholder="اختر مستخدماً" />
@@ -364,7 +364,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
                   <table className="w-full text-sm min-w-[640px]">
                     <thead className="bg-muted/40">
                       <tr>
-                        <th className="px-3 py-2 text-right w-[40%]">الصفحة</th>
+                        <th className="px-3 py-2 text-start w-[40%]">الصفحة</th>
                         <th className="px-3 py-2 text-center">عرض</th>
                         <th className="px-3 py-2 text-center">تعديل</th>
                         <th className="px-3 py-2 text-center">حذف</th>
