@@ -997,17 +997,6 @@ const OverviewTab = ({
           </div>
         </div>
 
-        {/* Sponsorship global breakdown */}
-        <Card title="توزيع الكفالة — جميع المناديب">
-          {loading ? <div className="grid grid-cols-4 gap-3">{SKELETON_KEYS_4.map((k)=><Sk key={`sponsorship-skeleton-${k}`} h="h-14"/>)}</div> : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Chip label="مكفول" value={employeeCounts.global.sponsored} color="bg-blue-50 text-blue-700" />
-              <Chip label="غير مكفول" value={employeeCounts.global.not_sponsored} color="bg-muted/40 text-foreground/75" />
-              <Chip label="هارب" value={employeeCounts.global.absconded} color="bg-red-50 text-red-700" />
-              <Chip label="منهي الكفالة" value={employeeCounts.global.terminated} color="bg-orange-50 text-orange-700" />
-            </div>
-          )}
-        </Card>
       </div>
     </div>
 

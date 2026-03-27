@@ -4,6 +4,7 @@ import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Switch } from '@shared/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { vehicleService } from '@services/vehicleService';
 import { useToast } from '@shared/hooks/use-toast';
@@ -233,13 +234,11 @@ const VehicleFormModal = ({
           <div className="col-span-2 flex items-center gap-3 bg-muted/40 rounded-lg px-3 py-2.5">
             <span className="text-lg">⛽</span>
             <span className="text-sm font-medium flex-1">شريحة البنزين</span>
-            <button
-              type="button"
-              onClick={() => setForm(p => ({ ...p, has_fuel_chip: !p.has_fuel_chip }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${form.has_fuel_chip ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.has_fuel_chip ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
+            <Switch
+              checked={form.has_fuel_chip}
+              onCheckedChange={(checked) => setForm(p => ({ ...p, has_fuel_chip: checked }))}
+              aria-label="تبديل شريحة البنزين"
+            />
             <span className={`text-xs font-semibold ${form.has_fuel_chip ? 'text-primary' : 'text-muted-foreground'}`}>
               {form.has_fuel_chip ? 'يوجد' : 'لا يوجد'}
             </span>

@@ -5,6 +5,7 @@ import { escapeHtml } from '@shared/lib/security';
 import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shared/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import { useToast } from '@shared/hooks/use-toast';
@@ -22,7 +23,7 @@ import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmplo
 import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
 import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
-import { TableActions } from '@shared/components/table/TableActions';
+import { TableActions, TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableActions';
 import { SALARY_IMPORT_TEMPLATE_HEADERS, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
 import { printHtmlTable } from '@shared/lib/printTable';
@@ -1242,6 +1243,7 @@ const Salaries = () => {
   const [batchZip, setBatchZip] = useState<JSZip | null>(null);
   const [batchMonth, setBatchMonth] = useState('');
   const batchSlipRef = useRef<HTMLDivElement>(null);
+  const salaryToolbarImportRef = useRef<HTMLInputElement>(null);
   const salariesDraftKey = useMemo(
     () => `salaries:draft:${user?.id || 'anon'}:${selectedMonth}`,
     [user?.id, selectedMonth]
@@ -2031,6 +2033,36 @@ const Salaries = () => {
     }
   };
 
+  const openSalaryToolbarImport = () => {
+    if (salaryActionLoading) return;
+    salaryToolbarImportRef.current?.click();
+  };
+
+  const onSalaryToolbarImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > TABLE_ACTIONS_IMPORT_MAX_BYTES) {
+      toast({
+        title: 'خطأ',
+        description: 'حجم الملف يتجاوز 5 ميجابايت',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const lower = file.name.toLowerCase();
+    const isValidFormat = lower.endsWith('.xlsx') || lower.endsWith('.xls');
+    if (!isValidFormat) {
+      toast({
+        title: 'خطأ',
+        description: 'صيغة الملف غير مدعومة — استخدم xlsx أو xls',
+        variant: 'destructive',
+      });
+      return;
+    }
+    void handleSalaryImportFile(file);
+  };
+
   // ── Merged PDF: all employees in a single printable page ──
   const exportMergedPDF = () => {
     const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
@@ -2271,6 +2303,13 @@ const Salaries = () => {
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
+        <input
+          ref={salaryToolbarImportRef}
+          type="file"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          className="hidden"
+          onChange={onSalaryToolbarImportChange}
+        />
         <div className="relative">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="بحث بالاسم..." className="pr-9 h-9 w-48" value={search} onChange={e => setSearch(e.target.value)} />
@@ -2308,6 +2347,18 @@ const Salaries = () => {
               <Button size="sm" variant="outline" className="gap-1.5 h-9"><FolderOpen size={14} /> ملفات</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => void runExportExcel()} disabled={salaryActionLoading}>
+                📊 تصدير Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void downloadSalaryTemplate()} disabled={salaryActionLoading}>
+                📋 تحميل قالب الاستيراد
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openSalaryToolbarImport} disabled={salaryActionLoading}>
+                ⬆️ استيراد Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runPrintTable()} disabled={salaryActionLoading}>
+                🖨️ طباعة الجدول
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={startBatchZipExport}
                 disabled={batchQueue.length > 0}
@@ -2321,16 +2372,6 @@ const Salaries = () => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
-        <TableActions
-          loading={salaryActionLoading}
-          onDownloadTemplate={downloadSalaryTemplate}
-          onImportFile={handleSalaryImportFile}
-          onExport={runExportExcel}
-          onPrint={runPrintTable}
-        />
       </div>
 
       {/* Progress bar for batch ZIP export */}
