@@ -23,6 +23,7 @@ import {
 import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@shared/hooks/useRealtimePostgresChanges';
 import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
 import { isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
+import { getDashboardCityKey, mapDashboardCityLabel, type DashboardCityKey } from '@shared/lib/dashboardCity';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { QueryErrorRetry } from '@shared/components/QueryErrorRetry';
@@ -598,7 +599,7 @@ interface EmpDetail {
   sponsorship_status: string | null;
 }
 
-type CityKey = 'makkah' | 'jeddah';
+type CityKey = DashboardCityKey;
 type LicenseKey = 'has_license' | 'applied' | 'no_license';
 
 type EmployeeCounts = {
@@ -628,12 +629,7 @@ type EmployeeCounts = {
   };
 };
 
-const getCityKey = (city: string | null): CityKey | null => {
-  const normalized = String(city ?? '').trim().toLowerCase();
-  if (normalized === 'makkah' || normalized === 'mecca' || normalized === 'مكة' || normalized === 'مكة المكرمة') return 'makkah';
-  if (normalized === 'jeddah' || normalized === 'jedda' || normalized === 'جدة') return 'jeddah';
-  return null;
-};
+const getCityKey = (city: string | null): CityKey | null => getDashboardCityKey(city);
 
 const getLicenseKey = (licenseStatus: string | null): LicenseKey => {
   if (licenseStatus === 'has_license') return 'has_license';
@@ -716,12 +712,7 @@ type DashboardOrdersByAppRow = {
 
 const DASHBOARD_DAY_NAMES_AR = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'] as const;
 
-const mapOrdersCityLabel = (city: string) => {
-  const key = getCityKey(city);
-  if (key === 'makkah') return 'مكة المكرمة';
-  if (key === 'jeddah') return 'جدة';
-  return city;
-};
+const mapOrdersCityLabel = (city: string) => mapDashboardCityLabel(city);
 
 const getAttendanceTodayCounts = (att: DashboardAttendanceToday | null | undefined) => ({
   presentToday: att?.present || 0,

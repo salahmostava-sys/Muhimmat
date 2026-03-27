@@ -13,67 +13,23 @@ import { useLanguage } from "@app/providers/LanguageContext";
 import { usePermissions } from "@shared/hooks/usePermissions";
 import attendanceService from "@services/attendanceService";
 import { supabase } from "@services/supabase/client";
-
-type AttendanceStatus = "present" | "absent" | "leave" | "sick" | "late";
-
-interface AttendanceRecord {
-  employeeId: string;
-  status: AttendanceStatus | string | null;
-  checkIn: string;
-  checkOut: string;
-  note: string;
-}
-
-type Employee = { id: string; name: string; salary_type: string; job_title?: string | null };
+import {
+  BUILT_IN_STATUSES,
+  DEFAULT_COLOR,
+  STATUS_COLORS,
+  STATUS_LABELS_AR,
+  mapAttendanceData,
+  toShortEmployeeName,
+  type AttendanceRecord,
+  type AttendanceStatus,
+  type DailyAttendanceEmployee as Employee,
+} from "@shared/lib/attendanceDailyModel";
 type App = { id: string; name: string; logo_url?: string | null };
-
-const toShortEmployeeName = (name: string): string => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 2) return name;
-  return `${parts[0]} ${parts[1]}`;
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  present: "bg-green-100 text-green-800 border-green-300",
-  absent:  "bg-red-100 text-red-800 border-red-300",
-  leave:   "bg-yellow-100 text-yellow-800 border-yellow-300",
-  sick:    "bg-purple-100 text-purple-800 border-purple-300",
-  late:    "bg-orange-100 text-orange-800 border-orange-300",
-};
-const DEFAULT_COLOR = "bg-primary/10 text-primary border-primary/30";
-
-const STATUS_LABELS_AR: Record<string, string> = {
-  present: "حاضر",
-  absent:  "غائب",
-  leave:   "إجازة",
-  sick:    "مريض",
-  late:    "متأخر",
-};
-
-const BUILT_IN_STATUSES: AttendanceStatus[] = ["present", "absent", "leave", "sick", "late"];
 
 interface Props {
   selectedMonth: number;
   selectedYear: number;
 }
-
-const mapAttendanceData = (
-  employees: Employee[],
-  data: Array<{ employee_id: string; status?: string | null; check_in?: string | null; check_out?: string | null; note?: string | null }> | null | undefined
-): Record<string, AttendanceRecord> => {
-  const initial: Record<string, AttendanceRecord> = {};
-  employees.forEach((emp) => {
-    const existing = data?.find((r) => r.employee_id === emp.id);
-    initial[emp.id] = {
-      employeeId: emp.id,
-      status: (existing?.status as AttendanceStatus) ?? null,
-      checkIn: existing?.check_in ?? "",
-      checkOut: existing?.check_out ?? "",
-      note: existing?.note ?? "",
-    };
-  });
-  return initial;
-};
 
 const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { isRTL } = useLanguage();
