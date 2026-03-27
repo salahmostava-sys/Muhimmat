@@ -158,7 +158,8 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
 ═══════════════════════════════════════════════════════════════ */
 const EmployeeTiers = () => {
   const { toast } = useToast();
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions: perms } = usePermissions('employee_tiers');
 
   const [tiers, setTiers]       = useState<TierRow[]>([]);
