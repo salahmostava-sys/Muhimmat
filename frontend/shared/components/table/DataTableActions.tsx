@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Download, FileSpreadsheet, Upload, Printer, Loader2, FolderOpen } from 'lucide-react';
+import { Loader2, FolderOpen } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
 import { cn } from '@shared/lib/utils';
 import { useToast } from '@shared/hooks/use-toast';
@@ -125,25 +125,13 @@ export function DataTableActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => void run(onExport)}>
-            <Download className="size-4 ml-2" aria-hidden />
-            {L.export}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void run(onDownloadTemplate)}>
-            <FileSpreadsheet className="size-4 ml-2" aria-hidden />
-            {L.template}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void run(onExport)}>📊 {L.export}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void run(onDownloadTemplate)}>📋 {L.template}</DropdownMenuItem>
           {!hideImport && (
-            <DropdownMenuItem onClick={handleImportPick}>
-              <Upload className="size-4 ml-2" aria-hidden />
-              {L.import}
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleImportPick}>⬆️ {L.import}</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void run(onPrint)}>
-            <Printer className="size-4 ml-2" aria-hidden />
-            {L.print}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void run(onPrint)}>🖨️ {L.print}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

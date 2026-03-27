@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@app/providers/LanguageContext';
 import {
-  Download, Search, RefreshCw, X, Activity, FolderOpen,
+  Search, RefreshCw, X, Activity, FolderOpen,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
@@ -223,9 +223,7 @@ export default function ActivityLogContent() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExport}>
-                <Download size={13} className="ml-2" /> 📊 تصدير Excel
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
