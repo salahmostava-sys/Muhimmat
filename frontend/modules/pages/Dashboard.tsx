@@ -629,8 +629,9 @@ type EmployeeCounts = {
 };
 
 const getCityKey = (city: string | null): CityKey | null => {
-  if (city === 'makkah') return 'makkah';
-  if (city === 'jeddah') return 'jeddah';
+  const normalized = String(city ?? '').trim().toLowerCase();
+  if (normalized === 'makkah' || normalized === 'mecca' || normalized === 'مكة' || normalized === 'مكة المكرمة') return 'makkah';
+  if (normalized === 'jeddah' || normalized === 'jedda' || normalized === 'جدة') return 'jeddah';
   return null;
 };
 
@@ -716,8 +717,9 @@ type DashboardOrdersByAppRow = {
 const DASHBOARD_DAY_NAMES_AR = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'] as const;
 
 const mapOrdersCityLabel = (city: string) => {
-  if (city === 'makkah') return 'مكة المكرمة';
-  if (city === 'jeddah') return 'جدة';
+  const key = getCityKey(city);
+  if (key === 'makkah') return 'مكة المكرمة';
+  if (key === 'jeddah') return 'جدة';
   return city;
 };
 
@@ -840,8 +842,8 @@ const fetchDashboardKpis = async (
     hasLicense: empDetails.filter(e => e.license_status === 'has_license').length,
     appliedLicense: empDetails.filter(e => e.license_status === 'applied').length,
     noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
-    makkahCount: empDetails.filter(e => e.city === 'makkah').length,
-    jeddahCount: empDetails.filter(e => e.city === 'jeddah').length,
+    makkahCount: empDetails.filter((e) => getCityKey(e.city) === 'makkah').length,
+    jeddahCount: empDetails.filter((e) => getCityKey(e.city) === 'jeddah').length,
     estRevenueTotal,
   };
 
