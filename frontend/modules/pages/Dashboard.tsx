@@ -27,6 +27,12 @@ import { getDashboardCityKey, mapDashboardCityLabel, type DashboardCityKey } fro
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { QueryErrorRetry } from '@shared/components/QueryErrorRetry';
+import { StatsCards } from '@modules/dashboard/components/StatsCards';
+import { OrdersChart } from '@modules/dashboard/components/OrdersChart';
+import { AttendanceChart } from '@modules/dashboard/components/AttendanceChart';
+import { AlertsWidget } from '@modules/dashboard/components/AlertsWidget';
+import { TopEmployees } from '@modules/dashboard/components/TopEmployees';
+import { useDashboard } from '@modules/dashboard/hooks/useDashboard';
 
 const SKELETON_KEYS_2 = ['sk-1', 'sk-2'] as const;
 const SKELETON_KEYS_4 = ['sk-1', 'sk-2', 'sk-3', 'sk-4'] as const;
@@ -899,14 +905,12 @@ type OverviewTabProps = {
     estRevenueTotal: number;
   };
   orderGrowth: number;
-  employeeCounts: EmployeeCounts;
   ordersByApp: OrdersByAppCardRow[];
   ordersByCity: { city: string; orders: number }[];
   topNInput: string;
   setTopNInput: (value: string) => void;
   handleTopNBlur: () => void;
   topRidersOverall: { name: string; orders: number; app: string; appColor: string; appId: string }[];
-  maxOrderOverall: number;
   topRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: { name: string; orders: number; app: string; appColor: string; appId: string }[] }>;
   attendanceWeek: { day: string; present: number; absent: number; leave: number; sick: number; late: number }[];
   recentActivity: DashboardRecentActivityItem[];
@@ -916,248 +920,32 @@ const OverviewTab = ({
   loading,
   kpis,
   orderGrowth,
-  employeeCounts,
   ordersByApp,
   ordersByCity,
   topNInput,
   setTopNInput,
   handleTopNBlur,
   topRidersOverall,
-  maxOrderOverall,
   topRidersPerApp,
   attendanceWeek,
   recentActivity,
 }: OverviewTabProps) => (
   <div className="space-y-6">
-
-    {/* ── KPI Row ──────────────────────────────────────────────────── */}
-    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
-      {[
-        { label: 'المناديب النشطون', value: kpis.activeEmployees, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', sub: 'موظف نشط' },
-        { label: 'حاضرون اليوم', value: kpis.presentToday, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', sub: `${kpis.absentToday} غائب` },
-        { label: 'طلبات الشهر', value: kpis.totalOrders.toLocaleString(), icon: Package, color: 'text-orange-500', bg: 'bg-orange-50', trend: { value: orderGrowth, positive: orderGrowth >= 0 }, sub: 'هذا الشهر' },
-        { label: 'متوسط طلبات/مندوب', value: kpis.activeEmployees > 0 ? Math.round(kpis.totalOrders / kpis.activeEmployees) : 0, icon: Award, color: 'text-amber-600', bg: 'bg-amber-50', sub: 'طلب/مندوب' },
-        { label: 'المركبات النشطة', value: kpis.activeVehicles, icon: Bike, color: 'text-violet-600', bg: 'bg-violet-50' },
-        { label: 'التنبيهات', value: kpis.activeAlerts, icon: Bell, color: 'text-rose-500', bg: 'bg-rose-50', sub: 'غير محلولة' },
-      ].map((kpi) => <KpiCard key={kpi.label} {...kpi} loading={loading} />)}
-    </div>
-
-    {/* ════════════════════════════════════════════════════════════
-        ── SECTION 1: تحليل الموظفين ────────────────────────────
-        ════════════════════════════════════════════════════════ */}
-    <div>
-      <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Users size={14} /> تحليل الموظفين
-      </h2>
-      <div className="space-y-4">
-
-        {/* City + totals */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Makkah breakdown */}
-          <div className="bg-card rounded-2xl shadow-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center"><MapPin size={14} className="text-purple-600" /></div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">مكة المكرمة</h3>
-                  <p className="text-[10px] text-muted-foreground/80">{kpis.makkahCount} مندوب</p>
-                </div>
-              </div>
-              <span className="text-3xl font-black text-foreground">{kpis.makkahCount}</span>
-            </div>
-            {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`makkah-skeleton-${k}`} h="h-10"/>)}</div> : (
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <Chip label="لديه رخصة" value={employeeCounts.makkah.has_license} color="bg-emerald-50 text-emerald-700" />
-                  <Chip label="قيد التقديم" value={employeeCounts.makkah.applied} color="bg-amber-50 text-amber-700" />
-                  <Chip label="بدون رخصة" value={employeeCounts.makkah.no_license} color="bg-red-50 text-red-700" />
-                </div>
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Chip label="مكفول" value={employeeCounts.makkah.sponsored} color="bg-blue-50 text-blue-700" />
-                  <Chip label="غير مكفول" value={employeeCounts.makkah.not_sponsored} color="bg-muted/40 text-foreground/75" />
-                </div>
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">مكة + رخصة + كفالة</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Chip label="رخصة + مكفول" value={employeeCounts.makkah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
-                  <Chip label="رخصة + غير مكفول" value={employeeCounts.makkah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Jeddah breakdown */}
-          <div className="bg-card rounded-2xl shadow-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center"><MapPin size={14} className="text-blue-600" /></div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">جدة</h3>
-                  <p className="text-[10px] text-muted-foreground/80">{kpis.jeddahCount} مندوب</p>
-                </div>
-              </div>
-              <span className="text-3xl font-black text-foreground">{kpis.jeddahCount}</span>
-            </div>
-            {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`jeddah-skeleton-${k}`} h="h-10"/>)}</div> : (
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <Chip label="لديه رخصة" value={employeeCounts.jeddah.has_license} color="bg-emerald-50 text-emerald-700" />
-                  <Chip label="قيد التقديم" value={employeeCounts.jeddah.applied} color="bg-amber-50 text-amber-700" />
-                  <Chip label="بدون رخصة" value={employeeCounts.jeddah.no_license} color="bg-red-50 text-red-700" />
-                </div>
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Chip label="مكفول" value={employeeCounts.jeddah.sponsored} color="bg-blue-50 text-blue-700" />
-                  <Chip label="غير مكفول" value={employeeCounts.jeddah.not_sponsored} color="bg-muted/40 text-foreground/75" />
-                </div>
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">جدة + رخصة + كفالة</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Chip label="رخصة + مكفول" value={employeeCounts.jeddah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
-                  <Chip label="رخصة + غير مكفول" value={employeeCounts.jeddah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
+    <StatsCards loading={loading} kpis={kpis} orderGrowth={orderGrowth} />
+    <OrdersChart loading={loading} ordersByApp={ordersByApp} ordersByCity={ordersByCity} totalOrders={kpis.totalOrders} />
+    <TopEmployees
+      loading={loading}
+      topNInput={topNInput}
+      setTopNInput={setTopNInput}
+      handleTopNBlur={handleTopNBlur}
+      topRidersOverall={topRidersOverall}
+      topRidersPerApp={topRidersPerApp}
+    />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="lg:col-span-2">
+        <AttendanceChart loading={loading} kpis={kpis} attendanceWeek={attendanceWeek} />
       </div>
-    </div>
-
-    {/* ════════════════════════════════════════════════════════════
-        ── SECTION 2: الطلبات ───────────────────────────────────
-        ════════════════════════════════════════════════════════ */}
-    <div>
-      <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Package size={14} /> الطلبات والأداء
-      </h2>
-      <div className="space-y-4">
-
-        {/* Platform cards with target */}
-        <div>
-          <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
-          {renderOrdersByAppNode(loading, ordersByApp)}
-        </div>
-
-        {/* Orders by city */}
-        <OrdersByCityCard ordersByCity={ordersByCity} totalOrders={kpis.totalOrders} />
-
-        {/* Top N overall + per platform */}
-        <div className="bg-card rounded-2xl shadow-card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
-            <div>
-              <h3 className="text-sm font-bold text-foreground">أفضل المناديب</h3>
-              <p className="text-[11px] text-muted-foreground/80 mt-0.5">حسب إجمالي الطلبات هذا الشهر</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Settings2 size={13} className="text-muted-foreground/80" />
-              <span className="text-xs text-muted-foreground/80">عدد المناديب:</span>
-              <input
-                type="number" min={1} max={50} value={topNInput}
-                onChange={e => setTopNInput(e.target.value)}
-                onBlur={handleTopNBlur}
-                className="w-14 text-center border border-border rounded-lg text-sm font-bold py-1 bg-background text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-          <div className="p-5">
-            {/* Overall */}
-            <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mb-3">الإجمالي</p>
-            <Leaderboard entries={topRidersOverall} loading={loading} max={maxOrderOverall} />
-
-            {/* Per platform */}
-            {!loading && topRidersPerApp.length > 0 && (
-              <div className="mt-6 space-y-5">
-                <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حسب المنصة</p>
-                <div className={`grid grid-cols-1 ${topRidersPerApp.length >= 2 ? 'md:grid-cols-2' : ''} gap-5`}>
-                  {topRidersPerApp.map(app => (
-                    <div key={app.id}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: app.brand_color }} />
-                        <span className="text-xs font-bold text-foreground/75">{app.name}</span>
-                      </div>
-                      <Leaderboard
-                        entries={app.riders.map(r => ({ name: r.name, orders: r.orders, app: r.app, appColor: app.brand_color }))}
-                        loading={false}
-                        max={app.riders[0]?.orders || 1}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* ════════════════════════════════════════════════════════════
-        ── SECTION 3: الحضور والانصراف ──────────────────────────
-        ════════════════════════════════════════════════════════ */}
-    <div>
-      <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Clock size={14} /> الحضور والانصراف
-      </h2>
-      <div className="space-y-4">
-
-        {/* Today's breakdown */}
-        <Card title="الحضور اليوم" subtitle={format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}>
-          {loading ? (
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{SKELETON_KEYS_5.map((k)=><Sk key={`attendance-skeleton-${k}`} h="h-16"/>)}</div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              <div className="rounded-xl bg-emerald-50 p-4 text-center">
-                <p className="text-2xl font-black text-emerald-700">{kpis.presentToday}</p>
-                <p className="text-[10px] font-semibold text-emerald-600 mt-1">حاضر</p>
-              </div>
-              <div className="rounded-xl bg-orange-50 p-4 text-center">
-                <p className="text-2xl font-black text-orange-600">{kpis.lateToday}</p>
-                <p className="text-[10px] font-semibold text-orange-500 mt-1">متأخر</p>
-              </div>
-              <div className="rounded-xl bg-rose-50 p-4 text-center">
-                <p className="text-2xl font-black text-rose-600">{kpis.absentToday}</p>
-                <p className="text-[10px] font-semibold text-rose-500 mt-1">غائب</p>
-              </div>
-              <div className="rounded-xl bg-amber-50 p-4 text-center">
-                <p className="text-2xl font-black text-amber-600">{kpis.leaveToday}</p>
-                <p className="text-[10px] font-semibold text-amber-500 mt-1">إجازة</p>
-              </div>
-              <div className="rounded-xl bg-sky-50 p-4 text-center">
-                <p className="text-2xl font-black text-sky-600">{kpis.sickToday}</p>
-                <p className="text-[10px] font-semibold text-sky-500 mt-1">مريض</p>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* Weekly attendance chart + alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <Card title="الحضور — آخر 7 أيام" subtitle="حاضر / متأخر / غائب / إجازة / مريض">
-              {attendanceWeek.length === 0 ? (
-                <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">لا توجد بيانات حضور</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={attendanceWeek} barGap={2} barCategoryGap="25%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={25} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="present" name="حاضر" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="late" name="متأخر" fill="#f97316" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="absent" name="غائب" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="leave" name="إجازة" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="sick" name="مريض" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-                    <Legend />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </Card>
-          </div>
-          <AlertsList />
-        </div>
-      </div>
+      <AlertsWidget />
     </div>
 
     {/* ── Recent Activity ──────────────────────────────────────── */}
@@ -1170,76 +958,35 @@ const Dashboard = () => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
   const [activeTab, setActiveTab] = useState<DashboardTabKey>('overview');
-  const [topN, setTopN] = useState(5);
-  const [topNInput, setTopNInput] = useState('5');
 
   const currentMonth = format(new Date(), 'yyyy-MM');
-  const queryClient = useQueryClient();
-  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
-  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
-
-  useDashboardRealtimeInvalidation(user?.id, currentMonth, queryClient);
-
-  const { data, isLoading: loading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['dashboard-kpis', uid, currentMonth],
-    enabled: enabled && !!activeIdsData,
-    queryFn: () => fetchDashboardKpis(currentMonth, activeEmployeeIdsInMonth),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const defaultKpis = { activeEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, lateToday: 0, sickToday: 0, totalOrders: 0, prevMonthOrders: 0, activeVehicles: 0, activeAlerts: 0, activeApps: 0, hasLicense: 0, appliedLicense: 0, noLicense: 0, makkahCount: 0, jeddahCount: 0, estRevenueTotal: 0 };
   const {
-    kpis = defaultKpis,
-    empDetails = [] as EmpDetail[],
-    ordersByApp = [] as { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number }[],
-    ordersByCity = [] as { city: string; orders: number }[],
-    allRiders = [] as { name: string; orders: number; app: string; appColor: string; appId: string }[],
-    attendanceWeek = [] as { day: string; present: number; absent: number; leave: number; sick: number; late: number }[],
-    recentActivity = [] as DashboardRecentActivityItem[],
-    apps = [] as { id: string; name: string; brand_color: string; text_color: string }[],
-    estRevenueByApp = [] as { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number; estRevenue: number }[],
-  } = data ?? {};
-
-  // ── Derived ──
-  const orderGrowth = useMemo(
-    () => (kpis.prevMonthOrders > 0 ? ((kpis.totalOrders - kpis.prevMonthOrders) / kpis.prevMonthOrders) * 100 : 0),
-    [kpis.prevMonthOrders, kpis.totalOrders],
-  );
-
-  const employeeCounts = useMemo(() => buildEmployeeCounts(empDetails), [empDetails]);
-
-  const ridersByAppId = useMemo(() => {
-    const map = new Map<string, typeof allRiders>();
-    for (const r of allRiders) {
-      const arr = map.get(r.appId);
-      if (arr) arr.push(r);
-      else map.set(r.appId, [r]);
-    }
-    return map;
-  }, [allRiders]);
-
-  const topRidersOverall = useMemo(() => allRiders.slice(0, topN), [allRiders, topN]);
-  const maxOrderOverall = useMemo(() => topRidersOverall[0]?.orders || 1, [topRidersOverall]);
-
-  const topRidersPerApp = useMemo(
-    () =>
-      apps
-        .map((app) => ({
-          ...app,
-          riders: (ridersByAppId.get(app.id) || []).slice(0, topN),
-        }))
-        .filter((a) => a.riders.length > 0),
-    [apps, ridersByAppId, topN],
-  );
-
-  const handleTopNBlur = useCallback(() => {
-    const parsed = parsePositiveIntOrNull(topNInput);
-    if (parsed !== null) {
-      setTopN(parsed);
-      return;
-    }
-    setTopNInput(String(topN));
-  }, [topN, topNInput]);
+    loading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    kpis,
+    orderGrowth,
+    ordersByApp,
+    ordersByCity,
+    attendanceWeek,
+    recentActivity,
+    topNInput,
+    setTopNInput,
+    handleTopNBlur,
+    topRidersOverall,
+    topRidersPerApp,
+  } = useDashboard({
+    userId: uid,
+    currentMonth,
+    enabled,
+    authUserId: user?.id,
+    fetchDashboardKpis,
+    buildEmployeeCounts,
+    parsePositiveIntOrNull,
+    useRealtimeInvalidation: useDashboardRealtimeInvalidation,
+  });
 
   return (
     <div className="space-y-5">
@@ -1259,14 +1006,12 @@ const Dashboard = () => {
           loading={loading}
           kpis={kpis}
           orderGrowth={orderGrowth}
-          employeeCounts={employeeCounts}
           ordersByApp={ordersByApp}
           ordersByCity={ordersByCity}
           topNInput={topNInput}
           setTopNInput={setTopNInput}
           handleTopNBlur={handleTopNBlur}
           topRidersOverall={topRidersOverall}
-          maxOrderOverall={maxOrderOverall}
           topRidersPerApp={topRidersPerApp}
           attendanceWeek={attendanceWeek}
           recentActivity={recentActivity}
