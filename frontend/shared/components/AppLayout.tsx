@@ -143,36 +143,48 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
           }}
         >
 
-          {/* شعار + اسم المشروع — يمين الشاشة في RTL */}
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 shrink-0 min-w-0 rounded-xl py-1 ps-1 -ms-1 hover:opacity-90 transition-opacity"
-            title={projectSubtitle || projectName}
-          >
-            {settings?.logo_url ? (
-              <img
-                src={settings.logo_url}
-                alt=""
-                className="h-10 w-10 sm:h-11 sm:w-11 rounded-full object-cover border-2 border-border/80 bg-card shadow-sm shrink-0"
-              />
-            ) : (
-              <div
-                className="h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center text-lg sm:text-xl shrink-0 border-2 border-border/80 shadow-sm bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
-              >
-                🚀
-              </div>
-            )}
-            <div className="hidden sm:flex flex-col min-w-0 text-start leading-tight">
-              <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[9rem] sm:max-w-[14rem]">
-                {projectName}
-              </span>
-              {projectSubtitle ? (
-                <span className="text-[10px] sm:text-[11px] text-muted-foreground/90 truncate max-w-[9rem] sm:max-w-[14rem]">
-                  {projectSubtitle}
+          {/* Mobile brand + sidebar toggle (avoid desktop logo duplication with sidebar) */}
+          <div className="lg:hidden flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={toggle}
+              className="h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 flex-shrink-0"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+              aria-label="Toggle sidebar"
+            >
+              <Menu size={18} />
+            </button>
+
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 min-w-0 rounded-xl py-1 ps-1 -ms-1 hover:opacity-90 transition-opacity"
+              title={projectSubtitle || projectName}
+            >
+              {settings?.logo_url ? (
+                <img
+                  src={settings.logo_url}
+                  alt=""
+                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-full object-cover border-2 border-border/80 bg-card shadow-sm shrink-0"
+                />
+              ) : (
+                <div
+                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center text-lg sm:text-xl shrink-0 border-2 border-border/80 shadow-sm bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
+                >
+                  🚀
+                </div>
+              )}
+              <div className="hidden sm:flex flex-col min-w-0 text-start leading-tight">
+                <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[9rem] sm:max-w-[14rem]">
+                  {projectName}
                 </span>
-              ) : null}
-            </div>
-          </Link>
+                {projectSubtitle ? (
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground/90 truncate max-w-[9rem] sm:max-w-[14rem]">
+                    {projectSubtitle}
+                  </span>
+                ) : null}
+              </div>
+            </Link>
+          </div>
 
           {/* بحث في الوسط */}
           <div className="order-last sm:order-none w-full sm:w-auto flex-1 flex justify-center min-w-0 basis-full sm:basis-auto">
@@ -217,16 +229,6 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
                 {pageTitle}
               </span>
             </div>
-
-            <button
-              type="button"
-              onClick={toggle}
-              className="lg:hidden h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 flex-shrink-0"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
-              aria-label="Toggle sidebar"
-            >
-              <Menu size={18} />
-            </button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
