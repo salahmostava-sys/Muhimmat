@@ -1,9 +1,4 @@
-import { useRef } from 'react';
-import { Loader2, FolderOpen } from 'lucide-react';
-import { Button } from '@shared/components/ui/button';
-import { cn } from '@shared/lib/utils';
-import { useToast } from '@shared/hooks/use-toast';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { FileActionsMenu } from './FileActionsMenu';
 
 /** 5MB import limit */
 export const DATA_TABLE_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -39,10 +34,6 @@ export function DataTableActions({
   className,
   labels = {},
 }: DataTableActionsProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  const busy = loading || disabled;
-
   const L = {
     export: labels.export ?? 'تصدير Excel',
     template: labels.template ?? 'تحميل قالب الاستيراد',
@@ -50,90 +41,22 @@ export function DataTableActions({
     print: labels.print ?? 'طباعة الجدول',
   };
 
-  const run = async (fn: () => void | Promise<void>) => {
-    try {
-      await fn();
-    } catch (e: unknown) {
-      console.error('[DataTableActions]', e);
-    }
-  };
-
-  const handleImportPick = () => {
-    if (busy || hideImport) return;
-    inputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (file.size > DATA_TABLE_IMPORT_MAX_BYTES) {
-      toast({
-        title: 'خطأ',
-        description: 'Error: file exceeds 5MB limit',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const lower = file.name.toLowerCase();
-    const ok = lower.endsWith('.xlsx') || lower.endsWith('.xls');
-    if (!ok) {
-      toast({
-        title: 'خطأ',
-        description: 'Error: Invalid file format',
-        variant: 'destructive',
-      });
-      return;
-    }
-    void run(() => onImportFile(file));
-  };
-
   return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full',
-        className
-      )}
-      role="toolbar"
-      aria-label="إجراءات البيانات"
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-
-      {loading && (
-        <span className="flex items-center gap-2 text-sm text-primary font-medium px-1" aria-live="polite">
-          <Loader2 className="animate-spin size-4 shrink-0" aria-hidden />
-          جارٍ المعالجة...
-        </span>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            className="gap-1.5 min-w-[9.5rem] border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-          >
-            <FolderOpen className="size-4" aria-hidden />
-            ملفات
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => void run(onExport)}>📊 {L.export}</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void run(onDownloadTemplate)}>📋 {L.template}</DropdownMenuItem>
-          {!hideImport && (
-            <DropdownMenuItem onClick={handleImportPick}>⬆️ {L.import}</DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void run(onPrint)}>🖨️ {L.print}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <FileActionsMenu
+      onExport={onExport}
+      onDownloadTemplate={onDownloadTemplate}
+      onPrint={onPrint}
+      onImportFile={onImportFile}
+      importMaxBytes={DATA_TABLE_IMPORT_MAX_BYTES}
+      loading={loading}
+      disabled={disabled}
+      hideImport={hideImport}
+      className={className}
+      ariaLabel="إجراءات البيانات"
+      labels={L}
+      invalidSizeMessage="Error: file exceeds 5MB limit"
+      invalidFormatMessage="Error: Invalid file format"
+      logPrefix="[DataTableActions]"
+    />
   );
 }
