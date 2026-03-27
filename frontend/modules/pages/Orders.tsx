@@ -987,9 +987,18 @@ const OrdersList = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <OrdersMonthNavigator year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportMonth} className="h-9">
-            <FolderOpen size={14} className="me-2" /> تصدير Excel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1 h-9 text-xs px-2">
+                <FolderOpen size={13} /> ملفات
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportMonth}>
+                📊 تصدير Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

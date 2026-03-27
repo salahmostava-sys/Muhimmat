@@ -1199,9 +1199,16 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
                 {ridersForTab.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportDaily}>
-              <Download size={14} /> تصدير Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                  <FolderOpen size={14} /> ملفات
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportDaily}>📊 تصدير Excel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Riders + expandable daily + bottom inline add */}
@@ -1408,10 +1415,19 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={onBack}>رجوع</Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={exportExcel} disabled={exporting}>
-              {exporting && <Download size={14} className="opacity-70" />}
-              تصدير Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2" disabled={exporting}>
+                  <FolderOpen size={14} /> ملفات
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportExcel} disabled={exporting}>
+                  {exporting && <Download size={14} className="ml-2 opacity-70" />}
+                  📊 تصدير Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
