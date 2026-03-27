@@ -835,9 +835,9 @@ const Advances = () => {
   const handleImportAdvances = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const wb = XLSX.read(ev.target?.result, { type: 'binary' });
+    void (async () => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const wb = XLSX.read(bytes, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(ws);
       if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
@@ -860,8 +860,7 @@ const Advances = () => {
       }
       toast({ title: `تم استيراد ${success} سلفة ✅` });
       fetchAll();
-    };
-    reader.readAsBinaryString(file);
+    })();
     e.target.value = '';
   };
 
