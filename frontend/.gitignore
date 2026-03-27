@@ -1,5 +1,9 @@
 .vercel
 
+# Build/test artifacts
+dist/
+coverage/
+
 # AI tool metadata / prompts
 .lovable
 .claude
