@@ -690,7 +690,14 @@ const Employees = () => {
   };
 
   const runImportFile = async (file: File) => {
-    if (!permissions.can_edit) return;
+    if (!permissions.can_edit) {
+      toast({
+        title: 'غير مسموح',
+        description: 'لا تملك صلاحية استيراد بيانات الموظفين',
+        variant: 'destructive',
+      });
+      return;
+    }
     setActionLoading(true);
     setIsUploading(true);
     setUploadProgress(0);
@@ -706,9 +713,10 @@ const Employees = () => {
       const { report, headerWarnings } = await processBulkImportRows(buf, setUploadProgress, setUploadLiveStats);
       setUploadReport(report);
       if (report.totalProcessed === 0) {
+        const firstIssue = report.errors[0]?.issue;
         toast({
           title: 'تعذر المعالجة',
-          description: 'الملف لا يحتوي على بيانات صالحة',
+          description: firstIssue || 'الملف لا يحتوي على بيانات صالحة',
           variant: 'destructive',
         });
         setIsUploading(false);
@@ -724,13 +732,22 @@ const Employees = () => {
         meta: { processed: report.successfulRows, failed: report.failedRows, headerWarnings },
       });
       const hasFailures = report.failedRows > 0;
-      toast({
-        title: hasFailures ? 'اكتملت المعالجة مع أخطاء' : 'اكتملت المعالجة بنجاح',
-        description: hasFailures
-          ? `تمت معالجة ${report.totalProcessed} سطر، نجح ${report.successfulRows} وفشل ${report.failedRows}`
-          : `تمت معالجة ${report.totalProcessed} سطر بنجاح`,
-        variant: hasFailures ? 'destructive' : undefined,
-      });
+      if (report.successfulRows === 0) {
+        const topIssues = report.errors.slice(0, 3).map((error) => `سطر ${error.rowIndex}: ${error.issue}`);
+        toast({
+          title: 'فشل الاستيراد',
+          description: topIssues.join(' • ') || 'تعذر استيراد أي سطر من الملف',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: hasFailures ? 'اكتملت المعالجة مع أخطاء' : 'اكتملت المعالجة بنجاح',
+          description: hasFailures
+            ? `تمت معالجة ${report.totalProcessed} سطر، نجح ${report.successfulRows} وفشل ${report.failedRows}`
+            : `تمت معالجة ${report.totalProcessed} سطر بنجاح`,
+          variant: hasFailures ? 'destructive' : undefined,
+        });
+      }
       setUploadProgress(100);
       setTimeout(() => {
         setIsUploading(false);
