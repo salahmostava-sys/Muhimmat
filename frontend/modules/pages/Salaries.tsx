@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import { useToast } from '@shared/hooks/use-toast';
 import { format } from 'date-fns';
-import { useAppColors, AppColorData, CustomColumn } from '@shared/hooks/useAppColors';
+import { useAppColors, CustomColumn } from '@shared/hooks/useAppColors';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { useNavigate } from 'react-router-dom';
@@ -663,7 +663,7 @@ const buildAppMaps = (appsWithScheme: AppWithSchemeRow[] | null | undefined) => 
   const appSchemeMap: Record<string, SchemeData | null> = {};
   const appNameToId: Record<string, string> = {};
   (appsWithScheme || []).forEach((app) => {
-    appSchemeMap[app.name] = app.salary_schemes ? (app.salary_schemes as SchemeData) : null;
+    appSchemeMap[app.name] = app.salary_schemes ?? null;
     appNameToId[app.name] = app.id;
   });
   return { appSchemeMap, appNameToId };
@@ -1982,99 +1982,6 @@ const Salaries = () => {
     } finally {
       setSalaryActionLoading(false);
     }
-  };
-
-  // ── Download individual PDFs — one file per employee named after them ──
-  const downloadAllPDFs = async () => {
-    const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
-    const toPrint = filtered;
-    if (toPrint.length === 0) { toast({ title: 'لا يوجد بيانات للتحميل' }); return; }
-
-    const autoTableMod = await import('jspdf-autotable');
-    const autoTable = autoTableMod.default;
-
-    for (const row of toPrint) {
-          const c = computeRow(row);
-          const [y, m] = selectedMonth.split('-');
-          const JsPdf = await loadJsPdf();
-          const doc = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          const docWithTables = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-          const lastAutoTableY = () => docWithTables.lastAutoTable?.finalY ?? 40;
-
-          // Header
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(16);
-          doc.setTextColor(79, 70, 229);
-          doc.text('Salary Slip / كشف راتب', 105, 18, { align: 'center' });
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`${monthLabel}  |  ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' });
-
-          // Info table
-          autoTable(doc, {
-            startY: 32,
-            body: [
-              ['Employee / الاسم', row.employeeName, 'ID / الهوية', row.nationalId],
-              ['City / المدينة', row.city, 'Payment / طريقة الدفع', row.paymentMethod === 'bank' ? 'Bank' : 'Cash'],
-            ],
-            styles: { fontSize: 9, cellPadding: 2.5 },
-            alternateRowStyles: { fillColor: [245, 245, 255] },
-            columnStyles: { 0: { fontStyle: 'bold', fillColor: [240, 240, 255] }, 2: { fontStyle: 'bold', fillColor: [240, 240, 255] } },
-          });
-
-          // Platform orders
-          const platformBody = row.registeredApps.map(app => [
-            app,
-            (row.platformOrders[app] || 0).toLocaleString(),
-            (row.platformSalaries[app] || 0).toLocaleString() + ' SAR',
-          ]);
-          platformBody.push(['Total / الإجمالي', '', c.totalPlatformSalary.toLocaleString() + ' SAR']);
-
-          autoTable(doc, {
-            startY: lastAutoTableY() + 6,
-            head: [['Platform / المنصة', 'Orders / الطلبات', 'Salary / الراتب']],
-            body: platformBody,
-            headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
-            styles: { fontSize: 9, halign: 'center' },
-            columnStyles: { 0: { halign: 'left' } },
-          });
-
-          // Deductions if any
-          if (c.totalDeductions > 0) {
-            const dedBody: string[][] = [];
-            if (row.advanceDeduction > 0) dedBody.push(['Advance / سلفة', `-${row.advanceDeduction.toLocaleString()} SAR`]);
-            if (row.externalDeduction > 0) dedBody.push(['External / خارجي', `-${row.externalDeduction.toLocaleString()} SAR`]);
-            if (row.violations > 0) dedBody.push(['Violations / مخالفات', `-${row.violations.toLocaleString()} SAR`]);
-            dedBody.push(['Total Deductions', `-${c.totalDeductions.toLocaleString()} SAR`]);
-            autoTable(doc, {
-              startY: lastAutoTableY() + 6,
-              head: [['Deductions / المستقطعات', 'Amount / المبلغ']],
-              body: dedBody,
-              headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' },
-              styles: { fontSize: 9 },
-            });
-          }
-
-          // Net salary
-          autoTable(doc, {
-            startY: lastAutoTableY() + 6,
-            body: [['Net Salary / الراتب الصافي', c.netSalary.toLocaleString() + ' SAR']],
-            styles: { fontSize: 12, fontStyle: 'bold', fillColor: [240, 253, 244], textColor: [22, 163, 74], cellPadding: 4 },
-          });
-
-          // Footer signature
-          const finalY = lastAutoTableY() + 20;
-          doc.setFontSize(8);
-          doc.setTextColor(150, 150, 150);
-          doc.text('Employee Signature: ___________________', 20, finalY);
-          doc.text('Manager Approval: ___________________', 120, finalY);
-
-          const safeName = row.employeeName.replace(/\s+/g, '_');
-          doc.save(`كشف_راتب_${safeName}_${m}_${y}.pdf`);
-    }
-
-    toast({ title: `⬇️ جارٍ تحميل ${toPrint.length} ملف PDF...` });
   };
 
   // ── Merged PDF: all employees in a single printable page ──
