@@ -16,10 +16,13 @@ node_modules
 dist
 dist-ssr
 
-# Build artifacts & coverage (keep local; do not commit)
+# Build outputs & generated artifacts (do not commit — keeps language stats accurate)
+dist/
+frontend/dist/
+build/
+build
 frontend/coverage/
 coverage/
-dist/
 *.local
 
 # Editor directories and files
@@ -32,6 +35,9 @@ dist/
 *.njsproj
 *.sln
 *.sw?
+
+# Vercel local / linked output (keep vercel.json in repo if needed)
+.vercel/
 .vercel
 
 # AI tool metadata / prompts
