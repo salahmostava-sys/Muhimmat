@@ -684,6 +684,98 @@ const fetchPricingRulesMap = async (appNameToId: Record<string, string>) => {
   return rulesMap;
 };
 
+type SalaryBaseContextData = {
+  monthlyContext: {
+    employees: unknown;
+    orders: unknown;
+    appsWithSchemeRes: { data: unknown };
+    attendanceRows: unknown;
+    fuelRes: { data: unknown };
+    savedRecords: unknown;
+    allAdvances: unknown;
+  };
+  previewData: unknown;
+};
+
+type PreparedSalaryState = {
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appsWithoutPricingRules: string[];
+  appsWithoutScheme: string[];
+  builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>>;
+  hydratedRows: SalaryRow[];
+};
+
+const prepareSalaryState = async ({
+  salaryBaseContext,
+  selectedMonth,
+  activeEmployeeIdsInMonth,
+  salariesDraftKey,
+}: {
+  salaryBaseContext: SalaryBaseContextData;
+  selectedMonth: string;
+  activeEmployeeIdsInMonth: string[];
+  salariesDraftKey: string;
+}): Promise<PreparedSalaryState> => {
+  const { monthlyContext, previewData } = salaryBaseContext;
+  const { employees: empRows, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvances } = monthlyContext;
+  const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
+  const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
+  const { advInstIds, deductedInstIds, advRemainingMap } = await buildAdvanceInstallmentMaps(
+    selectedMonth,
+    (allAdvances as Array<{ id: string; employee_id: string }> | null | undefined) || []
+  );
+
+  const employees = filterVisibleEmployeesInMonth(
+    (empRows || []) as { id: string; sponsorship_status?: string | null }[],
+    activeEmployeeIdsInMonth
+  );
+  if (employees.some((emp) => !previewMap[emp.id])) {
+    throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
+  }
+
+  const attendanceDaysMap = buildAttendanceDaysMap(attendanceRows as Array<{ employee_id: string }> | null | undefined);
+  const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
+  const ordMap = buildOrdersMap(orders as OrderWithAppRow[] | null);
+  const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
+  const { appSchemeMap, appNameToId } = buildAppMaps(appsFromApi);
+  const platformNames = appsFromApi.map((a) => a.name);
+  const rulesMap = await fetchPricingRulesMap(appNameToId);
+  const builtEmpPlatformScheme = buildEmpPlatformSchemeMap(
+    employees.map((emp) => emp.id),
+    platformNames,
+    appSchemeMap
+  );
+  const newRows = buildSalaryRows({
+    employees: employees as Array<Record<string, unknown>>,
+    selectedMonth,
+    platformNames,
+    appNameToId,
+    rulesMap,
+    appSchemeMap,
+    ordMap,
+    attendanceDaysMap,
+    savedMap,
+    previewMap,
+    advInstIds,
+    deductedInstIds,
+    advRemainingMap,
+    fuelCostMap,
+  });
+  const hydratedRows = hydrateRowsWithDraft(newRows, salariesDraftKey);
+  const appsWithoutPricingRules = appsFromApi.filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0).map((a) => a.name);
+  const appsWithoutScheme = appsFromApi.filter((a) => !a.salary_schemes).map((a) => a.name);
+
+  return {
+    appNameToId,
+    rulesMap,
+    appsWithoutPricingRules,
+    appsWithoutScheme,
+    builtEmpPlatformScheme,
+    hydratedRows,
+  };
+};
+
 interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; companyName?: string; }
 
 const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: PayslipProps) => {
@@ -1226,6 +1318,29 @@ const Salaries = () => {
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    const handleFetchError = (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب';
+      if (message.startsWith('PREVIEW_BACKEND:')) {
+        const normalized = message.replace('PREVIEW_BACKEND:', '').trim();
+        setRows([]);
+        setPreviewBackendError(normalized || 'تعذر تحميل معاينة الرواتب من الخادم');
+      }
+      toast({
+        title: 'تعذر تحميل البيانات',
+        description: message,
+        variant: 'destructive',
+      });
+    };
+
+    const applyPreparedSalaryState = (prepared: PreparedSalaryState) => {
+      setAppIdByName(prepared.appNameToId);
+      setPricingRulesByAppId(prepared.rulesMap);
+      setAppsWithoutPricingRules(prepared.appsWithoutPricingRules);
+      setAppsWithoutScheme(prepared.appsWithoutScheme);
+      setEmpPlatformScheme(prepared.builtEmpPlatformScheme);
+      setRows(prepared.hydratedRows);
+    };
+
     const fetchAllData = async () => {
       if (salaryBaseContextLoading) {
         setLoadingData(true);
@@ -1234,91 +1349,23 @@ const Salaries = () => {
       setLoadingData(true);
       setPreviewBackendError(null);
       if (salaryBaseContextError) {
-        if (!cancelled) {
-          setLoadingData(false);
-          toast({
-            title: 'تعذر تحميل البيانات',
-            description: salaryBaseContextError instanceof Error ? salaryBaseContextError.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
-            variant: 'destructive',
-          });
-        }
+        if (!cancelled) handleFetchError(salaryBaseContextError);
+        setLoadingData(false);
         return;
       }
-      if (!salaryBaseContext) return;
-      if (cancelled) return;
+      if (!salaryBaseContext || cancelled) return;
       try {
-        const { monthlyContext, previewData } = salaryBaseContext;
-        const { employees: empRows, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvances } = monthlyContext;
-        const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
-        const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
-
-        const { advInstIds, deductedInstIds, advRemainingMap } = await buildAdvanceInstallmentMaps(
+        const prepared = await prepareSalaryState({
+          salaryBaseContext: salaryBaseContext as SalaryBaseContextData,
           selectedMonth,
-          (allAdvances as Array<{ id: string; employee_id: string }> | null | undefined) || []
-        );
-        if (cancelled) return;
-
-        const employees = filterVisibleEmployeesInMonth(
-          (empRows || []) as unknown as { id: string; sponsorship_status?: string | null }[],
-          activeEmployeeIdsInMonth
-        );
-        if (employees.some((emp) => !previewMap[emp.id])) {
-          throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
-        }
-
-        const attendanceDaysMap = buildAttendanceDaysMap(attendanceRows as Array<{ employee_id: string }> | null | undefined);
-        const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
-        const ordMap = buildOrdersMap(orders as OrderWithAppRow[] | null);
-        const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
-        const { appSchemeMap, appNameToId } = buildAppMaps(appsFromApi);
-        const platformNames = appsFromApi.map(a => a.name);
-        const rulesMap = await fetchPricingRulesMap(appNameToId);
-        if (cancelled) return;
-
-        const builtEmpPlatformScheme = buildEmpPlatformSchemeMap(
-          employees.map(emp => emp.id),
-          platformNames,
-          appSchemeMap
-        );
-        const newRows = buildSalaryRows({
-          employees: employees as Array<Record<string, unknown>>,
-          selectedMonth,
-          platformNames,
-          appNameToId,
-          rulesMap,
-          appSchemeMap,
-          ordMap,
-          attendanceDaysMap,
-          savedMap,
-          previewMap,
-          advInstIds,
-          deductedInstIds,
-          advRemainingMap,
-          fuelCostMap,
+          activeEmployeeIdsInMonth,
+          salariesDraftKey,
         });
-        const hydratedRows = hydrateRowsWithDraft(newRows, salariesDraftKey);
 
         if (cancelled) return;
-        setAppIdByName(appNameToId);
-        setPricingRulesByAppId(rulesMap);
-        setAppsWithoutPricingRules(appsFromApi.filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0).map((a) => a.name));
-        setAppsWithoutScheme(appsFromApi.filter((a) => !a.salary_schemes).map((a) => a.name));
-        setEmpPlatformScheme(builtEmpPlatformScheme);
-        setRows(hydratedRows);
+        applyPreparedSalaryState(prepared);
       } catch (error) {
-        if (!cancelled) {
-          const message = error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب';
-          if (message.startsWith('PREVIEW_BACKEND:')) {
-            const normalized = message.replace('PREVIEW_BACKEND:', '').trim();
-            setRows([]);
-            setPreviewBackendError(normalized || 'تعذر تحميل معاينة الرواتب من الخادم');
-          }
-          toast({
-            title: 'تعذر تحميل البيانات',
-            description: message,
-            variant: 'destructive',
-          });
-        }
+        if (!cancelled) handleFetchError(error);
       } finally {
         if (!cancelled) {
           setLoadingData(false);
