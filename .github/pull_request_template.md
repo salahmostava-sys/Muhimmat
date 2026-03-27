@@ -12,7 +12,7 @@
 
 ## Checklist / قائمة تحقق
 
-- [ ] `npm run build` passes (root or `frontend/`)
+- [ ] `cd frontend && npm run build` passes
 - [ ] `npm run lint` on touched files (or full project if small PR)
 - [ ] Relevant tests: `npm run test` (or N/A with reason below)
 - [ ] Data access stays in `frontend/services/` (not ad-hoc in components)

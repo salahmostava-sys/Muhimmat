@@ -152,16 +152,16 @@
 
 ## تشغيل المشروع
 
-من **جذر المستودع**:
+من **`frontend/`**:
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-أو من **`frontend/`**: `npm install` ثم `npm run dev` (المنفذ الافتراضي **5000**).
-
 ```bash
+cd frontend
 npm run build
 ```
 

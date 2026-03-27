@@ -5,12 +5,6 @@
 # https://circleci.com/docs/language-javascript/ for more details
 version: 2.1
 
-# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
-# See: https://circleci.com/docs/orbs/use/orb-intro/
-orbs:
-  # See the Node orb documentation here: https://circleci.com/developer/orbs/orb/circleci/node
-  node: circleci/node@5.2
-
 jobs:
   # Below is the definition of your job to build and test your app, you can rename and customize it as you want.
   build-and-test:
@@ -26,15 +20,12 @@ jobs:
     steps:
       # Checkout the code as the first step.
       - checkout
-
-      # The node orb's install-packages step will install the dependencies from a package.json.
-      # The orb install-packages step will also automatically cache them for faster future runs.
-      - node/install-packages:
-          # If you are using yarn, change the line below from "npm" to "yarn"
-          pkg-manager: npm
+      - run:
+          name: Install frontend dependencies
+          command: cd frontend && npm ci
       - run:
           name: Run tests
-          command: npm test
+          command: cd frontend && npm test
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
