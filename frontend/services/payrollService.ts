@@ -39,7 +39,7 @@ export const payrollService = {
     }
 
     let total = 0;
-    const tierType = matchedTier?.tier_type || 'total_multiplier';
+    const tierType = matchedTier.tier_type || 'total_multiplier';
 
     if (tierType === 'fixed_amount') {
       total = matchedTier.price_per_order;

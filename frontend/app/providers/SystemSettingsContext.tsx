@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@services/supabase/client';
 import { useAuth } from '@app/providers/AuthContext';
 
@@ -73,6 +73,10 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
   const s = settings ?? defaults;
   const projectName = s.project_name_ar;
   const projectSubtitle = s.project_subtitle_ar;
+  const contextValue = useMemo<SystemSettingsContextType>(
+    () => ({ settings: s, projectName, projectSubtitle, loading, refresh: fetchSettings }),
+    [s, projectName, projectSubtitle, loading, fetchSettings]
+  );
 
   // Sync browser title
   useEffect(() => {
@@ -80,7 +84,7 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
   }, [projectName]);
 
   return (
-    <SystemSettingsContext.Provider value={{ settings: s, projectName, projectSubtitle, loading, refresh: fetchSettings }}>
+    <SystemSettingsContext.Provider value={contextValue}>
       {children}
     </SystemSettingsContext.Provider>
   );

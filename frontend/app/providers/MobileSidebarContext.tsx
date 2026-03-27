@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 interface MobileSidebarContextType {
@@ -28,13 +28,16 @@ export const MobileSidebarProvider = ({ children }: { children: ReactNode }) => 
     return () => globalThis.removeEventListener('resize', handler);
   }, []);
 
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen(v => !v), []);
+  const value = useMemo<MobileSidebarContextType>(
+    () => ({ isOpen, open, close, toggle }),
+    [isOpen, open, close, toggle]
+  );
+
   return (
-    <MobileSidebarContext.Provider value={{
-      isOpen,
-      open: () => setIsOpen(true),
-      close: () => setIsOpen(false),
-      toggle: () => setIsOpen(v => !v),
-    }}>
+    <MobileSidebarContext.Provider value={value}>
       {children}
     </MobileSidebarContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect, ReactNode, useMemo } from 'react';
 import i18n from '@app/i18n';
 
 type Lang = 'ar';
@@ -18,8 +18,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     i18n.changeLanguage('ar');
   }, []);
 
+  const value = useMemo<LanguageContextType>(() => ({ lang: 'ar', isRTL: true }), []);
+
   return (
-    <LanguageContext.Provider value={{ lang: 'ar', isRTL: true }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );
