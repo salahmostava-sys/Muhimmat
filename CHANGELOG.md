@@ -11,6 +11,7 @@ Version numbers are updated when the team adopts a release tagging workflow; unt
 
 - `docs/ENV.md` — Supabase `VITE_*` variables, `.env.local`, Vercel, troubleshooting.
 - `.github/pull_request_template.md` — default PR checklist for GitHub.
+- `docs/CRITICAL_ROUTES.md` — high-impact routes map (page, service, guard, common failure points).
 
 ---
 

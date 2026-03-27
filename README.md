@@ -175,6 +175,7 @@ npm run build
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | طبقات البيانات، aliases، قواعد React Query |
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | قواعد قبل التعديل والمراجعة |
 | [`docs/ENV.md`](docs/ENV.md) | متغيرات Supabase، محلي مقابل Vercel |
+| [`docs/CRITICAL_ROUTES.md`](docs/CRITICAL_ROUTES.md) | خريطة المسارات الحرجة (صفحة/خدمة/أعطال شائعة) |
 | [`docs/README.md`](docs/README.md) | فهرس التوثيق |
 | [`CHANGELOG.md`](CHANGELOG.md) | سجل تغييرات موجزة للمشروع |
 | [`.github/pull_request_template.md`](.github/pull_request_template.md) | قالب وصف الـ PR على GitHub |

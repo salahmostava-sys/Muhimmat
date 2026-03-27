@@ -6,8 +6,9 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Engineers | Layers, aliases, Query/services rules |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Anyone changing code | Before PR checklist, where to put code |
 | [ENV.md](./ENV.md) | Local dev / deploy | `VITE_*` Supabase vars, `.env.local`, Vercel |
+| [CRITICAL_ROUTES.md](./CRITICAL_ROUTES.md) | Maintainers / reviewers | High-impact routes, page-service map, common failures |
 
-Start with **HANDOVER.md**, then **ARCHITECTURE.md**, then **CONTRIBUTING.md**. Use **ENV.md** when wiring Supabase or fixing “missing env” errors.
+Start with **HANDOVER.md**, then **ARCHITECTURE.md**, then **CONTRIBUTING.md**. Use **ENV.md** when wiring Supabase or fixing “missing env” errors. Keep **CRITICAL_ROUTES.md** nearby during reviews.
 
 The root [README.md](../README.md) describes product features and UX; these docs describe **how the repo is organized** for maintenance.
 
