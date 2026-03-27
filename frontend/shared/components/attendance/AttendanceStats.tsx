@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import attendanceService from '@services/attendanceService';
 import {
@@ -32,12 +31,15 @@ const COLORS = {
   late:    '#F97316',
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type AttendanceTooltipItem = { name?: string; fill?: string; value?: string | number };
+type AttendanceTooltipProps = { active?: boolean; payload?: AttendanceTooltipItem[]; label?: string };
+
+const CustomTooltip = ({ active, payload, label }: AttendanceTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-xs min-w-[130px]">
       <p className="font-semibold text-foreground mb-1.5">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.name} className="flex items-center justify-between gap-3">
           <span style={{ color: p.fill }}>{p.name}</span>
           <span className="font-bold text-foreground">{p.value}</span>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
@@ -46,6 +45,24 @@ interface Props {
 
 type ImportError = { name: string; error: string };
 type PreviewFilter = 'all' | 'errors' | 'warnings';
+type SheetCell = string | number | boolean | Date | null | undefined;
+type SheetRow = SheetCell[];
+
+type EmployeeImportPayload = {
+  name: string;
+  status: 'active' | 'inactive';
+  salary_type: 'orders' | 'shift';
+  base_salary: number;
+  sponsorship_status?: 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated';
+  employee_code?: string;
+  national_id?: string;
+  city?: 'makkah' | 'jeddah';
+  job_title?: string;
+  phone?: string;
+  nationality?: string;
+  birth_date?: string;
+  email?: string;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const parseCity = (val: string | undefined): 'makkah' | 'jeddah' | null => {
@@ -93,7 +110,7 @@ const parseYmdDate = (value: string): string | null => {
   return value;
 };
 
-const parseDate = (val: any): string | null => {
+const parseDate = (val: SheetCell): string | null => {
   if (!val) return null;
   if (typeof val === 'number') {
     const date = XLSX.SSF.parse_date_code(val);
@@ -146,7 +163,7 @@ const isValidNationalId = (id?: string) => {
 
 const STEP_LABELS = ['رفع الملف', 'معاينة وتحقق', 'استيراد'] as const;
 
-const findStartRow = (rows: any[][]): number => {
+const findStartRow = (rows: SheetRow[]): number => {
   const maxHeaderScanRows = Math.min(5, rows.length);
   for (let i = 0; i < maxHeaderScanRows; i++) {
     const nameCell = rows[i]?.[7];
@@ -169,13 +186,13 @@ const buildImportSummary = (employees: ParsedEmployee[]): ImportSummary => ({
   warnings: employees.filter(e => e._warnings.length > 0).length,
 });
 
-const parseEmployeesFromSheetRows = (rows: any[][]): ParsedEmployee[] => {
+const parseEmployeesFromSheetRows = (rows: SheetRow[]): ParsedEmployee[] => {
   const startRow = findStartRow(rows);
   const employees: ParsedEmployee[] = [];
 
   for (let i = startRow; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.every((c: any) => !c)) continue;
+    if (!row || row.every((c) => !c)) continue;
     const emp = parseRow(row, i + 1);
     if (emp) employees.push(emp);
   }
@@ -187,7 +204,7 @@ const parseWorkbook = (arrayBuffer: ArrayBuffer): { employees: ParsedEmployee[];
   const data = new Uint8Array(arrayBuffer);
   const wb = XLSX.read(data, { type: 'array', cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  const rows = XLSX.utils.sheet_to_json<SheetRow>(ws, { header: 1, defval: '' });
   const employees = parseEmployeesFromSheetRows(rows);
   return { employees, summary: buildImportSummary(employees) };
 };
@@ -302,7 +319,7 @@ const ValidationMessages = ({ emp }: { emp: ParsedEmployee }) => {
   );
 };
 
-const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
+const parseRow = (row: SheetRow, rowIndex: number): ParsedEmployee | null => {
   const col = (i: number) => {
     const v = row[i - 1];
     return v !== undefined && v !== null ? String(v).trim() : undefined;
@@ -370,8 +387,8 @@ const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
   };
 };
 
-const buildEmployeePayload = (emp: ParsedEmployee): Record<string, any> => {
-  const payload: Record<string, any> = {
+const buildEmployeePayload = (emp: ParsedEmployee): EmployeeImportPayload => {
+  const payload: EmployeeImportPayload = {
     name: emp.name,
     status: emp.status,
     salary_type: emp.salary_type,

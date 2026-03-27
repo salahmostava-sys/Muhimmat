@@ -88,8 +88,7 @@ if (!globalThis.ResizeObserver) {
     unobserve() {}
     disconnect() {}
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).ResizeObserver = ResizeObserverMock;
+  (globalThis as { ResizeObserver?: typeof ResizeObserverMock }).ResizeObserver = ResizeObserverMock;
 }
 
 if (!globalThis.IntersectionObserver) {
@@ -104,8 +103,7 @@ if (!globalThis.IntersectionObserver) {
       return [];
     }
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).IntersectionObserver = IntersectionObserverMock;
+  (globalThis as { IntersectionObserver?: typeof IntersectionObserverMock }).IntersectionObserver = IntersectionObserverMock;
 }
 
 if (!globalThis.matchMedia) {

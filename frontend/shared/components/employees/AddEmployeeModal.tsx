@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Check, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
@@ -272,7 +271,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     personal: null, id: null, license: null,
   });
 
-  const setField = useCallback((k: keyof EmployeeFormValues, v: any) => setValue(k, v, { shouldDirty: true }), [setValue]);
+  const setField = useCallback(
+    <K extends keyof EmployeeFormValues>(k: K, v: EmployeeFormValues[K]) => setValue(k, v, { shouldDirty: true }),
+    [setValue]
+  );
 
   const resStatus = (() => {
     if (!form.residency_expiry) return null;

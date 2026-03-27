@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Plus, CreditCard, FolderOpen, Edit2, FileText, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
@@ -558,7 +557,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
     }
   };
 
-  const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
+  const startEditNote = (inst: Installment) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
     setSavingNote(true);
     try {

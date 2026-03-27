@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, forwardRef, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@shared/lib/utils';
@@ -8,6 +7,7 @@ import {
   BarChart2, Activity, MapPin,
   Target, Clock, ChevronUp, ChevronDown,
   Minus, Settings2,
+  type LucideIcon,
 } from 'lucide-react';
 import AlertsList from '@shared/components/AlertsList';
 import { dashboardService } from '@services/dashboardService';
@@ -45,12 +45,26 @@ const Sk = ({ h = 'h-16', w = 'w-full' }: { h?: string; w?: string }) => (
 );
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
-const CustomTooltip = forwardRef<HTMLDivElement, any>(({ active, payload, label }, ref) => {
+type ChartTooltipItem = {
+  dataKey?: string | number;
+  name?: string;
+  color?: string;
+  fill?: string;
+  value?: string | number;
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: ChartTooltipItem[];
+  label?: string;
+};
+
+const CustomTooltip = forwardRef<HTMLDivElement, ChartTooltipProps>(({ active, payload, label }, ref) => {
   if (!active || !payload?.length) return null;
   return (
     <div ref={ref} className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <p key={`${p.dataKey ?? p.name}-${p.name}`} style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString()}
         </p>
@@ -76,7 +90,7 @@ const Card = ({ title, subtitle, children, action }: { title: string; subtitle?:
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 const KpiCard = ({ label, value, icon: Icon, color, bg, sub, trend, loading }: {
-  label: string; value: string | number; icon: any;
+  label: string; value: string | number; icon: LucideIcon;
   color: string; bg: string; sub?: string;
   trend?: { value: number; positive: boolean }; loading?: boolean;
 }) => (
@@ -231,7 +245,9 @@ const DashboardHeader = ({ activeTab, onTabChange }: { activeTab: DashboardTabKe
   </div>
 );
 
-const RecentActivityCard = ({ recentActivity }: { recentActivity: { text: string; time: string; icon: any }[] }) => {
+type DashboardRecentActivityItem = { text: string; time: string; icon: LucideIcon };
+
+const RecentActivityCard = ({ recentActivity }: { recentActivity: DashboardRecentActivityItem[] }) => {
   if (recentActivity.length === 0) return null;
   return (
     <Card title="آخر النشاطات" subtitle="آخر 6 إجراءات في النظام">
@@ -725,7 +741,7 @@ const getAttendanceTodayCounts = (att: DashboardAttendanceToday | null | undefin
 const buildAttendanceWeek = (rows: DashboardAttendanceWeekRow[]) =>
   rows.map((r) => ({ day: DASHBOARD_DAY_NAMES_AR[new Date(`${r.date}T12:00:00`).getDay()], ...r }));
 
-const DASHBOARD_ICON_MAP: Record<string, any> = {
+const DASHBOARD_ICON_MAP: Record<string, LucideIcon> = {
   employees: Users,
   attendance: UserCheck,
   daily_orders: Package,
@@ -793,7 +809,24 @@ const fetchDashboardKpis = async (
   const today = format(new Date(), 'yyyy-MM-dd');
   const rpcData = await dashboardService.getOverviewRpc(currentMonth, today);
 
-  const rpc = (rpcData || {}) as any;
+  type DashboardRpcShape = {
+    apps?: DashboardApp[];
+    attendanceToday?: DashboardAttendanceToday;
+    empDetails?: EmpDetail[];
+    ordersByApp?: DashboardOrdersByAppRow[];
+    ordersByCity?: DashboardOrdersByCityRow[];
+    riders?: Array<{ name: string; orders: number; app: string; appColor: string; appId: string }>;
+    attendanceWeek?: DashboardAttendanceWeekRow[];
+    recentActivity?: DashboardAuditRow[];
+    kpis?: {
+      estRevenueTotal?: number;
+      prevMonthOrders?: number;
+      activeVehicles?: number;
+      activeAlerts?: number;
+      activeApps?: number;
+    };
+  };
+  const rpc: DashboardRpcShape = rpcData || {};
   const apps = (rpc.apps || []) as DashboardApp[];
 
   const { presentToday, absentToday, lateToday, leaveToday, sickToday } = getAttendanceTodayCounts(
@@ -815,7 +848,7 @@ const fetchDashboardKpis = async (
     orders: r.orders,
   }));
 
-  const allRiders = ((rpc.riders || []) as any[]).map((r) => ({
+  const allRiders = (rpc.riders || []).map((r) => ({
     name: r.name,
     orders: r.orders,
     app: r.app,
@@ -876,7 +909,7 @@ type OverviewTabProps = {
   maxOrderOverall: number;
   topRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: { name: string; orders: number; app: string; appColor: string; appId: string }[] }>;
   attendanceWeek: { day: string; present: number; absent: number; leave: number; sick: number; late: number }[];
-  recentActivity: { text: string; time: string; icon: any }[];
+  recentActivity: DashboardRecentActivityItem[];
 };
 
 const OverviewTab = ({
@@ -1162,7 +1195,7 @@ const Dashboard = () => {
     ordersByCity = [] as { city: string; orders: number }[],
     allRiders = [] as { name: string; orders: number; app: string; appColor: string; appId: string }[],
     attendanceWeek = [] as { day: string; present: number; absent: number; leave: number; sick: number; late: number }[],
-    recentActivity = [] as { text: string; time: string; icon: any }[],
+    recentActivity = [] as DashboardRecentActivityItem[],
     apps = [] as { id: string; name: string; brand_color: string; text_color: string }[],
     estRevenueByApp = [] as { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number; estRevenue: number }[],
   } = data ?? {};
