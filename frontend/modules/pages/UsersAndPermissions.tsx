@@ -59,7 +59,9 @@ interface UsersAndPermissionsProps {
 
 const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => {
   const { toast } = useToast();
-  const { role: authRole, loading: authLoading, session } = useAuth();
+  const { role: authRole, loading: authLoading } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions: settingsPerm } = usePermissions('settings');
 
   const [rows, setRows] = useState<UserRow[]>([]);
