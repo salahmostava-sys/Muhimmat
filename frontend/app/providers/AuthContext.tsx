@@ -140,40 +140,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [queryClient]);
 
   useEffect(() => {
-    const subscription = authService.onAuthStateChange(async (event, nextSession) => {
-      try {
-        if (isFirstLoad.current) {
-          isFirstLoad.current = false;
-          setLoading(false);
-        }
-        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-          await handleUnauthenticatedState(event.toLowerCase());
-        }
-        if (nextSession?.user) {
-          const active = await authService.fetchIsActive(nextSession.user.id);
-          if (!active) {
-            await forceSignOut();
+    const subscription = authService.onAuthStateChange((event, nextSession) => {
+      // Keep auth listener non-blocking to avoid stalling sign-in completion.
+      void (async () => {
+        try {
+          if (isFirstLoad.current) {
+            isFirstLoad.current = false;
             setLoading(false);
-            return;
           }
-          setSession(nextSession);
-          setUser(nextSession.user);
-          const r = await fetchRole(nextSession.user.id);
-          setRole(r);
-        } else {
-          setSession(null);
-          setUser(null);
-          setRole(null);
+          if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
+            await handleUnauthenticatedState(event.toLowerCase());
+          }
+          if (nextSession?.user) {
+            const active = await withTimeout(
+              authService.fetchIsActive(nextSession.user.id),
+              AUTH_ACTIVE_CHECK_TIMEOUT_MS,
+              'authService.fetchIsActive'
+            );
+            if (!active) {
+              await forceSignOut();
+              setLoading(false);
+              return;
+            }
+            setSession(nextSession);
+            setUser(nextSession.user);
+            const r = await withTimeout(
+              fetchRole(nextSession.user.id),
+              AUTH_ACTIVE_CHECK_TIMEOUT_MS,
+              'authService.fetchUserRole'
+            );
+            setRole(r);
+          } else {
+            setSession(null);
+            setUser(null);
+            setRole(null);
+          }
+        } catch (e) {
+          console.error('[Auth] onAuthStateChange handler failed', e);
         }
-      } catch (e) {
-        console.error('[Auth] onAuthStateChange handler failed', e);
-      }
+      })();
     });
 
     authService.getSession()
       .then(async (currentSession) => {
         if (currentSession?.user) {
-          const active = await authService.fetchIsActive(currentSession.user.id);
+          const active = await withTimeout(
+            authService.fetchIsActive(currentSession.user.id),
+            AUTH_ACTIVE_CHECK_TIMEOUT_MS,
+            'authService.fetchIsActive'
+          );
           if (!active) {
             await forceSignOut();
             setLoading(false);
@@ -181,7 +196,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           setSession(currentSession);
           setUser(currentSession.user);
-          const r = await fetchRole(currentSession.user.id);
+          const r = await withTimeout(
+            fetchRole(currentSession.user.id),
+            AUTH_ACTIVE_CHECK_TIMEOUT_MS,
+            'authService.fetchUserRole'
+          );
           setRole(r);
         }
       })
