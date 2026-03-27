@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Search, Plus, Upload, Download, FolderOpen, Edit2, Trash2,
+  Search, Plus, Download, FolderOpen, Edit2, Trash2,
   Fuel, TrendingUp, DollarSign, Package,
   X, Check, Activity, Calendar, BarChart3, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Label } from '@shared/components/ui/label';
@@ -1118,9 +1118,8 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
                   XLSX.utils.book_append_sheet(wb, ws, 'قالب');
                   XLSX.writeFile(wb, 'template_fuel.xlsx');
                 }}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowImport(true)}>
-                  <Upload size={14} className="ml-2" /> استيراد GPS شهري
+                  ⬆️ استيراد GPS شهري
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

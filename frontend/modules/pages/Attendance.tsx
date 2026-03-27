@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { Button } from '@shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
-import { ClipboardCheck, CalendarDays, FolderOpen, Upload, BarChart2, Archive } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, FolderOpen, BarChart2, Archive } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import DailyAttendance from '@shared/components/attendance/DailyAttendance';
 import MonthlyRecord from '@shared/components/attendance/MonthlyRecord';
@@ -101,9 +101,7 @@ const Attendance = () => {
               <DropdownMenuItem onClick={handleAttendanceTemplate}>
                 📋 تحميل قالب الاستيراد
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                <Upload size={14} className="ms-2" /> استيراد Excel
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => importRef.current?.click()}>⬆️ استيراد Excel</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
                 const table = document.querySelector('table');

@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { Button } from '@shared/components/ui/button';
-import { Search, Save, Package, Upload, FolderOpen, Loader2, Target, TrendingUp } from 'lucide-react';
+import { Search, Save, Package, FolderOpen, Loader2, Target, TrendingUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Input } from '@shared/components/ui/input';
 import { Progress } from '@shared/components/ui/progress';
@@ -542,7 +542,7 @@ const SpreadsheetGrid = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={exportExcel}>📊 تصدير Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => importRef.current?.click()}><Upload size={14} className="ml-1" /> استيراد Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => importRef.current?.click()}>⬆️ استيراد Excel</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, FolderOpen, Upload, Edit, Trash2, Bike, User } from 'lucide-react';
+import { Search, Plus, FolderOpen, Edit, Trash2, Bike } from 'lucide-react';
 import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
@@ -503,7 +503,7 @@ const Motorcycles = () => {
               <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
               {permissions.can_edit && (
                 <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                  <Upload size={14} className="ml-2" /> استيراد Excel
+                  ⬆️ استيراد Excel
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
