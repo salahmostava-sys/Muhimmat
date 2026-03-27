@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, Download, FolderOpen, Edit2, Trash2,
@@ -569,9 +569,6 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   const [selectedEmployee, setSelectedEmployee] = useState<string>('_all_');
   const [platformTab, setPlatformTab] = useState('all');
 
-  const [monthlyRows, setMonthlyRows] = useState<MonthlyRow[]>([]);
-  const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
-
   // fast daily state (server-side)
   const [fastDailyPage, setFastDailyPage] = useState(1);
   const [fastDailyPageSize] = useState(50);
@@ -580,7 +577,6 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   const [apps, setApps] = useState<AppRow[]>([]);
   const [employeeAppLinks, setEmployeeAppLinks] = useState<{ employee_id: string; app_id: string }[]>([]);
   const [monthOrdersMap, setMonthOrdersMap] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [expandedRider, setExpandedRider] = useState<string | null>(null);
   const [savingEntry, setSavingEntry] = useState(false);
@@ -684,67 +680,74 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     setNewEntry(ne => ({ ...ne, date: defaultEntryDate }));
   }, [monthYear, defaultEntryDate]);
 
-  const fetchMonthly = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: monthlyRows = [],
+    isLoading: monthlyLoading,
+    error: monthlyError,
+    refetch: refetchMonthly,
+  } = useQuery({
+    queryKey: ['fuel', uid, 'monthly', monthYear, platformTab, employees.map((e) => e.id).join(',')],
+    enabled: enabled && view === 'monthly',
+    queryFn: async () => {
       const ms = `${monthYear}-01`;
       const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-      const [dailyRows, orderRows, assignmentRows] = await Promise.all([
+      const [dailyRowsRaw, orderRows, assignmentRows] = await Promise.all([
         fuelApi.getMonthlyDailyMileage(ms, me),
         fuelApi.getMonthlyOrders(ms, me),
         fuelApi.getActiveVehicleAssignments(),
       ]);
       const ordersMap = buildOrdersMap((orderRows || []) as MonthlyOrderRow[]);
       const vehicleMap = buildVehicleMap((assignmentRows || []) as VehicleAssignmentRow[]);
-      const aggMap = buildMonthlyAggMap((dailyRows || []) as DailyMileageAggSource[], employeeIdsOnPlatform);
-      const nextRows = buildMonthlyRows(aggMap, ordersMap, vehicleMap, employees);
-      setMonthlyRows(nextRows);
-    } catch (err) {
-      logError('[Fuel] fetchMonthly failed', err);
-      const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات الشهرية');
-      toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
-      setMonthlyRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [monthYear, employeeIdsOnPlatform, employees, toast]);
+      const aggMap = buildMonthlyAggMap((dailyRowsRaw || []) as DailyMileageAggSource[], employeeIdsOnPlatform);
+      return buildMonthlyRows(aggMap, ordersMap, vehicleMap, employees);
+    },
+    retry: defaultQueryRetry,
+    staleTime: 30_000,
+  });
 
-  const fetchDaily = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: dailyRows = [],
+    isLoading: dailyLoading,
+    error: dailyError,
+    refetch: refetchDaily,
+  } = useQuery({
+    queryKey: ['fuel', uid, 'daily', monthYear, selectedEmployee, platformTab],
+    enabled: enabled && view === 'daily',
+    queryFn: async () => {
       const ms = `${monthYear}-01`;
       const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
       const dailyData = await fuelApi.getDailyMileageByMonth(ms, me);
       const mappedRows = mapDailyRows((dailyData || []) as DailyMileageResponseRow[]);
-      const filteredRows = applyDailyFilters(mappedRows, selectedEmployee, employeeIdsOnPlatform);
-      setDailyRows(filteredRows);
-    } catch (err) {
-      logError('[Fuel] fetchDaily failed', err);
-      const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات اليومية');
-      toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
-      setDailyRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [monthYear, selectedEmployee, employeeIdsOnPlatform, toast]);
+      return applyDailyFilters(mappedRows, selectedEmployee, employeeIdsOnPlatform);
+    },
+    retry: defaultQueryRetry,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    if (view === 'monthly') fetchMonthly();
-    else fetchDaily();
-  }, [view, fetchMonthly, fetchDaily]);
+    if (!monthlyError) return;
+    logError('[Fuel] monthly query failed', monthlyError);
+    toast({ title: 'خطأ في جلب البيانات', description: getErrorMessageOrFallback(monthlyError, 'تعذر جلب البيانات الشهرية'), variant: 'destructive' });
+  }, [monthlyError, toast]);
+
+  useEffect(() => {
+    if (!dailyError) return;
+    logError('[Fuel] daily query failed', dailyError);
+    toast({ title: 'خطأ في جلب البيانات', description: getErrorMessageOrFallback(dailyError, 'تعذر جلب البيانات اليومية'), variant: 'destructive' });
+  }, [dailyError, toast]);
 
   const refresh = () => {
-    if (view === 'monthly') fetchMonthly();
-    else fetchDaily();
+    void refetchMonthly();
+    void refetchDaily();
   };
+  const loading = view === 'monthly' ? monthlyLoading : dailyLoading;
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
     try {
       await fuelApi.deleteDailyMileage(id);
       toast({ title: 'تم الحذف' });
-      fetchDaily();
-      fetchMonthly();
+      refresh();
     } catch (e) {
       logError('[Fuel] save monthly failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
@@ -1215,7 +1218,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
           employees={employees}
           monthYear={monthYear}
           onClose={() => setShowImport(false)}
-          onImported={() => { setShowImport(false); fetchMonthly(); }}
+          onImported={() => { setShowImport(false); void refetchMonthly(); }}
         />
       )}
     </div>
