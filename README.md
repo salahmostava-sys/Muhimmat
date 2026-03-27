@@ -11,10 +11,11 @@
 - [المعمارية](#المعمارية)
 - [الصفحات والمسارات](#الصفحات-والمسارات)
 - [نظام الصلاحيات](#نظام-الصلاحيات)
-- [هيكل المشروع](#هيكل-المشروع)
+- [هيكل المشروع](#هيكل-المشروع-الكود-المصدر-الحالي)
 - [نظام التصميم](#نظام-التصميم)
 - [المتغيرات البيئية](#المتغيرات-البيئية)
 - [تشغيل المشروع](#تشغيل-المشروع)
+- [توثيق الصيانة (docs/)](#توثيق-الصيانة-docs)
 
 ---
 
@@ -48,7 +49,9 @@
 
 ## المعمارية
 
-راجع ملف `ARCHITECTURE.md` لمخطط النظام وطبقات الصلاحيات والاعتماد الكامل على Supabase كـ Backend وحيد.
+راجع **`docs/ARCHITECTURE.md`** لمخطط الطبقات (صفحات → hooks → services → Supabase) وقواعد React Query والأسماء المختصرة (`@app`, `@services`, `@modules`, `@shared`).
+
+**للمطورين المستلمين:** ابدأ من **`docs/HANDOVER.md`** ثم **`docs/CONTRIBUTING.md`** — فهرس كامل في **`docs/README.md`**.
 
 ---
 
@@ -88,47 +91,18 @@
 
 ---
 
-## هيكل المشروع
+## هيكل المشروع (الكود المصدري الحالي)
 
-```
-src/
-├── App.tsx                          # الراوتر الرئيسي + تحميل كسول للصفحات
-├── main.tsx                         # نقطة الدخول
-├── index.css                        # Tailwind + متغيرات نظام التصميم
-│
-├── components/
-│   ├── AppLayout.tsx                # التخطيط العام مع الشريط الجانبي
-│   ├── AppSidebar.tsx               # الشريط الجانبي القابل للطي (64px / 260px)
-│   ├── attendance/                  # مكونات الحضور
-│   ├── employees/                   # مكونات الموظفين
-│   ├── settings/                    # مكونات الإعدادات
-│   └── ui/                          # مكونات shadcn/ui الأساسية
-│
-├── context/
-│   ├── AuthContext.tsx              # المصادقة + الدور
-│   ├── LanguageContext.tsx          # تبديل العربية/الإنجليزية
-│   ├── ThemeContext.tsx             # الوضع المظلم/الفاتح
-│   └── SystemSettingsContext.tsx   # اسم المشروع والشعار من DB
-│
-├── hooks/
-│   ├── usePermissions.ts           # فحص الصلاحيات بناءً على الدور
-│   ├── useSignedUrl.ts             # روابط موقّعة لـ Supabase Storage
-│   └── use-toast.ts                # نظام الإشعارات
-│
-├── pages/                           # صفحات كاملة (تحميل كسول)
-│   ├── Dashboard.tsx
-│   ├── Employees.tsx
-│   ├── Attendance.tsx
-│   ├── SettingsHub.tsx
-│   └── settings-hub/               # محتوى تبويبات الإعدادات
-│
-├── integrations/supabase/
-│   ├── client.ts                   # عميل Supabase (مع كشف ذكي للمتغيرات)
-│   └── types.ts                    # أنواع TypeScript المُولَّدة تلقائياً من DB
-│
-└── i18n/
-    └── index.ts                    # إعداد i18next (ترجمات العربية/الإنجليزية)
-```
+الواجهة الأمامية تحت **`frontend/`** (وليس `src/` في المستودع الحالي):
+
+| المجلد | المحتوى |
+|--------|---------|
+| `frontend/app/` | الراوتر، `App.tsx`، المزودين (Auth، اللغة، الثيم، إعدادات النظام) |
+| `frontend/modules/` | صفحات المسارات (Dashboard، Employees، …) |
+| `frontend/shared/` | مكونات مشتركة، hooks، `lib`، واجهات مساعدة |
+| `frontend/services/` | طبقة الوصول لـ Supabase ومعالجة الأخطاء |
+
+تفاصيل للصيانة: **`docs/HANDOVER.md`** و **`docs/ARCHITECTURE.md`**.
 
 ---
 
@@ -170,24 +144,36 @@ src/
 
 ## المتغيرات البيئية
 
-```
-
-> يكتشف `src/integrations/supabase/client.ts` تلقائياً إذا تم تبديل المتغيرين بالخطأ ويصحّح الترتيب.
+استخدم ملفات مثل `.env` / `.env.local` (غير مرفوعة في Git).  
+يكتشف عميل Supabase في **`frontend/services/supabase/client.ts`** تلقائياً إذا تم تبديل المتغيرين بالخطأ ويصحّح الترتيب.
 
 ---
 
 ## تشغيل المشروع
 
+من **جذر المستودع**:
+
 ```bash
-# تثبيت الاعتماديات
 npm install
-
-# تشغيل خادم التطوير (المنفذ 5000)
 npm run dev
+```
 
-# بناء الإنتاج
+أو من **`frontend/`**: `npm install` ثم `npm run dev` (المنفذ الافتراضي **5000**).
+
+```bash
 npm run build
 ```
+
+---
+
+## توثيق الصيانة (docs/)
+
+| الملف | الاستخدام |
+|-------|-----------|
+| [`docs/HANDOVER.md`](docs/HANDOVER.md) | تسليم للمطور الجديد: تشغيل، مجلدات، ملفات أولية |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | طبقات البيانات، aliases، قواعد React Query |
+| [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | قواعد قبل التعديل والمراجعة |
+| [`docs/README.md`](docs/README.md) | فهرس التوثيق |
 
 ---
 
