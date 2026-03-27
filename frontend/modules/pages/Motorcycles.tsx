@@ -98,6 +98,9 @@ const VehicleFormModal = ({
 }) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  let saveButtonLabel = 'إضافة المركبة';
+  if (saving) saveButtonLabel = 'جاري الحفظ...';
+  else if (editVehicle) saveButtonLabel = 'حفظ التعديلات';
   const [form, setForm] = useState({
     plate_number: '', plate_number_en: '', type: 'motorcycle' as 'motorcycle' | 'car',
     brand: '', model: '', year: '', status: 'active' as VehicleStatus,
@@ -229,7 +232,7 @@ const VehicleFormModal = ({
           </div>
           <div className="col-span-2 flex items-center gap-3 bg-muted/40 rounded-lg px-3 py-2.5">
             <span className="text-lg">⛽</span>
-            <label className="text-sm font-medium flex-1">شريحة البنزين</label>
+            <span className="text-sm font-medium flex-1">شريحة البنزين</span>
             <button
               type="button"
               onClick={() => setForm(p => ({ ...p, has_fuel_chip: !p.has_fuel_chip }))}
@@ -248,7 +251,7 @@ const VehicleFormModal = ({
         </div>
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? 'جاري الحفظ...' : editVehicle ? 'حفظ التعديلات' : 'إضافة المركبة'}</Button>
+          <Button onClick={handleSave} disabled={saving}>{saveButtonLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -258,8 +261,8 @@ const VehicleFormModal = ({
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 17 }).map((_, i) => (
-      <td key={`motorcycles-skeleton-cell-${i}`} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
+    {Array.from({ length: 17 }, (_, idx) => `motorcycles-skeleton-cell-${idx + 1}`).map(cellKey => (
+      <td key={cellKey} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
 );
@@ -328,24 +331,38 @@ const validateMotorcycleRow = (row: Record<string, unknown>): { isValid: boolean
 
 const mapRowToVehiclePayload = (row: Record<string, unknown>, plate: string) => {
   const y = cell(row, 'year', 'سنة الصنع');
-  const yearNum = y !== undefined ? Number.parseInt(String(y), 10) : NaN;
+  let yearNum = Number.NaN;
+  if (y !== undefined) yearNum = Number.parseInt(String(y), 10);
   const plateEn = cell(row, 'plate_number_en', 'رقم اللوحة en');
+  const toNullableText = (value: unknown, trim = false): string | null => {
+    if (value === undefined || value === null) return null;
+    const text = trim ? String(value).trim() : String(value);
+    return text || null;
+  };
+  const brandValue = cell(row, 'brand', 'الماركة');
+  const modelValue = cell(row, 'model', 'الموديل');
+  const insuranceExpiryValue = cell(row, 'insurance_expiry', 'انتهاء التأمين');
+  const registrationExpiryValue = cell(row, 'registration_expiry', 'انتهاء التسجيل');
+  const authorizationExpiryValue = cell(row, 'authorization_expiry', 'انتهاء التفويض');
+  const chassisValue = cell(row, 'chassis_number', 'رقم الهيكل');
+  const serialValue = cell(row, 'serial_number', 'الرقم التسلسلي');
+  const notesValue = cell(row, 'notes', 'ملاحظات');
 
   return {
     plate_number: plate,
-    plate_number_en: plateEn !== undefined ? String(plateEn).trim() || null : null,
+    plate_number_en: toNullableText(plateEn, true),
     type: parseVehicleType(cell(row, 'type', 'النوع')),
-    brand: cell(row, 'brand', 'الماركة') != null ? String(cell(row, 'brand', 'الماركة')) : null,
-    model: cell(row, 'model', 'الموديل') != null ? String(cell(row, 'model', 'الموديل')) : null,
+    brand: toNullableText(brandValue),
+    model: toNullableText(modelValue),
     year: Number.isFinite(yearNum) ? yearNum : null,
     status: parseVehicleStatus(cell(row, 'status', 'الحالة')),
     has_fuel_chip: parseBool(cell(row, 'has_fuel_chip', 'شريحة البنزين', 'fuel_chip')),
-    insurance_expiry: cell(row, 'insurance_expiry', 'انتهاء التأمين') != null ? String(cell(row, 'insurance_expiry', 'انتهاء التأمين')) : null,
-    registration_expiry: cell(row, 'registration_expiry', 'انتهاء التسجيل') != null ? String(cell(row, 'registration_expiry', 'انتهاء التسجيل')) : null,
-    authorization_expiry: cell(row, 'authorization_expiry', 'انتهاء التفويض') != null ? String(cell(row, 'authorization_expiry', 'انتهاء التفويض')) : null,
-    chassis_number: cell(row, 'chassis_number', 'رقم الهيكل') != null ? String(cell(row, 'chassis_number', 'رقم الهيكل')).trim() || null : null,
-    serial_number: cell(row, 'serial_number', 'الرقم التسلسلي') != null ? String(cell(row, 'serial_number', 'الرقم التسلسلي')).trim() || null : null,
-    notes: cell(row, 'notes', 'ملاحظات') != null ? String(cell(row, 'notes', 'ملاحظات')) : null,
+    insurance_expiry: toNullableText(insuranceExpiryValue),
+    registration_expiry: toNullableText(registrationExpiryValue),
+    authorization_expiry: toNullableText(authorizationExpiryValue),
+    chassis_number: toNullableText(chassisValue, true),
+    serial_number: toNullableText(serialValue, true),
+    notes: toNullableText(notesValue),
   };
 };
 
@@ -601,19 +618,25 @@ const Motorcycles = () => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={`motorcycles-skeleton-row-${i}`} />)
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={17} className="text-center py-16">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Bike size={40} className="opacity-30" />
-                      <p className="font-medium">لا توجد مركبات</p>
-                      <p className="text-xs">أضف مركبة جديدة للبدء</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : filtered.map((v, idx) => {
+              {(() => {
+                if (loading) {
+                  return ['motorcycles-skeleton-row-1', 'motorcycles-skeleton-row-2', 'motorcycles-skeleton-row-3', 'motorcycles-skeleton-row-4', 'motorcycles-skeleton-row-5']
+                    .map(rowKey => <SkeletonRow key={rowKey} />);
+                }
+                if (filtered.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={17} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Bike size={40} className="opacity-30" />
+                          <p className="font-medium">لا توجد مركبات</p>
+                          <p className="text-xs">أضف مركبة جديدة للبدء</p>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+                return filtered.map((v, idx) => {
                 const authDays = getDaysLeft(v.authorization_expiry);
                 const insDays = getDaysLeft(v.insurance_expiry);
                 const regDays = getDaysLeft(v.registration_expiry);
@@ -703,7 +726,8 @@ const Motorcycles = () => {
                     </td>
                   </tr>
                 );
-              })}
+                });
+              })()}
             </tbody>
           </table>
         </div>

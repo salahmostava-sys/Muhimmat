@@ -13,7 +13,6 @@ import { useToast } from '@shared/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@shared/hooks/usePermissions';
-import { escapeHtml } from '@shared/lib/security';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { printHtmlTable } from '@shared/lib/printTable';
@@ -280,6 +279,17 @@ const RestoreWriteOffDialog = ({ employeeName, advanceIds, onClose, onDone }: Re
   );
 };
 
+const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: 'asc' | 'desc' }) => {
+  if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
+  return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+};
+
+const installmentStatusLabel = (status: InstallmentStatus): string => {
+  if (status === 'deducted') return 'مخصوم';
+  if (status === 'pending') return 'معلّق';
+  return 'مؤجل';
+};
+
 // ─── Edit Advance Modal ────────────────────────────────────────────────────────
 interface EditAdvanceModalProps {
   advance: Advance;
@@ -293,7 +303,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
     amount: advance.amount.toString(),
     disbursement_date: advance.disbursement_date,
     first_deduction_month: advance.first_deduction_month,
-    status: advance.status as AdvanceStatus,
+    status: advance.status,
     note: advance.note || '',
   });
 
@@ -398,24 +408,27 @@ const PrintSlip = ({ employeeName, nationalId, totalDebt, totalPaid, remaining, 
     if (!contentEl) return;
     const win = globalThis.open('', '_blank');
     if (!win) return;
-    win.document.write(`
-      <html dir="rtl"><head><title>سلف - ${escapeHtml(employeeName)}</title>
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; direction: rtl; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th { background: #f3f4f6; padding: 8px; font-size: 12px; border: 1px solid #d1d5db; }
-        td { padding: 7px 8px; font-size: 12px; border: 1px solid #e5e7eb; }
-        .header { border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 16px; }
-        .stat { display: inline-block; margin-left: 20px; font-size: 13px; }
-        .stat-val { font-weight: bold; font-size: 16px; }
-        .red { color: #dc2626; } .green { color: #16a34a; } .blue { color: #2563eb; }
-        @media print { button { display: none; } }
-      </style></head><body>`);
-    if (!win.document.body) return;
-    // Append the live DOM node to avoid string-interpolating innerHTML.
-    win.document.body.appendChild(contentEl.cloneNode(true));
-    win.document.write(`</body></html>`);
-    win.document.close();
+    const doc = win.document;
+    doc.open();
+    doc.close();
+    doc.documentElement.lang = 'ar';
+    doc.documentElement.dir = 'rtl';
+    doc.title = `سلف - ${employeeName}`;
+
+    const style = doc.createElement('style');
+    style.textContent = `
+      body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; direction: rtl; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th { background: #f3f4f6; padding: 8px; font-size: 12px; border: 1px solid #d1d5db; }
+      td { padding: 7px 8px; font-size: 12px; border: 1px solid #e5e7eb; }
+      .header { border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 16px; }
+      .stat { display: inline-block; margin-left: 20px; font-size: 13px; }
+      .stat-val { font-weight: bold; font-size: 16px; }
+      .red { color: #dc2626; } .green { color: #16a34a; } .blue { color: #2563eb; }
+      @media print { button { display: none; } }
+    `;
+    doc.head.appendChild(style);
+    doc.body.appendChild(contentEl.cloneNode(true));
     win.print();
   };
 
@@ -457,7 +470,7 @@ const PrintSlip = ({ employeeName, nationalId, totalDebt, totalPaid, remaining, 
                   <td>{inst.advanceDate}</td>
                   <td>{inst.advanceTotal.toLocaleString()} ر.س</td>
                   <td>{inst.status === 'deducted' ? `${inst.amount.toLocaleString()} ر.س` : '—'}</td>
-                  <td>{inst.status === 'deducted' ? 'مخصوم' : inst.status === 'pending' ? 'معلّق' : 'مؤجل'}</td>
+                  <td>{installmentStatusLabel(inst.status)}</td>
                   <td>{inst.notes || '—'}</td>
                 </tr>
               ))}
@@ -808,10 +821,8 @@ const Advances = () => {
   const [writeOffEmployee, setWriteOffEmployee] = useState<{ name: string; remaining: number; advanceIds: string[] } | null>(null);
   const [restoreWriteOffEmployee, setRestoreWriteOffEmployee] = useState<{ name: string; advanceIds: string[] } | null>(null);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
-  const [newEmpEntry, setNewEmpEntry] = useState<{ id: string; name: string } | null>(null);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [inlineRowEmpId, setInlineRowEmpId] = useState<string | null>(null);
   const [deleteEmployeeAdvancesId, setDeleteEmployeeAdvancesId] = useState<string | null>(null);
   const [deletingEmployeeAdvances, setDeletingEmployeeAdvances] = useState(false);
 
@@ -931,7 +942,8 @@ const Advances = () => {
       if (!map.has(empId)) {
         map.set(empId, { employeeId: empId, employeeName: empName, nationalId, totalDebt: 0, totalPaid: 0, remaining: 0, activeAdvances: [], allAdvances: [], isWrittenOff: false });
       }
-      const entry = map.get(empId)!;
+      const entry = map.get(empId);
+      if (!entry) return;
       entry.totalDebt += adv.amount;
       entry.totalPaid += paid;
       entry.remaining += remaining;
@@ -1011,11 +1023,6 @@ const Advances = () => {
     });
   };
 
-  const SortIcon = ({ field }: { field: string }) => {
-    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
-    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
-  };
-
   return (
     <div className="space-y-4" dir="rtl">
       {/* Page header */}
@@ -1068,7 +1075,7 @@ const Advances = () => {
       {/* Written-off summary */}
       {writtenOffTotals.count > 0 && (
         <button
-          onClick={() => { setShowWrittenOff(v => !v); setNewEmpEntry(null); setInlineRowEmpId(null); }}
+          onClick={() => { setShowWrittenOff(v => !v); }}
           className={`w-full flex items-center gap-3 rounded-xl border p-3 text-sm transition-colors ${showWrittenOff ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/30 border-border/40 hover:bg-muted/50'}`}>
           <AlertTriangle size={16} className="text-destructive flex-shrink-0" />
           <span className="font-medium text-foreground">الديون المعدومة: {writtenOffTotals.count} مندوب</span>
@@ -1131,11 +1138,14 @@ const Advances = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="bg-card rounded-xl border border-border/50 p-8 text-center text-muted-foreground animate-pulse">جارٍ التحميل...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground bg-card rounded-xl border border-border/50">لا توجد سلف مطابقة</div>
-      ) : (
+      {(() => {
+        if (loading) {
+          return <div className="bg-card rounded-xl border border-border/50 p-8 text-center text-muted-foreground animate-pulse">جارٍ التحميل...</div>;
+        }
+        if (filtered.length === 0) {
+          return <div className="text-center py-16 text-muted-foreground bg-card rounded-xl border border-border/50">لا توجد سلف مطابقة</div>;
+        }
+        return (
         <div className="bg-card rounded-xl shadow-card overflow-hidden">
           <div className="overflow-x-auto">
             <table ref={tableRef} className="w-full text-sm">
@@ -1143,19 +1153,19 @@ const Advances = () => {
                 <tr className="bg-muted/50 border-b border-border/60">
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('employeeName')}>
-                    اسم المندوب <SortIcon field="employeeName" />
+                    اسم المندوب <SortIcon field="employeeName" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('nationalId')}>
-                    رقم الإقامة <SortIcon field="nationalId" />
+                    رقم الإقامة <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-info cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('totalDebt')}>
-                    المديونية <SortIcon field="totalDebt" />
+                    المديونية <SortIcon field="totalDebt" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-success cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('totalPaid')}>
-                    المسدّد <SortIcon field="totalPaid" />
+                    المسدّد <SortIcon field="totalPaid" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
-                    المتبقي <SortIcon field="remaining" />
+                    المتبقي <SortIcon field="remaining" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {permissions.can_edit && <th className="w-20 px-2 py-3 text-center text-xs font-semibold text-muted-foreground">إجراء</th>}
                 </tr>
@@ -1233,7 +1243,8 @@ const Advances = () => {
             </table>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Modals */}
       {editAdvance && (
