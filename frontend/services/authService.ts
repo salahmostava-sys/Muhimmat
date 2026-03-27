@@ -41,6 +41,11 @@ export const authService = {
   },
 
   fetchUserRole: async (userId: string): Promise<AppRole | null> => {
+    const { data: rpcRole, error: rpcError } = await supabase.rpc("get_my_role");
+    if (!rpcError) {
+      return (rpcRole as AppRole | null) ?? null;
+    }
+
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -52,6 +57,13 @@ export const authService = {
   },
 
   fetchIsActive: async (userId: string): Promise<boolean> => {
+    const { data: rpcActive, error: rpcError } = await supabase.rpc("is_active_user", {
+      _user_id: userId,
+    });
+    if (!rpcError && typeof rpcActive === "boolean") {
+      return rpcActive;
+    }
+
     const { data, error } = await supabase
       .from("profiles")
       .select("is_active")
