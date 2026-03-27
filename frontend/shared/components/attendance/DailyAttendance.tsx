@@ -149,13 +149,26 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
             .select("employee_id, app_id"),
         ]);
 
-        if (empRes.data) {
-          const rows = empRes.data as Employee[];
-          setAllEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
+        let employeeRows: Employee[] = [];
+        if (empRes.error) {
+          // Fallback to minimum fields in case some optional columns are blocked by RLS/permissions.
+          const fallbackRes = await supabase
+            .from("employees")
+            .select("id, name, sponsorship_status")
+            .eq("status", "active")
+            .order("name");
+          if (fallbackRes.error) throw fallbackRes.error;
+          employeeRows = (fallbackRes.data as Employee[]) ?? [];
+        } else {
+          employeeRows = (empRes.data as Employee[]) ?? [];
         }
+        setAllEmployees(filterVisibleEmployeesInMonth(employeeRows, activeEmployeeIdsInMonth));
+
+        if (appRes.error) throw appRes.error;
         if (appRes.data) setApps(appRes.data as App[]);
 
         // Build map: appId → Set<employeeId>
+        if (empAppsRes.error) throw empAppsRes.error;
         if (empAppsRes.data) {
           const map: Record<string, Set<string>> = {};
           for (const row of empAppsRes.data) {
