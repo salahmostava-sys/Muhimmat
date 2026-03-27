@@ -72,13 +72,10 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     queryKey: ['users-and-permissions', uid, 'rows'],
     enabled,
     queryFn: async () => {
-      const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
+      const [profiles, roles] = await Promise.all([
         userPermissionService.getProfiles(),
         userPermissionService.getUserRoles(),
       ]);
-
-      if (profilesError) throw profilesError;
-      if (rolesError) throw rolesError;
 
       const roleMap: Record<string, AppRole> = {};
       (roles || []).forEach((r) => {
@@ -159,8 +156,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     if (!canEdit) return;
     setSavingId(userId);
     try {
-      const { error } = await userPermissionService.upsertRole(userId, role);
-      if (error) throw error;
+      await userPermissionService.upsertRole(userId, role);
 
       setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, role } : r)));
       toast({ title: 'تم تحديث الدور' });
@@ -198,11 +194,9 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
         const same =
           cur.can_view === def.can_view && cur.can_edit === def.can_edit && cur.can_delete === def.can_delete;
         if (same) {
-          const { error } = await userPermissionService.deletePermission(selectedUser.id, key);
-          if (error) throw error;
+          await userPermissionService.deletePermission(selectedUser.id, key);
         } else {
-          const { error } = await userPermissionService.upsertPermission(selectedUser.id, key, cur);
-          if (error) throw error;
+          await userPermissionService.upsertPermission(selectedUser.id, key, cur);
         }
       }
       toast({ title: 'تم حفظ الصلاحيات' });

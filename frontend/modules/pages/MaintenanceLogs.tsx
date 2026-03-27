@@ -86,13 +86,11 @@ const MaintenanceFormModal = ({ open, onClose, onSaved, editLog, vehicles }: {
         paid_by: form.paid_by,
         status: form.status,
       };
-      let error;
       if (editLog) {
-        ({ error } = await vehicleService.updateMaintenanceLog(editLog.id, payload));
+        await vehicleService.updateMaintenanceLog(editLog.id, payload);
       } else {
-        ({ error } = await vehicleService.createMaintenanceLog(payload));
+        await vehicleService.createMaintenanceLog(payload);
       }
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       toast({ title: editLog ? 'تم تحديث سجل الصيانة' : 'تم تسجيل الصيانة بنجاح' });
       onSaved(); onClose();
     } catch (e) {
@@ -251,9 +249,8 @@ const MaintenanceLogs = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { error } = await vehicleService.deleteMaintenanceLog(deleteTarget.id);
+      await vehicleService.deleteMaintenanceLog(deleteTarget.id);
       setDeleteTarget(null);
-      if (error) { toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'تم حذف سجل الصيانة' });
       void refetchMaintenanceData();
     } catch (e) {

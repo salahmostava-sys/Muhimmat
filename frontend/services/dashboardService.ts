@@ -1,6 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { format, endOfMonth } from 'date-fns';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export interface DashboardKPIs {
   totalOrders: number;
@@ -34,7 +34,7 @@ export const dashboardService = {
       p_month_year: monthYear,
       p_today: today,
     });
-    if (error) throw toServiceError(error, 'dashboardService.getOverviewRpc');
+    if (error) handleSupabaseError(error, 'dashboardService.getOverviewRpc');
     return data;
   },
 
@@ -44,7 +44,7 @@ export const dashboardService = {
       .from('apps')
       .select('id, name, brand_color, text_color')
       .eq('is_active', true);
-    if (error) throw toServiceError(error, 'dashboardService.getActiveApps');
+    if (error) handleSupabaseError(error, 'dashboardService.getActiveApps');
     return data ?? [];
   },
 
@@ -54,7 +54,7 @@ export const dashboardService = {
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'dashboardService.getActiveEmployeeCount');
+    if (error) handleSupabaseError(error, 'dashboardService.getActiveEmployeeCount');
     return count ?? 0;
   },
 
@@ -65,7 +65,7 @@ export const dashboardService = {
       .select('net_salary')
       .eq('month_year', monthYear)
       .eq('is_approved', true);
-    if (error) throw toServiceError(error, 'dashboardService.getMonthSalaryTotal');
+    if (error) handleSupabaseError(error, 'dashboardService.getMonthSalaryTotal');
     return (data ?? []).reduce((sum, r) => sum + (r.net_salary ?? 0), 0);
   },
 
@@ -75,7 +75,7 @@ export const dashboardService = {
       .from('advances')
       .select('amount')
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'dashboardService.getActiveAdvancesTotal');
+    if (error) handleSupabaseError(error, 'dashboardService.getActiveAdvancesTotal');
     return (data ?? []).reduce((sum, r) => sum + (r.amount ?? 0), 0);
   },
 
@@ -85,7 +85,7 @@ export const dashboardService = {
       .from('attendance')
       .select('status')
       .eq('date', date);
-    if (error) throw toServiceError(error, 'dashboardService.getAttendanceToday');
+    if (error) handleSupabaseError(error, 'dashboardService.getAttendanceToday');
     const present = data?.filter(r => r.status === 'present').length ?? 0;
     const absent  = data?.filter(r => r.status === 'absent').length  ?? 0;
     const leave   = data?.filter(r => r.status === 'leave').length   ?? 0;
@@ -101,7 +101,7 @@ export const dashboardService = {
       .select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name)')
       .gte('date', start)
       .lte('date', end);
-    if (error) throw toServiceError(error, 'dashboardService.getMonthOrders');
+    if (error) handleSupabaseError(error, 'dashboardService.getMonthOrders');
     return data ?? [];
   },
 
@@ -114,7 +114,7 @@ export const dashboardService = {
       .select('orders_count')
       .gte('date', start)
       .lte('date', end);
-    if (error) throw toServiceError(error, 'dashboardService.getMonthOrdersCount');
+    if (error) handleSupabaseError(error, 'dashboardService.getMonthOrdersCount');
     return data?.reduce((sum, r) => sum + (r.orders_count ?? 0), 0) ?? 0;
   },
 
@@ -127,7 +127,7 @@ export const dashboardService = {
       .lte('date', to)
       .order('date', { ascending: true });
 
-    if (error) throw toServiceError(error, 'dashboardService.getAttendanceTrend');
+    if (error) handleSupabaseError(error, 'dashboardService.getAttendanceTrend');
 
     const grouped: Record<string, AttendanceTrendPoint> = {};
     data?.forEach(r => {
@@ -146,7 +146,7 @@ export const dashboardService = {
       .select('action, table_name, created_at, user_id')
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) throw toServiceError(error, 'dashboardService.getRecentActivity');
+    if (error) handleSupabaseError(error, 'dashboardService.getRecentActivity');
     return data ?? [];
   },
 
@@ -156,7 +156,7 @@ export const dashboardService = {
       .from('employee_apps')
       .select('app_id, employee_id, apps(name, brand_color, text_color)')
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'dashboardService.getEmployeeAppAssignments');
+    if (error) handleSupabaseError(error, 'dashboardService.getEmployeeAppAssignments');
     return data ?? [];
   },
 
@@ -167,7 +167,7 @@ export const dashboardService = {
       .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
       .limit(1)
       .maybeSingle();
-    if (error) throw toServiceError(error, 'dashboardService.getSystemSettings');
+    if (error) handleSupabaseError(error, 'dashboardService.getSystemSettings');
     return data;
   },
 
@@ -177,7 +177,7 @@ export const dashboardService = {
       .from('employees')
       .select('id, city, license_status, sponsorship_status')
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'dashboardService.getEmployeeDistribution');
+    if (error) handleSupabaseError(error, 'dashboardService.getEmployeeDistribution');
     return data ?? [];
   },
 
@@ -187,7 +187,7 @@ export const dashboardService = {
       .from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'dashboardService.getActiveVehiclesCount');
+    if (error) handleSupabaseError(error, 'dashboardService.getActiveVehiclesCount');
     return count ?? 0;
   },
 
@@ -197,7 +197,7 @@ export const dashboardService = {
       .from('alerts')
       .select('id', { count: 'exact', head: true })
       .eq('is_resolved', false);
-    if (error) throw toServiceError(error, 'dashboardService.getUnresolvedAlertsCount');
+    if (error) handleSupabaseError(error, 'dashboardService.getUnresolvedAlertsCount');
     return count ?? 0;
   },
 
@@ -207,7 +207,7 @@ export const dashboardService = {
       .from('app_targets')
       .select('app_id, target_orders')
       .eq('month_year', monthYear);
-    if (error) throw toServiceError(error, 'dashboardService.getAppTargets');
+    if (error) handleSupabaseError(error, 'dashboardService.getAppTargets');
     return data ?? [];
   },
 
@@ -229,18 +229,18 @@ export const dashboardService = {
       supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
       supabase.from('pricing_rules').select('app_id, rule_type, rate_per_order, fixed_salary, is_active, priority, min_orders, max_orders').eq('is_active', true),
     ]);
-    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.fetchMainData.empRes');
-    if (attRes.error) throw toServiceError(attRes.error, 'dashboardService.fetchMainData.attRes');
-    if (ordersRes.error) throw toServiceError(ordersRes.error, 'dashboardService.fetchMainData.ordersRes');
-    if (prevOrdersRes.error) throw toServiceError(prevOrdersRes.error, 'dashboardService.fetchMainData.prevOrdersRes');
-    if (weekAttRes.error) throw toServiceError(weekAttRes.error, 'dashboardService.fetchMainData.weekAttRes');
-    if (auditRes.error) throw toServiceError(auditRes.error, 'dashboardService.fetchMainData.auditRes');
-    if (empDetailsRes.error) throw toServiceError(empDetailsRes.error, 'dashboardService.fetchMainData.empDetailsRes');
-    if (vehiclesRes.error) throw toServiceError(vehiclesRes.error, 'dashboardService.fetchMainData.vehiclesRes');
-    if (alertsRes.error) throw toServiceError(alertsRes.error, 'dashboardService.fetchMainData.alertsRes');
-    if (appsRes.error) throw toServiceError(appsRes.error, 'dashboardService.fetchMainData.appsRes');
-    if (targetsRes.error) throw toServiceError(targetsRes.error, 'dashboardService.fetchMainData.targetsRes');
-    if (pricingRes.error) throw toServiceError(pricingRes.error, 'dashboardService.fetchMainData.pricingRes');
+    if (empRes.error) handleSupabaseError(empRes.error, 'dashboardService.fetchMainData.empRes');
+    if (attRes.error) handleSupabaseError(attRes.error, 'dashboardService.fetchMainData.attRes');
+    if (ordersRes.error) handleSupabaseError(ordersRes.error, 'dashboardService.fetchMainData.ordersRes');
+    if (prevOrdersRes.error) handleSupabaseError(prevOrdersRes.error, 'dashboardService.fetchMainData.prevOrdersRes');
+    if (weekAttRes.error) handleSupabaseError(weekAttRes.error, 'dashboardService.fetchMainData.weekAttRes');
+    if (auditRes.error) handleSupabaseError(auditRes.error, 'dashboardService.fetchMainData.auditRes');
+    if (empDetailsRes.error) handleSupabaseError(empDetailsRes.error, 'dashboardService.fetchMainData.empDetailsRes');
+    if (vehiclesRes.error) handleSupabaseError(vehiclesRes.error, 'dashboardService.fetchMainData.vehiclesRes');
+    if (alertsRes.error) handleSupabaseError(alertsRes.error, 'dashboardService.fetchMainData.alertsRes');
+    if (appsRes.error) handleSupabaseError(appsRes.error, 'dashboardService.fetchMainData.appsRes');
+    if (targetsRes.error) handleSupabaseError(targetsRes.error, 'dashboardService.fetchMainData.targetsRes');
+    if (pricingRes.error) handleSupabaseError(pricingRes.error, 'dashboardService.fetchMainData.pricingRes');
     return {
       activeEmployeeCount: empRes.count ?? 0,
       attendanceToday: attRes.data ?? [],
@@ -268,10 +268,10 @@ export const dashboardService = {
         supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', m.start).lte('date', m.end)
       ),
     ]);
-    if (appsRes.error) throw toServiceError(appsRes.error, 'dashboardService.fetchHistoricalData.appsRes');
-    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.fetchHistoricalData.empRes');
+    if (appsRes.error) handleSupabaseError(appsRes.error, 'dashboardService.fetchHistoricalData.appsRes');
+    if (empRes.error) handleSupabaseError(empRes.error, 'dashboardService.fetchHistoricalData.empRes');
     monthOrdersResults.forEach((result, idx) => {
-      if (result.error) throw toServiceError(result.error, `dashboardService.fetchHistoricalData.monthOrdersResults.${idx}`);
+      if (result.error) handleSupabaseError(result.error, `dashboardService.fetchHistoricalData.monthOrdersResults.${idx}`);
     });
     return {
       apps: appsRes.data ?? [],
@@ -289,10 +289,10 @@ export const dashboardService = {
       supabase.from('salary_records').select('net_salary').eq('month_year', monthYear).eq('is_approved', true),
     ]);
 
-    if (empRes.error) throw toServiceError(empRes.error, 'dashboardService.getKPIs.empRes');
-    if (attRes.error) throw toServiceError(attRes.error, 'dashboardService.getKPIs.attRes');
-    if (advRes.error) throw toServiceError(advRes.error, 'dashboardService.getKPIs.advRes');
-    if (salRes.error) throw toServiceError(salRes.error, 'dashboardService.getKPIs.salRes');
+    if (empRes.error) handleSupabaseError(empRes.error, 'dashboardService.getKPIs.empRes');
+    if (attRes.error) handleSupabaseError(attRes.error, 'dashboardService.getKPIs.attRes');
+    if (advRes.error) handleSupabaseError(advRes.error, 'dashboardService.getKPIs.advRes');
+    if (salRes.error) handleSupabaseError(salRes.error, 'dashboardService.getKPIs.salRes');
 
     const kpis: DashboardKPIs = {
       activeEmployees: empRes.count ?? 0,

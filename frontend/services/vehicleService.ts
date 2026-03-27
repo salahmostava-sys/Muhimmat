@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export interface VehiclePayload {
   plate_number: string;
@@ -45,7 +45,7 @@ export const vehicleService = {
       .from('vehicles')
       .select('*')
       .order('plate_number');
-    if (error) throw toServiceError(error, 'vehicleService.getAll');
+    if (error) handleSupabaseError(error, 'vehicleService.getAll');
     return data ?? [];
   },
 
@@ -59,8 +59,8 @@ export const vehicleService = {
         .is('returned_at', null),
     ]);
 
-    if (vehiclesRes.error) throw toServiceError(vehiclesRes.error, 'vehicleService.getAllWithCurrentRider.vehicles');
-    if (assignmentsRes.error) throw toServiceError(assignmentsRes.error, 'vehicleService.getAllWithCurrentRider.assignments');
+    if (vehiclesRes.error) handleSupabaseError(vehiclesRes.error, 'vehicleService.getAllWithCurrentRider.vehicles');
+    if (assignmentsRes.error) handleSupabaseError(assignmentsRes.error, 'vehicleService.getAllWithCurrentRider.assignments');
 
     const assignMap: Record<string, string> = {};
     (assignmentsRes.data || []).forEach((a: { vehicle_id?: string; employees?: { name?: string } | null }) => {
@@ -79,7 +79,7 @@ export const vehicleService = {
       .select('*')
       .eq('id', id)
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.getById');
+    if (error) handleSupabaseError(error, 'vehicleService.getById');
     return data;
   },
 
@@ -89,7 +89,7 @@ export const vehicleService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.create');
+    if (error) handleSupabaseError(error, 'vehicleService.create');
     return data;
   },
 
@@ -100,7 +100,7 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.update');
+    if (error) handleSupabaseError(error, 'vehicleService.update');
     return data;
   },
 
@@ -110,13 +110,13 @@ export const vehicleService = {
       .upsert(payload as Record<string, unknown>, { onConflict: 'plate_number' })
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.upsert');
+    if (error) handleSupabaseError(error, 'vehicleService.upsert');
     return data;
   },
 
   delete: async (id: string) => {
     const { error } = await supabase.from('vehicles').delete().eq('id', id);
-    if (error) throw toServiceError(error, 'vehicleService.delete');
+    if (error) handleSupabaseError(error, 'vehicleService.delete');
   },
 
   getActiveCount: async () => {
@@ -124,7 +124,7 @@ export const vehicleService = {
       .from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'vehicleService.getActiveCount');
+    if (error) handleSupabaseError(error, 'vehicleService.getActiveCount');
     return count ?? 0;
   },
 
@@ -133,7 +133,7 @@ export const vehicleService = {
       .from('maintenance_logs')
       .select('*, vehicles(id, plate_number, brand)')
       .order('date', { ascending: false });
-    if (error) throw toServiceError(error, 'vehicleService.getMaintenanceLogs');
+    if (error) handleSupabaseError(error, 'vehicleService.getMaintenanceLogs');
     return data ?? [];
   },
 
@@ -143,7 +143,7 @@ export const vehicleService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.createMaintenanceLog');
+    if (error) handleSupabaseError(error, 'vehicleService.createMaintenanceLog');
     return data;
   },
 
@@ -154,13 +154,13 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.updateMaintenanceLog');
+    if (error) handleSupabaseError(error, 'vehicleService.updateMaintenanceLog');
     return data;
   },
 
   deleteMaintenanceLog: async (id: string) => {
     const { error } = await supabase.from('maintenance_logs').delete().eq('id', id);
-    if (error) throw toServiceError(error, 'vehicleService.deleteMaintenanceLog');
+    if (error) handleSupabaseError(error, 'vehicleService.deleteMaintenanceLog');
   },
 
   getAssignments: async () => {
@@ -168,7 +168,7 @@ export const vehicleService = {
       .from('vehicle_assignments')
       .select('*, vehicles(plate_number, brand), employees(name)')
       .order('start_date', { ascending: false });
-    if (error) throw toServiceError(error, 'vehicleService.getAssignments');
+    if (error) handleSupabaseError(error, 'vehicleService.getAssignments');
     return data ?? [];
   },
 
@@ -178,7 +178,7 @@ export const vehicleService = {
       .select('*, vehicles(plate_number, type), employees(name)')
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) throw toServiceError(error, 'vehicleService.getAssignmentsWithRelations');
+    if (error) handleSupabaseError(error, 'vehicleService.getAssignmentsWithRelations');
     return data ?? [];
   },
 
@@ -187,7 +187,7 @@ export const vehicleService = {
       .from('vehicle_assignments')
       .select('vehicle_id')
       .is('returned_at', null);
-    if (error) throw toServiceError(error, 'vehicleService.getActiveAssignments');
+    if (error) handleSupabaseError(error, 'vehicleService.getActiveAssignments');
     return data ?? [];
   },
 
@@ -197,7 +197,7 @@ export const vehicleService = {
       .select('id, name')
       .eq('status', 'active')
       .order('name');
-    if (error) throw toServiceError(error, 'vehicleService.getActiveEmployees');
+    if (error) handleSupabaseError(error, 'vehicleService.getActiveEmployees');
     return data ?? [];
   },
 
@@ -207,7 +207,7 @@ export const vehicleService = {
       .insert(payload)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.createAssignment');
+    if (error) handleSupabaseError(error, 'vehicleService.createAssignment');
     return data;
   },
 
@@ -218,7 +218,7 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'vehicleService.updateAssignment');
+    if (error) handleSupabaseError(error, 'vehicleService.updateAssignment');
     return data;
   },
 
@@ -228,7 +228,7 @@ export const vehicleService = {
       .update({ end_date: endDate })
       .eq('vehicle_id', vehicleId)
       .is('end_date', null);
-    if (error) throw toServiceError(error, 'vehicleService.closeActiveAssignment');
+    if (error) handleSupabaseError(error, 'vehicleService.closeActiveAssignment');
   },
 
   getForSelect: async () => {
@@ -236,7 +236,7 @@ export const vehicleService = {
       .from('vehicles')
       .select('id, plate_number, brand')
       .order('plate_number');
-    if (error) throw toServiceError(error, 'vehicleService.getForSelect');
+    if (error) handleSupabaseError(error, 'vehicleService.getForSelect');
     return data ?? [];
   },
 };

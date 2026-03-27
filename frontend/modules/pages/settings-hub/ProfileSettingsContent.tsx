@@ -103,17 +103,16 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Read
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    settingsHubService.getProfileByUserId(user.id).then(({ data, error }) => {
+    settingsHubService.getProfileByUserId(user.id).then((data) => {
       if (cancelled) return;
-      if (error) {
-        toast({
-          title: isRTL ? 'تعذر تحميل الملف' : 'Could not load profile',
-          description: error.message,
-          variant: 'destructive',
-        });
-        return;
-      }
       if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
+    }).catch((e: unknown) => {
+      if (cancelled) return;
+      toast({
+        title: isRTL ? 'تعذر تحميل الملف' : 'Could not load profile',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     });
     return () => {
       cancelled = true;
@@ -143,13 +142,11 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Read
       if (avatarFile) {
         const ext = avatarFile.name.split('.').pop();
         const path = `${user.id}/avatar.${ext}`;
-        const { data: uploadData, error: uploadError } = await settingsHubService.uploadAvatar(path, avatarFile);
-        if (uploadError) throw uploadError;
+        const uploadData = await settingsHubService.uploadAvatar(path, avatarFile);
         const { data: urlData } = settingsHubService.getAvatarPublicUrl(uploadData.path);
         avatar_url = urlData.publicUrl;
       }
-      const { error } = await settingsHubService.updateProfileByUserId(user.id, { name: profile.name.trim(), avatar_url });
-      if (error) throw error;
+      await settingsHubService.updateProfileByUserId(user.id, { name: profile.name.trim(), avatar_url });
       setProfile(p => ({ ...p, avatar_url }));
       setAvatarFile(null);
       toast({ title: isRTL ? 'تم حفظ التغييرات ✓' : 'Changes saved ✓' });
@@ -172,9 +169,14 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Read
       return;
     }
     setSavingPw(true);
-    const { error } = await settingsHubService.updatePassword(pw.next);
+    try {
+      await settingsHubService.updatePassword(pw.next);
+    } catch (e: unknown) {
+      setSavingPw(false);
+      setPwError(e instanceof Error ? e.message : String(e));
+      return;
+    }
     setSavingPw(false);
-    if (error) { setPwError(error.message); return; }
     toast({ title: isRTL ? 'تم تغيير كلمة المرور ✓' : 'Password changed successfully ✓' });
     setPw({ next: '', confirm: '' });
   };

@@ -29,3 +29,12 @@ export const throwIfError = (error: unknown, context: string): void => {
   if (!error) return;
   throw toServiceError(error, context);
 };
+
+/**
+ * Central handler for Supabase client `error` (and other service-layer failures).
+ * Use after `const { data, error } = await ...` (or `res.error`):
+ * `if (error) handleSupabaseError(error, 'serviceName.action')`
+ */
+export function handleSupabaseError(error: any, context: string): never {
+  throw toServiceError(error, context);
+}

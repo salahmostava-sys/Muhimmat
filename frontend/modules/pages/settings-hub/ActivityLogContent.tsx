@@ -137,20 +137,19 @@ export default function ActivityLogContent() {
     queryKey: ['activity-log', uid, page, filterAction, filterTable, debouncedSearch],
     enabled,
     queryFn: async () => {
-      const { data, count, error } = await settingsHubService.getAuditLogs(
+      const { data, count } = await settingsHubService.getAuditLogs(
         page * PAGE_SIZE,
         (page + 1) * PAGE_SIZE - 1,
         filterAction,
         filterTable,
         debouncedSearch
       );
-      if (error) throw error;
 
       const userIds = [...new Set((data || []).map((l) => l.user_id).filter(Boolean))] as string[];
       const profileMap: Record<string, { name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await settingsHubService.getAuditProfilesByIds(userIds);
-        profiles?.forEach((p) => { profileMap[p.id] = { name: p.name, email: p.email }; });
+        const profiles = await settingsHubService.getAuditProfilesByIds(userIds);
+        profiles.forEach((p) => { profileMap[p.id] = { name: p.name, email: p.email }; });
       }
 
       return {
@@ -175,8 +174,8 @@ export default function ActivityLogContent() {
   useEffect(() => { setExpandedId(null); }, [page]);
 
   const handleExport = async () => {
-    const { data } = await settingsHubService.getAuditLogsForExport();
-    if (!data) return;
+    const data = await settingsHubService.getAuditLogsForExport();
+    if (!data.length) return;
     const rows = data.map(l => ({
       'التاريخ': format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss'),
       'الجدول': l.table_name,

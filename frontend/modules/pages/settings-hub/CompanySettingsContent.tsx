@@ -46,7 +46,7 @@ export default function CompanySettingsContent() {
 
   useEffect(() => {
     settingsHubService.getTradeRegister()
-      .then(({ data }) => {
+      .then((data) => {
         if (data) {
           setRecordId(data.id);
           setNameAr(data.name || '');
@@ -78,11 +78,9 @@ export default function CompanySettingsContent() {
     try {
       const ext = logoFile.name.split('.').pop();
       const path = `logo/project-logo.${ext}`;
-      const { error: upErr } = await settingsHubService.uploadCompanyLogo(path, logoFile);
-      if (upErr) throw upErr;
+      await settingsHubService.uploadCompanyLogo(path, logoFile);
       const { data: { publicUrl } } = settingsHubService.getCompanyLogoPublicUrl(path);
-      const { error } = await settingsHubService.updateSystemLogo(settings.id, publicUrl);
-      if (error) throw error;
+      await settingsHubService.updateSystemLogo(settings.id, publicUrl);
       await refresh();
       setLogoFile(null);
       toast({ title: isRTL ? 'تم حفظ الشعار ✓' : 'Logo saved ✓' });
@@ -95,8 +93,12 @@ export default function CompanySettingsContent() {
 
   const handleRemoveLogo = async () => {
     if (!settings?.id) return;
-    const { error } = await settingsHubService.updateSystemLogo(settings.id, null);
-    if (!error) { setLogoPreview(null); setLogoFile(null); await refresh(); }
+    try {
+      await settingsHubService.updateSystemLogo(settings.id, null);
+      setLogoPreview(null); setLogoFile(null); await refresh();
+    } catch (err: unknown) {
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
+    }
   };
 
   const handleSave = async () => {
@@ -109,12 +111,10 @@ export default function CompanySettingsContent() {
         notes: taxNumber.trim(),
       };
       if (recordId) {
-        const { error } = await settingsHubService.updateTradeRegister(recordId, payload);
-        if (error) throw error;
+        await settingsHubService.updateTradeRegister(recordId, payload);
       } else {
-        const { data, error } = await settingsHubService.createTradeRegister(payload);
-        if (error) throw error;
-        if (data) setRecordId(data.id);
+        const data = await settingsHubService.createTradeRegister(payload);
+        if (data) setRecordId((data as { id: string }).id);
       }
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث بيانات المنشأة' : 'Organization info updated' });
     } catch (err: unknown) {

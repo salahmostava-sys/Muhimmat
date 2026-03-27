@@ -114,7 +114,7 @@ const UserProfileModal = ({ onClose }: Props) => {
   useEffect(() => {
     if (!user) return;
     profileService.getProfile(user.id)
-      .then(({ data }) => {
+      .then((data) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
       })
       .catch((e: unknown) => {
@@ -149,11 +149,10 @@ const UserProfileModal = ({ onClose }: Props) => {
         avatar_url = profileService.getAvatarPublicUrl(uploadData.path);
       }
 
-      const { error } = await profileService.updateProfile(user.id, {
+      await profileService.updateProfile(user.id, {
         name: profile.name.trim(),
         avatar_url,
       });
-      if (error) throw error;
 
       setProfile(p => ({ ...p, avatar_url }));
       setAvatarFile(null);
@@ -182,12 +181,14 @@ const UserProfileModal = ({ onClose }: Props) => {
       return;
     }
     setSavingPw(true);
-    const { error } = await profileService.updatePassword(pw.next);
-    setSavingPw(false);
-    if (error) {
-      setPwError(error.message);
+    try {
+      await profileService.updatePassword(pw.next);
+    } catch (e: unknown) {
+      setSavingPw(false);
+      setPwError(e instanceof Error ? e.message : String(e));
       return;
     }
+    setSavingPw(false);
     toast({ title: isRtl ? 'تم تغيير كلمة المرور' : 'Password changed successfully' });
     setPw({ current: '', next: '', confirm: '' });
   };

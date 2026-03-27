@@ -81,7 +81,7 @@ const AssignmentFormModal = ({
     setSaving(true);
     try {
       const startAt = new Date(form.start_at);
-      const { error } = await vehicleService.createAssignment({
+      await vehicleService.createAssignment({
         vehicle_id: form.vehicle_id,
         employee_id: form.employee_id,
         start_date: format(startAt, 'yyyy-MM-dd'),
@@ -89,7 +89,6 @@ const AssignmentFormModal = ({
         notes: form.notes || null,
         reason: form.reason || null,
       });
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       toast({ title: '✅ تم تسجيل التسليم بنجاح' });
       onSaved(); onClose();
     } catch (e) {
@@ -205,11 +204,10 @@ const ReturnModal = ({
     setSaving(true);
     try {
       const rt = new Date(returnedAt);
-      const { error } = await vehicleService.updateAssignment(assignment.id, {
+      await vehicleService.updateAssignment(assignment.id, {
         returned_at: rt.toISOString(),
         end_date: format(rt, 'yyyy-MM-dd'),
       });
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       toast({ title: '✅ تم تسجيل الإعادة بنجاح' });
       onSaved(); onClose();
     } catch (e) {

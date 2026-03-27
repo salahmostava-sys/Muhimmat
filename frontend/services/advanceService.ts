@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export interface AdvancePayload {
   employee_id: string;
@@ -29,7 +29,7 @@ export const advanceService = {
       .from('advances')
       .select('*, employees(name, national_id), advance_installments(*)')
       .order('created_at', { ascending: false });
-    if (error) throw toServiceError(error, 'advanceService.getAll');
+    if (error) handleSupabaseError(error, 'advanceService.getAll');
     return data ?? [];
   },
 
@@ -39,7 +39,7 @@ export const advanceService = {
       .select('*')
       .eq('id', id)
       .maybeSingle();
-    if (error) throw toServiceError(error, 'advanceService.getById');
+    if (error) handleSupabaseError(error, 'advanceService.getById');
     return data;
   },
 
@@ -49,7 +49,7 @@ export const advanceService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'advanceService.create');
+    if (error) handleSupabaseError(error, 'advanceService.create');
     return data;
   },
 
@@ -57,7 +57,7 @@ export const advanceService = {
     const { error } = await supabase
       .from('advances')
       .insert(rows as unknown[]);
-    if (error) throw toServiceError(error, 'advanceService.insertMany');
+    if (error) handleSupabaseError(error, 'advanceService.insertMany');
   },
 
   update: async (id: string, payload: Partial<AdvancePayload>) => {
@@ -65,7 +65,7 @@ export const advanceService = {
       .from('advances')
       .update(payload as Record<string, unknown>)
       .eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.update');
+    if (error) handleSupabaseError(error, 'advanceService.update');
   },
 
   updateStatus: async (id: string, status: string) => {
@@ -73,21 +73,21 @@ export const advanceService = {
       .from('advances')
       .update({ status } as Record<string, unknown>)
       .eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.updateStatus');
+    if (error) handleSupabaseError(error, 'advanceService.updateStatus');
   },
 
   delete: async (id: string) => {
     const { error: installmentsError } = await supabase.from('advance_installments').delete().eq('advance_id', id);
-    if (installmentsError) throw toServiceError(installmentsError, 'advanceService.delete.installments');
+    if (installmentsError) handleSupabaseError(installmentsError, 'advanceService.delete.installments');
     const { error } = await supabase.from('advances').delete().eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.delete');
+    if (error) handleSupabaseError(error, 'advanceService.delete');
   },
 
   deleteMany: async (ids: string[]) => {
     const { error: installmentsError } = await supabase.from('advance_installments').delete().in('advance_id', ids);
-    if (installmentsError) throw toServiceError(installmentsError, 'advanceService.deleteMany.installments');
+    if (installmentsError) handleSupabaseError(installmentsError, 'advanceService.deleteMany.installments');
     const { error } = await supabase.from('advances').delete().in('id', ids);
-    if (error) throw toServiceError(error, 'advanceService.deleteMany');
+    if (error) handleSupabaseError(error, 'advanceService.deleteMany');
   },
 
   writeOffMany: async (ids: string[], reason: string) => {
@@ -99,7 +99,7 @@ export const advanceService = {
         written_off_reason: reason,
       } as Record<string, unknown>)
       .in('id', ids);
-    if (error) throw toServiceError(error, 'advanceService.writeOffMany');
+    if (error) handleSupabaseError(error, 'advanceService.writeOffMany');
   },
 
   restoreWrittenOffMany: async (ids: string[]) => {
@@ -111,7 +111,7 @@ export const advanceService = {
         written_off_reason: null,
       } as Record<string, unknown>)
       .in('id', ids);
-    if (error) throw toServiceError(error, 'advanceService.restoreWrittenOffMany');
+    if (error) handleSupabaseError(error, 'advanceService.restoreWrittenOffMany');
   },
 
   getInstallments: async (advanceId: string) => {
@@ -120,13 +120,13 @@ export const advanceService = {
       .select('*')
       .eq('advance_id', advanceId)
       .order('month_year');
-    if (error) throw toServiceError(error, 'advanceService.getInstallments');
+    if (error) handleSupabaseError(error, 'advanceService.getInstallments');
     return data ?? [];
   },
 
   createInstallments: async (installments: Record<string, unknown>[]) => {
     const { error } = await supabase.from('advance_installments').insert(installments as unknown[]);
-    if (error) throw toServiceError(error, 'advanceService.createInstallments');
+    if (error) handleSupabaseError(error, 'advanceService.createInstallments');
   },
 
   updateInstallment: async (id: string, payload: InstallmentUpdate) => {
@@ -134,7 +134,7 @@ export const advanceService = {
       .from('advance_installments')
       .update(payload as Record<string, unknown>)
       .eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.updateInstallment');
+    if (error) handleSupabaseError(error, 'advanceService.updateInstallment');
   },
 
   updateInstallmentNote: async (id: string, notes: string | null) => {
@@ -142,12 +142,12 @@ export const advanceService = {
       .from('advance_installments')
       .update({ notes })
       .eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.updateInstallmentNote');
+    if (error) handleSupabaseError(error, 'advanceService.updateInstallmentNote');
   },
 
   deleteInstallment: async (id: string) => {
     const { error } = await supabase.from('advance_installments').delete().eq('id', id);
-    if (error) throw toServiceError(error, 'advanceService.deleteInstallment');
+    if (error) handleSupabaseError(error, 'advanceService.deleteInstallment');
   },
 
   deletePendingInstallments: async (advanceId: string) => {
@@ -156,7 +156,7 @@ export const advanceService = {
       .delete()
       .eq('advance_id', advanceId)
       .eq('status', 'pending');
-    if (error) throw toServiceError(error, 'advanceService.deletePendingInstallments');
+    if (error) handleSupabaseError(error, 'advanceService.deletePendingInstallments');
   },
 
   markInstallmentsDeducted: async (installmentIds: string[], deductedAtIso: string) => {
@@ -165,7 +165,7 @@ export const advanceService = {
       .from('advance_installments')
       .update(payload)
       .in('id', installmentIds);
-    if (error) throw toServiceError(error, 'advanceService.markInstallmentsDeducted');
+    if (error) handleSupabaseError(error, 'advanceService.markInstallmentsDeducted');
   },
 
   getInstallmentsByIds: async (installmentIds: string[]) => {
@@ -173,7 +173,7 @@ export const advanceService = {
       .from('advance_installments')
       .select('advance_id, status')
       .in('id', installmentIds);
-    if (error) throw toServiceError(error, 'advanceService.getInstallmentsByIds');
+    if (error) handleSupabaseError(error, 'advanceService.getInstallmentsByIds');
     return data ?? [];
   },
 
@@ -182,7 +182,7 @@ export const advanceService = {
       .from('advance_installments')
       .select('status')
       .eq('advance_id', advanceId);
-    if (error) throw toServiceError(error, 'advanceService.getAdvanceInstallmentStatuses');
+    if (error) handleSupabaseError(error, 'advanceService.getAdvanceInstallmentStatuses');
     return data ?? [];
   },
 
@@ -191,7 +191,7 @@ export const advanceService = {
       .from('advances')
       .update({ status: 'completed' })
       .eq('id', advanceId);
-    if (error) throw toServiceError(error, 'advanceService.markAdvanceCompleted');
+    if (error) handleSupabaseError(error, 'advanceService.markAdvanceCompleted');
   },
 
   getMonthInstallmentsForAdvances: async (selectedMonth: string, advanceIds: string[]) => {
@@ -201,7 +201,7 @@ export const advanceService = {
       .select('id, advance_id, amount, status')
       .eq('month_year', selectedMonth)
       .in('advance_id', advanceIds);
-    if (error) throw toServiceError(error, 'advanceService.getMonthInstallmentsForAdvances');
+    if (error) handleSupabaseError(error, 'advanceService.getMonthInstallmentsForAdvances');
     return data ?? [];
   },
 
@@ -212,7 +212,7 @@ export const advanceService = {
       .select('advance_id, amount, status')
       .in('status', ['pending', 'deferred'])
       .in('advance_id', advanceIds);
-    if (error) throw toServiceError(error, 'advanceService.getPendingInstallmentsForAdvances');
+    if (error) handleSupabaseError(error, 'advanceService.getPendingInstallmentsForAdvances');
     return data ?? [];
   },
 
@@ -222,7 +222,7 @@ export const advanceService = {
       .select('id, amount, status')
       .eq('employee_id', employeeId)
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'advanceService.getActiveByEmployee');
+    if (error) handleSupabaseError(error, 'advanceService.getActiveByEmployee');
     return data ?? [];
   },
 
@@ -231,7 +231,7 @@ export const advanceService = {
       .from('advances')
       .select('id, employee_id, status, amount, monthly_amount')
       .in('status', ['active', 'paused']);
-    if (error) throw toServiceError(error, 'advanceService.getActiveAndPausedForSalaryContext');
+    if (error) handleSupabaseError(error, 'advanceService.getActiveAndPausedForSalaryContext');
     return data ?? [];
   },
 
@@ -241,7 +241,7 @@ export const advanceService = {
       .select('id, name, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    if (error) throw toServiceError(error, 'advanceService.getEmployees');
+    if (error) handleSupabaseError(error, 'advanceService.getEmployees');
     return data ?? [];
   },
 };

@@ -109,17 +109,12 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     queryKey: ['salary-schemes', uid, 'page-data'],
     enabled,
     queryFn: async () => {
-      const [{ data: sData, error: sErr }, { data: tData, error: tErr }, { data: snData, error: snErr }, { data: aData, error: aErr }] = await Promise.all([
+      const [sData, tData, snData, aData] = await Promise.all([
         salarySchemeService.getSchemes(),
         salarySchemeService.getTiers(),
         salarySchemeService.getSnapshots(),
         appService.getActiveWithScheme(),
       ]);
-
-      if (sErr) throw sErr;
-      if (tErr) throw tErr;
-      if (snErr) throw snErr;
-      if (aErr) throw aErr;
 
       const tiersMap: Record<string, Tier[]> = {};
       for (const t of (tData || []) as SalarySchemeTierRow[]) {
@@ -242,8 +237,8 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
         await salarySchemeService.updateScheme(editing.id, schemePayload);
         await salarySchemeService.deleteSchemeTiers(editing.id);
       } else {
-        const { data } = await salarySchemeService.createScheme(schemePayload);
-        schemeId = data?.id;
+        const created = await salarySchemeService.createScheme(schemePayload);
+        schemeId = created.id;
       }
 
       if (schemeId && schemeType === 'order_based') {
@@ -275,8 +270,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     if (!assignAppId) { toast({ title: 'خطأ', description: 'اختر منصة أولاً', variant: 'destructive' }); return; }
     setAssigning(true);
     try {
-      const { error } = await appService.assignScheme(assignAppId, assignSchemeId);
-      if (error) throw error;
+      await appService.assignScheme(assignAppId, assignSchemeId);
       toast({ title: '✅ تم الربط', description: `تم ربط السكيمة بالمنصة بنجاح` });
       setShowAssignModal(false);
       void refetchSchemeData();
@@ -306,12 +300,11 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
       const schemeTiers = tiers[schemeId] || [];
       const months = monthsToPin && monthsToPin.length > 0 ? monthsToPin : [currentMonth];
       for (const m of months) {
-        const { error } = await salarySchemeService.upsertSnapshot(
+        await salarySchemeService.upsertSnapshot(
           schemeId,
           m,
           schemeTiers as unknown as import('@services/supabase/types').Json
         );
-        if (error) throw error;
       }
       toast({ title: '📌 تم التثبيت', description: `تم تثبيت السكيمة لعدد ${months.length} شهر` });
       setSnapshots(prev => ({
@@ -335,8 +328,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const handleUnpinSnapshot = async (schemeId: string, monthYear: string) => {
     setSnapshotLoading(schemeId);
     try {
-      const { error } = await salarySchemeService.deleteSnapshot(schemeId, monthYear);
-      if (error) throw error;
+      await salarySchemeService.deleteSnapshot(schemeId, monthYear);
       setSnapshots(prev => ({
         ...prev,
         [schemeId]: (prev[schemeId] || []).filter(s => s.month_year !== monthYear),

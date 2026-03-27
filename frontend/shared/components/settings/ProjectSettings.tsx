@@ -70,12 +70,13 @@ export default function ProjectSettings() {
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const path = `${user?.id}/project-logo.${ext}`;
-        const { error: upErr } = await settingsHubService.uploadCompanyLogo(path, logoFile);
-        if (upErr) {
+        try {
+          await settingsHubService.uploadCompanyLogo(path, logoFile);
+        } catch (e: unknown) {
           setSaving(false);
           toast({
             title: isRTL ? 'فشل رفع الشعار' : 'Logo upload failed',
-            description: upErr.message,
+            description: e instanceof Error ? e.message : String(e),
             variant: 'destructive',
           });
           return;
@@ -142,8 +143,8 @@ export default function ProjectSettings() {
 
       await Promise.all(
         tables.map(async (table) => {
-          const { data } = await settingsHubService.exportTableRows(table);
-          results[table] = data || [];
+          const rows = await settingsHubService.exportTableRows(table);
+          results[table] = rows;
         })
       );
 

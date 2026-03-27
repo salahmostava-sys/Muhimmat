@@ -104,15 +104,15 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
       custom_columns: customColumns as unknown as import('@services/supabase/types').Json,
     };
 
-    let error;
-    if (isEdit && app) {
-      ({ error } = await appService.update(app.id, payload));
-    } else {
-      ({ error } = await appService.create(payload));
-    }
-
-    if (error) {
-      toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+    try {
+      if (isEdit && app) {
+        await appService.update(app.id, payload);
+      } else {
+        await appService.create(payload);
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       setSaving(false);
       return;
     }
@@ -264,39 +264,51 @@ const Apps = () => {
     if (selectedApp?.id === app.id) { setSelectedApp(null); setAppEmployees([]); return; }
     setSelectedApp(app);
     setLoadingEmployees(true);
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const startDate = `${currentMonth}-01`;
-    const endDate = `${currentMonth}-${new Date(Number.parseInt(currentMonth.split('-')[0]), Number.parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const startDate = `${currentMonth}-01`;
+      const endDate = `${currentMonth}-${new Date(Number.parseInt(currentMonth.split('-')[0]), Number.parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
 
-    const { data: empApps } = await appService.getActiveEmployeeAppsWithEmployees(app.id);
+      const empApps = await appService.getActiveEmployeeAppsWithEmployees(app.id);
 
-    if (!empApps) { setLoadingEmployees(false); return; }
+      if (!empApps.length) {
+        setAppEmployees([]);
+        return;
+      }
 
-    const employees = (empApps as EmployeeAppRow[])
-      .map(ea => ea.employees)
-      .filter(Boolean)
-      .filter((e) =>
-        e.status === 'active' &&
-        e.sponsorship_status !== 'absconded' &&
-        e.sponsorship_status !== 'terminated'
+      const employees = (empApps as EmployeeAppRow[])
+        .map(ea => ea.employees)
+        .filter(Boolean)
+        .filter((e) =>
+          e.status === 'active' &&
+          e.sponsorship_status !== 'absconded' &&
+          e.sponsorship_status !== 'terminated'
+        );
+
+      const employeesWithOrders = await Promise.all(
+        employees.map(async (emp) => {
+          const orders = await appService.getEmployeeMonthlyOrders(emp.id, app.id, startDate, endDate);
+          const total = orders.reduce((s: number, o) => s + o.orders_count, 0) || 0;
+          return { id: emp.id, name: emp.name, monthOrders: total };
+        })
       );
-
-    const employeesWithOrders = await Promise.all(
-      employees.map(async (emp) => {
-        const { data: orders } = await appService.getEmployeeMonthlyOrders(emp.id, app.id, startDate, endDate);
-        const total = orders?.reduce((s: number, o) => s + o.orders_count, 0) || 0;
-        return { id: emp.id, name: emp.name, monthOrders: total };
-      })
-    );
-    setAppEmployees(employeesWithOrders);
-    setLoadingEmployees(false);
+      setAppEmployees(employeesWithOrders);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر تحميل مندوبي التطبيق';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+      setAppEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
   };
 
   const handleToggleActive = async (app: AppData, e: React.MouseEvent) => {
     e.stopPropagation();
-    const { error } = await appService.toggleActive(app.id, !app.is_active);
-    if (error) {
-      toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+    try {
+      await appService.toggleActive(app.id, !app.is_active);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       return;
     }
     invalidateAppColorsCache();
@@ -307,9 +319,11 @@ const Apps = () => {
   const handleDeleteConfirm = async () => {
     if (!deleteApp) return;
     setDeleting(true);
-    const { error } = await appService.delete(deleteApp.id);
-    if (error) {
-      toast({ title: 'حدث خطأ أثناء الحذف', description: error.message, variant: 'destructive' });
+    try {
+      await appService.delete(deleteApp.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء الحذف';
+      toast({ title: 'حدث خطأ أثناء الحذف', description: message, variant: 'destructive' });
       setDeleting(false);
       return;
     }

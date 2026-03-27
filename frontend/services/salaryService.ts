@@ -1,6 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export interface SalaryRecordPayload {
   employee_id: string;
@@ -122,7 +122,7 @@ export const salaryService = {
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('min_orders', { ascending: true });
-    if (error) throw toServiceError(error, 'salaryService.getPricingRules');
+    if (error) handleSupabaseError(error, 'salaryService.getPricingRules');
     return (data || []) as PricingRule[];
   },
 
@@ -139,7 +139,7 @@ export const salaryService = {
       .gte('date', from)
       .lte('date', to);
 
-    if (error) throw toServiceError(error, 'salaryService.getOrderCount');
+    if (error) handleSupabaseError(error, 'salaryService.getOrderCount');
     return (data || []).reduce((sum, row) => sum + (row.orders_count ?? 0), 0);
   },
 
@@ -182,7 +182,7 @@ export const salaryService = {
     manualDeductionNote: string | null = null
   ) => {
     if (!isEmployeeIdUuid(employeeId) || !isValidSalaryMonthYear(monthYear)) {
-      throw toServiceError(new Error('Invalid employee_id or month_year'), 'salaryService.calculateSalaryForEmployeeMonth');
+      handleSupabaseError(new Error('Invalid employee_id or month_year'), 'salaryService.calculateSalaryForEmployeeMonth');
     }
     const { data, error } = await supabase.rpc('calculate_salary', {
       p_employee_id: employeeId,
@@ -191,19 +191,19 @@ export const salaryService = {
       p_manual_deduction: manualDeduction,
       p_manual_deduction_note: manualDeductionNote,
     });
-    if (error) throw toServiceError(error, 'salaryService.calculateSalaryForEmployeeMonth.rpc');
+    if (error) handleSupabaseError(error, 'salaryService.calculateSalaryForEmployeeMonth.rpc');
     return data;
   },
 
   calculateSalaryForMonth: async ({ monthYear, paymentMethod = 'cash' }: SalaryRpcParams) => {
     if (!isValidSalaryMonthYear(monthYear)) {
-      throw toServiceError(new Error('Invalid month_year'), 'salaryService.calculateSalaryForMonth');
+      handleSupabaseError(new Error('Invalid month_year'), 'salaryService.calculateSalaryForMonth');
     }
     const { data, error } = await supabase.rpc('calculate_salary_for_month', {
       p_month_year: monthYear,
       p_payment_method: paymentMethod,
     });
-    if (error) throw toServiceError(error, 'salaryService.calculateSalaryForMonth.rpc');
+    if (error) handleSupabaseError(error, 'salaryService.calculateSalaryForMonth.rpc');
     return data;
   },
 
@@ -218,7 +218,7 @@ export const salaryService = {
         month_year: my,
       },
     });
-    if (error) throw toServiceError(error, 'salaryService.getSalaryPreviewForMonth');
+    if (error) handleSupabaseError(error, 'salaryService.getSalaryPreviewForMonth');
     const payload = ((data as { data?: unknown } | null)?.data ?? data) as SalaryPreviewRow[] | null;
     return payload || [];
   },
@@ -229,7 +229,7 @@ export const salaryService = {
       .select('*, employees(name, national_id, salary_type)')
       .eq('month_year', monthYear)
       .order('created_at', { ascending: false });
-    if (error) throw toServiceError(error, 'salaryService.getByMonth');
+    if (error) handleSupabaseError(error, 'salaryService.getByMonth');
     return data ?? [];
   },
 
@@ -268,7 +268,7 @@ export const salaryService = {
     }
 
     const { data, error, count } = await query;
-    if (error) throw toServiceError(error, 'salaryService.getPagedByMonth');
+    if (error) handleSupabaseError(error, 'salaryService.getPagedByMonth');
     return { data: data || [], count: count ?? 0 };
   },
 
@@ -302,7 +302,7 @@ export const salaryService = {
       .from('salary_records')
       .select('employee_id, is_approved, advance_deduction, net_salary, manual_deduction, attendance_deduction, external_deduction')
       .eq('month_year', monthYear);
-    if (error) throw toServiceError(error, 'salaryService.getMonthRecordsForSalaryContext');
+    if (error) handleSupabaseError(error, 'salaryService.getMonthRecordsForSalaryContext');
     return data ?? [];
   },
 
@@ -312,7 +312,7 @@ export const salaryService = {
       .select('*')
       .eq('employee_id', employeeId)
       .order('month_year', { ascending: false });
-    if (error) throw toServiceError(error, 'salaryService.getByEmployee');
+    if (error) handleSupabaseError(error, 'salaryService.getByEmployee');
     return data ?? [];
   },
 
@@ -322,7 +322,7 @@ export const salaryService = {
       .upsert(payload, { onConflict: 'employee_id,month_year' })
       .select()
       .single();
-    if (error) throw toServiceError(error, 'salaryService.upsert');
+    if (error) handleSupabaseError(error, 'salaryService.upsert');
     return data;
   },
 
@@ -330,7 +330,7 @@ export const salaryService = {
     const { error } = await supabase
       .from('salary_records')
       .upsert(records, { onConflict: 'employee_id,month_year' });
-    if (error) throw toServiceError(error, 'salaryService.upsertMany');
+    if (error) handleSupabaseError(error, 'salaryService.upsertMany');
   },
 
   update: async (id: string, payload: Partial<SalaryRecordPayload>) => {
@@ -340,7 +340,7 @@ export const salaryService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw toServiceError(error, 'salaryService.update');
+    if (error) handleSupabaseError(error, 'salaryService.update');
     return data;
   },
 
@@ -349,12 +349,12 @@ export const salaryService = {
       .from('salary_records')
       .update({ is_approved: true })
       .eq('id', id);
-    if (error) throw toServiceError(error, 'salaryService.approve');
+    if (error) handleSupabaseError(error, 'salaryService.approve');
   },
 
   delete: async (id: string) => {
     const { error } = await supabase.from('salary_records').delete().eq('id', id);
-    if (error) throw toServiceError(error, 'salaryService.delete');
+    if (error) handleSupabaseError(error, 'salaryService.delete');
   },
 
   getMonthTotal: async (monthYear: string) => {
@@ -363,7 +363,7 @@ export const salaryService = {
       .select('net_salary')
       .eq('month_year', monthYear)
       .eq('is_approved', true);
-    if (error) throw toServiceError(error, 'salaryService.getMonthTotal');
+    if (error) handleSupabaseError(error, 'salaryService.getMonthTotal');
     return data?.reduce((sum, r) => sum + (r.net_salary ?? 0), 0) ?? 0;
   },
 
@@ -373,7 +373,7 @@ export const salaryService = {
       .select('advance_id, amount, advances(employee_id)')
       .eq('month_year', monthYear)
       .eq('status', 'pending');
-    if (error) throw toServiceError(error, 'salaryService.getActiveAdvanceDeductionsByMonth');
+    if (error) handleSupabaseError(error, 'salaryService.getActiveAdvanceDeductionsByMonth');
     return data ?? [];
   },
 
@@ -383,7 +383,7 @@ export const salaryService = {
       .select('id, name, salary_type, status, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    if (error) throw toServiceError(error, 'salaryService.getEmployees');
+    if (error) handleSupabaseError(error, 'salaryService.getEmployees');
     return data ?? [];
   },
 };

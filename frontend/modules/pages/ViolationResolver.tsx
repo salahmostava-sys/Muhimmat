@@ -127,9 +127,8 @@ const ViolationResolver = () => {
     queryKey: ['violation-resolver', uid, 'violations'],
     enabled,
     queryFn: async () => {
-      const { data, error } = await violationService.getViolations();
-      if (error) throw error;
-      return ((data as ViolationDataRow[] | null) || []).map((v) => ({
+      const rows = await violationService.getViolations();
+      return ((rows as ViolationDataRow[]) || []).map((v) => ({
         id: v.id,
         employee_id: v.employee_id,
         employee_name: v.employees?.name || '—',
@@ -191,7 +190,7 @@ const ViolationResolver = () => {
   // ── Vehicle autocomplete ──────────────────────────────────────────────────
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q.trim()) { setSuggestions([]); return; }
-    const { data } = await violationService.findVehiclesByPlateQuery(q);
+    const data = await violationService.findVehiclesByPlateQuery(q);
     setSuggestions(data || []);
   }, []);
 
@@ -246,7 +245,7 @@ const ViolationResolver = () => {
     if (vehicleId) {
       vehicleIds = [vehicleId];
     } else {
-      const { data: vData } = await violationService.findVehicleIdsByPlate(plate);
+      const vData = await violationService.findVehicleIdsByPlate(plate);
       vehicleIds = (vData || []).map(v => v.id);
     }
 
@@ -257,7 +256,7 @@ const ViolationResolver = () => {
       ? new Date(dateVal).toISOString()
       : new Date(dateVal + 'T12:00:00').toISOString();
 
-    const { data: assignments } = await violationService.getAssignmentsByVehicleIds(vehicleIds);
+    const assignments = await violationService.getAssignmentsByVehicleIds(vehicleIds);
 
     if (!assignments?.length) { setSearching(false); setResults([]); return; }
 
@@ -290,10 +289,10 @@ const ViolationResolver = () => {
 
     // Existing external_deductions for this employee/date/amount
     const applyMonth = violationDate.substring(0, 7);
-    const { data: existingDeduction } = await violationService.getExistingFineDeductions(empIds, violationDate, applyMonth);
+    const existingDeduction = await violationService.getExistingFineDeductions(empIds, violationDate, applyMonth);
 
     const recordedByEmployee = new Map<string, { id: string; amount: number }>();
-    (existingDeduction as DeductionRow[] | null || []).forEach((d) => {
+    (existingDeduction as DeductionRow[] || []).forEach((d) => {
       const amt = Number(d.amount) || 0;
       if (amt === enteredAmount && !recordedByEmployee.has(d.employee_id)) {
         recordedByEmployee.set(d.employee_id, { id: d.id, amount: amt });
@@ -338,18 +337,25 @@ const ViolationResolver = () => {
       form.note || null,
     ].filter(Boolean).join(' - ');
 
-    const { data: inserted, error } = await violationService.createFineDeduction({
-      employee_id: row.employee_id,
-      amount: amt,
-      type: 'fine',
-      apply_month: violationDate.substring(0, 7),
-      incident_date: violationDate,
-      note: noteText,
-      approval_status: 'pending',
-    });
+    let inserted: { id: string };
+    try {
+      inserted = await violationService.createFineDeduction({
+        employee_id: row.employee_id,
+        amount: amt,
+        type: 'fine',
+        apply_month: violationDate.substring(0, 7),
+        incident_date: violationDate,
+        note: noteText,
+        approval_status: 'pending',
+      });
+    } catch (e: unknown) {
+      setAssigningEmployeeId(null);
+      const message = e instanceof Error ? e.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+      return;
+    }
 
     setAssigningEmployeeId(null);
-    if (error) { toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); return; }
 
     setResults(prev => {
       if (!prev) return prev;
@@ -381,18 +387,21 @@ const ViolationResolver = () => {
     if (!editForm.incident_date) return toast({ title: 'خطأ', description: 'أدخل تاريخ المخالفة', variant: 'destructive' });
 
     setEditSaving(true);
-    const { error } = await violationService.updateViolation(editViolationId, {
+    try {
+      await violationService.updateViolation(editViolationId, {
         amount,
         incident_date: editForm.incident_date,
         note: editForm.note,
         approval_status: editForm.approval_status as 'pending' | 'approved' | 'rejected',
       });
-
-    setEditSaving(false);
-    if (error) {
-      toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      setEditSaving(false);
+      const message = e instanceof Error ? e.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       return;
     }
+
+    setEditSaving(false);
 
     setEditDialogOpen(false);
     setEditViolationId(null);
@@ -406,12 +415,15 @@ const ViolationResolver = () => {
       return;
     }
     setDeletingId(id);
-    const { error } = await violationService.deleteViolation(id);
-    setDeletingId(null);
-    if (error) {
-      toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+    try {
+      await violationService.deleteViolation(id);
+    } catch (e: unknown) {
+      setDeletingId(null);
+      const message = e instanceof Error ? e.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       return;
     }
+    setDeletingId(null);
     fetchViolations();
     toast({ title: 'تم الحذف' });
   };
@@ -439,15 +451,17 @@ const ViolationResolver = () => {
     // Guard against converting the same fine multiple times
     const amountMin = v.amount - 0.01;
     const amountMax = v.amount + 0.01;
-    const { data: existingAdv } = await violationService.findMatchingAdvanceForFine(v.employee_id, v.apply_month, amountMin, amountMax);
+    const existingAdv = await violationService.findMatchingAdvanceForFine(v.employee_id, v.apply_month, amountMin, amountMax);
 
-    if (existingAdv && existingAdv.length > 0) {
+    if (existingAdv.length > 0) {
       toast({ title: 'تم التحويل مسبقاً', description: 'يوجد سلفة نشطة مطابقة لهذه المخالفة.' });
       return;
     }
 
     setConvertingId(v.id);
-    const { data: advInserted, error: advErr } = await violationService.createAdvanceFromFine({
+    let advInserted: { id: string };
+    try {
+      advInserted = await violationService.createAdvanceFromFine({
         employee_id: v.employee_id,
         amount: v.amount,
         disbursement_date: today,
@@ -457,23 +471,30 @@ const ViolationResolver = () => {
         note: advanceNote,
         status: 'active',
       });
-
-    if (advErr || !advInserted?.id) {
+    } catch (e: unknown) {
       setConvertingId(null);
-      toast({ title: 'حدث خطأ', description: advErr?.message || 'تعذر إنشاء السلفة', variant: 'destructive' });
+      const message = e instanceof Error ? e.message : 'تعذر إنشاء السلفة';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       return;
     }
 
-    const { error: instErr } = await violationService.createSingleInstallment({
-      advance_id: advInserted.id,
-      month_year: v.apply_month,
-      amount: v.amount,
-      status: 'pending',
-    });
-
-    if (instErr) {
+    if (!advInserted?.id) {
       setConvertingId(null);
-      toast({ title: 'حدث خطأ', description: instErr.message, variant: 'destructive' });
+      toast({ title: 'حدث خطأ', description: 'تعذر إنشاء السلفة', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await violationService.createSingleInstallment({
+        advance_id: advInserted.id,
+        month_year: v.apply_month,
+        amount: v.amount,
+        status: 'pending',
+      });
+    } catch (e: unknown) {
+      setConvertingId(null);
+      const message = e instanceof Error ? e.message : 'حدث خطأ';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       return;
     }
 
@@ -483,14 +504,15 @@ const ViolationResolver = () => {
       `[تم التحويل لسلفة بتاريخ ${today} — معرّف السلفة: ${advInserted.id}]`,
     ].join('\n');
 
-    const { error: updErr } = await violationService.updateViolation(v.id, {
-      note: appended,
-      linked_advance_id: advInserted.id,
-    });
-    setConvertingId(null);
-    if (updErr) {
+    try {
+      await violationService.updateViolation(v.id, {
+        note: appended,
+        linked_advance_id: advInserted.id,
+      });
+    } catch {
       toast({ title: 'تم إنشاء السلفة', description: 'تعذر ربط سجل المخالفة بالسلفة في النظام — راجع السجل يدوياً.' });
     }
+    setConvertingId(null);
 
     fetchViolations();
     toast({ title: 'تم تحويل لسلفة ✅', description: `رقم السلفة: ${advInserted.id.slice(0, 8)}…` });

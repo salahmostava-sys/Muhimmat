@@ -51,12 +51,12 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    advanceService.getEmployees().then(({ data }) => {
-      if (data) setEmployees(data);
+    advanceService.getEmployees().then((rows) => {
+      setEmployees(rows ?? []);
     });
 
     if (editId) {
-      advanceService.getById(editId).then(({ data }) => {
+      advanceService.getById(editId).then((data) => {
         if (data) {
           setForm({
             employeeId: data.employee_id,
@@ -98,7 +98,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     setSaving(true);
     try {
       if (editId) {
-        const { error } = await advanceService.update(editId, {
+        await advanceService.update(editId, {
           amount: Number.parseFloat(form.amount),
           monthly_amount: Number.parseFloat(form.monthlyAmount),
           total_installments: Number.parseInt(form.totalInstallments),
@@ -106,10 +106,9 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
           note: form.note || null,
           status: form.status as 'active' | 'paused' | 'completed',
         });
-        if (error) throw error;
         toast({ title: 'تم تعديل السلفة ✅' });
       } else {
-        const { error } = await advanceService.create({
+        await advanceService.create({
           employee_id: form.employeeId,
           amount: Number.parseFloat(form.amount),
           monthly_amount: Number.parseFloat(form.monthlyAmount),
@@ -119,7 +118,6 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
           note: form.note || null,
           status: 'active' as const,
         });
-        if (error) throw error;
         toast({ title: 'تم إضافة السلفة ✅' });
       }
       onClose();

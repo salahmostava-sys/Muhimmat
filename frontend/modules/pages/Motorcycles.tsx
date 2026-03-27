@@ -144,10 +144,11 @@ const VehicleFormModal = ({
         serial_number: form.serial_number.trim() || null,
         notes: form.notes || null,
       };
-      const { error } = editVehicle
-        ? await vehicleService.update(editVehicle.id, payload)
-        : await vehicleService.create(payload);
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      if (editVehicle) {
+        await vehicleService.update(editVehicle.id, payload);
+      } else {
+        await vehicleService.create(payload);
+      }
       toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });
       onSaved(); onClose();
     } catch (e) {
@@ -469,8 +470,7 @@ const Motorcycles = () => {
   const handleDelete = async (v: Vehicle) => {
     if (!confirm(`هل تريد حذف المركبة ${v.plate_number}؟`)) return;
     try {
-      const { error } = await vehicleService.delete(v.id);
-      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      await vehicleService.delete(v.id);
       toast({ title: 'تم حذف المركبة' });
       void refetchVehicles();
     } catch (e) {

@@ -115,9 +115,9 @@ const PlatformAccounts = () => {
         accountAssignmentService.getAssignmentsForMonthYear(monthYearNow),
       ]);
 
-      const appsData: App[] = (appsRes.data ?? []) as App[];
-      const empData: Employee[] = (empRes.data ?? []) as Employee[];
-      const rawAccounts = (accRes.data ?? []) as PlatformAccount[];
+      const appsData: App[] = (appsRes ?? []) as App[];
+      const empData: Employee[] = (empRes ?? []) as Employee[];
+      const rawAccounts = (accRes ?? []) as PlatformAccount[];
       const activeAssignments = (assignRes.data ?? []) as Assignment[];
       const monthRows = (monthAssignRes.data ?? []) as { account_id: string }[];
 
@@ -266,37 +266,32 @@ const PlatformAccounts = () => {
       notes: accountForm.notes?.trim() || null,
     };
 
-    let error;
-    if (editingAccount) {
-      ({ error } = await platformAccountService.updateAccount(editingAccount.id, payload));
-      if (!error) {
+    try {
+      if (editingAccount) {
+        await platformAccountService.updateAccount(editingAccount.id, payload);
         await auditService.logAdminAction({
           action: 'platform_accounts.update',
           table_name: 'platform_accounts',
           record_id: editingAccount.id,
           meta: { fields: Object.keys(payload), app_id: payload.app_id, status: payload.status },
         });
-      }
-    } else {
-      const res = await platformAccountService.createAccount(payload);
-      error = res.error;
-      const createdId =
-        Array.isArray(res.data) && typeof (res.data as unknown[])[0] === 'object' && (res.data as unknown[])[0] !== null
-          ? (res.data as Array<{ id?: unknown }>)[0]?.id
-          : null;
-      const createdIdStr = typeof createdId === 'string' ? createdId : null;
-      if (!error) {
+      } else {
+        const created = await platformAccountService.createAccount(payload);
         await auditService.logAdminAction({
           action: 'platform_accounts.create',
           table_name: 'platform_accounts',
-          record_id: createdIdStr,
+          record_id: created.id,
           meta: { account_username: payload.account_username, app_id: payload.app_id, status: payload.status },
         });
       }
+    } catch (e: unknown) {
+      setSavingAccount(false);
+      const message = e instanceof Error ? e.message : 'خطأ';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      return;
     }
 
     setSavingAccount(false);
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
     toast({ title: editingAccount ? 'تم التعديل' : 'تم الإضافة', description: `حساب "${payload.account_username}"` });
     setAccountDialog(false);
     void refetchPageData();
@@ -346,11 +341,12 @@ const PlatformAccounts = () => {
     }
 
     // Keep `platform_accounts.employee_id` in sync for alert automation
-    const { error: linkErr } = await platformAccountService.syncAccountEmployee(assignTarget!.id, assignForm.employee_id);
-
-    if (linkErr) {
+    try {
+      await platformAccountService.syncAccountEmployee(assignTarget!.id, assignForm.employee_id);
+    } catch (e: unknown) {
       setSavingAssign(false);
-      toast({ title: 'خطأ', description: linkErr.message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : 'خطأ';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
       return;
     }
 
@@ -961,7 +957,7 @@ function PlatformAccountsFastList(props: {
   const exportExcel = async () => {
     setExporting(true);
     try {
-      const res = await platformAccountService.exportAccounts({
+      const out = (await platformAccountService.exportAccounts({
         filters: {
           employeeId: filters.driverId,
           appId: filters.platformAppId,
@@ -969,10 +965,7 @@ function PlatformAccountsFastList(props: {
           status: filters.status && filters.status !== 'all' ? filters.status : undefined,
           search: filters.search,
         },
-      });
-      if (res.error) throw res.error;
-
-      const out = (res.data || []) as PagedRow[];
+      })) as PagedRow[];
       const sheet = out.map((r) => ({
         'اسم الحساب': r.account_username ?? '',
         'المنصة': r.apps?.name ?? '',

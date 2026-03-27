@@ -119,8 +119,8 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
         disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
         note: form.note || null, status: 'active',
       };
-      const { data: adv, error } = await advanceService.create(payload);
-      if (error || !adv) return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' });
+      const adv = await advanceService.create(payload);
+      if (!adv) return toast({ title: 'حدث خطأ', description: 'لم يُرجع الخادم بيانات السلفة', variant: 'destructive' });
       const installments = buildInstallmentsPayload(
         adv.id,
         form.first_deduction_month,
@@ -188,8 +188,7 @@ const WriteOffDialog = ({ employeeName, remaining, advanceIds, onClose, onDone }
   const handleWriteOff = async () => {
     setSaving(true);
     try {
-      const { error } = await advanceService.writeOffMany(advanceIds, reason || 'ديون معدومة');
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      await advanceService.writeOffMany(advanceIds, reason || 'ديون معدومة');
       toast({ title: `✅ تم إعدام ديون ${employeeName}` });
       onDone(); onClose();
     } catch (e) {
@@ -243,8 +242,7 @@ const RestoreWriteOffDialog = ({ employeeName, advanceIds, onClose, onDone }: Re
   const handleRestore = async () => {
     setSaving(true);
     try {
-      const { error } = await advanceService.restoreWrittenOffMany(advanceIds);
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      await advanceService.restoreWrittenOffMany(advanceIds);
       toast({ title: `✅ تم استرداد ديون ${employeeName}` });
       onDone(); onClose();
     } catch (e) {
@@ -314,8 +312,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
         status: form.status,
         note: form.note || null,
       };
-      const { error } = await advanceService.update(advance.id, payload);
-      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      await advanceService.update(advance.id, payload);
       await advanceService.deletePendingInstallments(advance.id);
       const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
       const paidCount = paidInstallments.length;
@@ -514,8 +511,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
     if (!deleteAdvanceId) return;
     setDeletingAdvance(true);
     try {
-      const { error } = await advanceService.delete(deleteAdvanceId);
-      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      await advanceService.delete(deleteAdvanceId);
       toast({ title: '✅ تم حذف السلفة نهائياً' });
       setDeleteAdvanceId(null);
       onRefresh();
@@ -532,8 +528,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
     if (!deleteInstallmentId) return;
     setDeletingInstallment(true);
     try {
-      const { error } = await advanceService.deleteInstallment(deleteInstallmentId);
-      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      await advanceService.deleteInstallment(deleteInstallmentId);
       toast({ title: '✅ تم حذف الصف' });
       setDeleteInstallmentId(null);
       onRefresh();
@@ -550,8 +545,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const saveNote = async (instId: string) => {
     setSavingNote(true);
     try {
-      const { error } = await advanceService.updateInstallmentNote(instId, noteValue || null);
-      if (error) return toast({ title: 'خطأ', variant: 'destructive' });
+      await advanceService.updateInstallmentNote(instId, noteValue || null);
       setEditingNoteId(null);
       onRefresh();
       toast({ title: '✅ تم حفظ الملاحظة' });
@@ -788,15 +782,13 @@ const Advances = () => {
     queryKey: ['advances', uid, 'page-data'],
     enabled,
     queryFn: async () => {
-      const [advRes, empRes] = await Promise.all([
+      const [advRows, empRows] = await Promise.all([
         advanceService.getAll(),
         advanceService.getEmployees(),
       ]);
-      if (advRes.error) throw advRes.error;
-      if (empRes.error) throw empRes.error;
       return {
-        advances: (advRes.data || []) as Advance[],
-        employees: (empRes.data || []) as { id: string; name: string; sponsorship_status?: string | null }[],
+        advances: (advRows || []) as Advance[],
+        employees: (empRows || []) as { id: string; name: string; sponsorship_status?: string | null }[],
       };
     },
     retry: defaultQueryRetry,

@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export interface PlatformApp {
   id: string;
@@ -44,7 +44,7 @@ export interface PlatformAccountWritePayload {
 export const platformAccountService = {
   getApps: async () => {
     const { data, error } = await supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name');
-    if (error) throw toServiceError(error, 'platformAccountService.getApps');
+    if (error) handleSupabaseError(error, 'platformAccountService.getApps');
     return data ?? [];
   },
 
@@ -54,13 +54,13 @@ export const platformAccountService = {
       .select('id, name, national_id, residency_expiry, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    if (error) throw toServiceError(error, 'platformAccountService.getEmployees');
+    if (error) handleSupabaseError(error, 'platformAccountService.getEmployees');
     return data ?? [];
   },
 
   getAccounts: async () => {
     const { data, error } = await supabase.from('platform_accounts').select('*').order('created_at', { ascending: false });
-    if (error) throw toServiceError(error, 'platformAccountService.getAccounts');
+    if (error) handleSupabaseError(error, 'platformAccountService.getAccounts');
     return data ?? [];
   },
 
@@ -112,7 +112,7 @@ export const platformAccountService = {
     }
 
     const { data, error, count } = await query;
-    if (error) throw toServiceError(error, 'platformAccountService.getAccountsPaged');
+    if (error) handleSupabaseError(error, 'platformAccountService.getAccountsPaged');
     return { data: data ?? [], count: count ?? 0 };
   },
 
@@ -147,17 +147,17 @@ export const platformAccountService = {
 
   createAccount: async (payload: PlatformAccountWritePayload) => {
     const { data, error } = await supabase.from('platform_accounts').insert(payload).select('id').single();
-    if (error) throw toServiceError(error, 'platformAccountService.createAccount');
+    if (error) handleSupabaseError(error, 'platformAccountService.createAccount');
     return data as { id: string };
   },
 
   updateAccount: async (id: string, payload: PlatformAccountWritePayload) => {
     const { error } = await supabase.from('platform_accounts').update(payload).eq('id', id);
-    if (error) throw toServiceError(error, 'platformAccountService.updateAccount');
+    if (error) handleSupabaseError(error, 'platformAccountService.updateAccount');
   },
 
   syncAccountEmployee: async (id: string, employeeId: string) => {
     const { error } = await supabase.from('platform_accounts').update({ employee_id: employeeId }).eq('id', id);
-    if (error) throw toServiceError(error, 'platformAccountService.syncAccountEmployee');
+    if (error) handleSupabaseError(error, 'platformAccountService.syncAccountEmployee');
   },
 };

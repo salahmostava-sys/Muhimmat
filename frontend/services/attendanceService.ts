@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { toServiceError } from '@services/serviceError';
+import { handleSupabaseError } from '@services/serviceError';
 
 export const attendanceService = {
   checkIn: async (employeeId: string, checkinAt?: string) => {
@@ -7,7 +7,7 @@ export const attendanceService = {
       p_employee_id: employeeId,
       p_checkin_at: checkinAt ?? new Date().toISOString(),
     });
-    if (error) throw toServiceError(error, 'attendanceService.checkIn');
+    if (error) handleSupabaseError(error, 'attendanceService.checkIn');
     return data;
   },
 
@@ -16,7 +16,7 @@ export const attendanceService = {
       p_employee_id: employeeId,
       p_checkout_at: checkoutAt ?? new Date().toISOString(),
     });
-    if (error) throw toServiceError(error, 'attendanceService.checkOut');
+    if (error) handleSupabaseError(error, 'attendanceService.checkOut');
     return data;
   },
 
@@ -26,7 +26,7 @@ export const attendanceService = {
       .select('date, status')
       .gte('date', from)
       .lte('date', to);
-    if (error) throw toServiceError(error, 'attendanceService.getAttendanceStatusRange');
+    if (error) handleSupabaseError(error, 'attendanceService.getAttendanceStatusRange');
     return data ?? [];
   },
 
@@ -35,7 +35,7 @@ export const attendanceService = {
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    if (error) throw toServiceError(error, 'attendanceService.getActiveEmployeesCount');
+    if (error) handleSupabaseError(error, 'attendanceService.getActiveEmployeesCount');
     return count || 0;
   },
 
@@ -52,7 +52,7 @@ export const attendanceService = {
     const { error } = await supabase.from('attendance').upsert([payload], {
       onConflict: 'employee_id,date',
     });
-    if (error) throw toServiceError(error, 'attendanceService.upsertDailyAttendance');
+    if (error) handleSupabaseError(error, 'attendanceService.upsertDailyAttendance');
   },
 
   getMonthlyEmployeesAndAttendance: async (startDate: string, endDate: string) => {
@@ -68,8 +68,8 @@ export const attendanceService = {
         .gte('date', startDate)
         .lte('date', endDate),
     ]);
-    if (employeesRes.error) throw toServiceError(employeesRes.error, 'attendanceService.getMonthlyEmployeesAndAttendance.employees');
-    if (attendanceRes.error) throw toServiceError(attendanceRes.error, 'attendanceService.getMonthlyEmployeesAndAttendance.attendance');
+    if (employeesRes.error) handleSupabaseError(employeesRes.error, 'attendanceService.getMonthlyEmployeesAndAttendance.employees');
+    if (attendanceRes.error) handleSupabaseError(attendanceRes.error, 'attendanceService.getMonthlyEmployeesAndAttendance.attendance');
     return {
       employees: employeesRes.data ?? [],
       attendanceRows: attendanceRes.data ?? [],
@@ -88,7 +88,7 @@ export const attendanceService = {
       .lte('date', to)
       .in('status', ['present', 'late']);
 
-    if (error) throw toServiceError(error, 'attendanceService.getAttendanceByMonth');
+    if (error) handleSupabaseError(error, 'attendanceService.getAttendanceByMonth');
     return data ?? [];
   },
 
@@ -105,7 +105,7 @@ export const attendanceService = {
       .lte('date', to)
       .order('date', { ascending: true });
 
-    if (error) throw toServiceError(error, 'attendanceService.getAttendanceByEmployeeMonth');
+    if (error) handleSupabaseError(error, 'attendanceService.getAttendanceByEmployeeMonth');
     return data ?? [];
   },
 };
