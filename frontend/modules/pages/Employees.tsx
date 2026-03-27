@@ -724,23 +724,21 @@ const Employees = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <DataTableActions
+            loading={actionLoading}
+            onExport={runExportDetailed}
+            onDownloadTemplate={runTemplateDownload}
+            onPrint={runPrintDetailed}
+            onImportFile={runImportFile}
+            hideImport={!permissions.can_edit}
+          />
+
           {permissions.can_edit && (
             <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
               <Plus size={15} /> إضافة موظف
             </Button>
           )}
         </div>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
-        <DataTableActions
-          loading={actionLoading}
-          onExport={runExportDetailed}
-          onDownloadTemplate={runTemplateDownload}
-          onPrint={runPrintDetailed}
-          onImportFile={runImportFile}
-          hideImport={!permissions.can_edit}
-        />
       </div>
 
       {/* Active filters summary */}
