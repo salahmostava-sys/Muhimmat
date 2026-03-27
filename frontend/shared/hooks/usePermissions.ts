@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@services/supabase/client';
 import { useAuth } from '@app/providers/AuthContext';
+import { logger } from '@shared/lib/logger';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -119,12 +120,21 @@ export const usePermissions = (pageKey: string) => {
 
     const fetchPermissions = async () => {
       // Try to get custom permissions from DB
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_permissions')
         .select('can_view, can_edit, can_delete')
         .eq('user_id', user.id)
         .eq('permission_key', pageKey)
         .maybeSingle();
+
+      if (error) {
+        logger.error('[usePermissions] user_permissions query failed', error, {
+          meta: { pageKey, userId: user.id },
+        });
+        setPermissions({ can_view: false, can_edit: false, can_delete: false });
+        setLoading(false);
+        return;
+      }
 
       if (data) {
         setPermissions({ can_view: data.can_view, can_edit: data.can_edit, can_delete: data.can_delete });
