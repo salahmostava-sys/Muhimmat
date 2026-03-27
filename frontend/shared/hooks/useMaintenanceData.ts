@@ -27,6 +27,6 @@ export const useMaintenanceData = () => {
     staleTime: 60_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error);
+  useQueryErrorToast(q.isError, q.error, undefined, q.refetch);
   return q;
 };

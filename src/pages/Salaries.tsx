@@ -345,6 +345,7 @@ const Salaries = () => {
     isLoading: salaryBaseContextLoading,
   } = useQuery({
     queryKey: ['salaries', 'base-context', selectedMonth],
+    enabled: !!user?.id && !!selectedMonth,
     queryFn: async () => {
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
       let timeoutId: ReturnType<typeof setTimeout> | undefined;

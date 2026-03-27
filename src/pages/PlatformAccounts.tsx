@@ -88,6 +88,7 @@ const PlatformAccounts = () => {
     refetch: refetchPageData,
   } = useQuery({
     queryKey: ['platform-accounts', 'page-data'],
+    enabled: !!user?.id,
     queryFn: async () => {
       const monthYearNow = format(new Date(), 'yyyy-MM');
       const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([

@@ -27,7 +27,7 @@ export type AttendanceDayRow = {
 export function useAttendanceArchiveMonth(params: { year: number; monthIndex0: number } | null) {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const authEnabled = !!session && !!user && !authLoading;
+  const authEnabled = !!session && !!user?.id && !authLoading;
   return useQuery({
     queryKey: ['attendance', uid, 'archive', params?.year ?? null, params?.monthIndex0 ?? null] as const,
     enabled: authEnabled && !!params,
@@ -67,7 +67,7 @@ export function useAttendanceArchiveMonth(params: { year: number; monthIndex0: n
 export function useAttendanceBaseData() {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const authEnabled = !!session && !!user && !authLoading;
+  const authEnabled = !!session && !!user?.id && !authLoading;
   return useQuery({
     queryKey: ['attendance', uid, 'base'] as const,
     enabled: authEnabled,
@@ -107,7 +107,7 @@ export function useAttendanceBaseData() {
 export function useAttendanceDay(dateStr: string, enabled: boolean) {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const authEnabled = !!session && !!user && !authLoading;
+  const authEnabled = !!session && !!user?.id && !authLoading;
   return useQuery({
     queryKey: ['attendance', uid, 'day', dateStr] as const,
     enabled: authEnabled && enabled,

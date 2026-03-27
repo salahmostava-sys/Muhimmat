@@ -43,7 +43,7 @@ export function useEmployeesPaged(params: {
     staleTime: 15_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الموظفين');
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الموظفين', q.refetch);
   return q;
 }
 

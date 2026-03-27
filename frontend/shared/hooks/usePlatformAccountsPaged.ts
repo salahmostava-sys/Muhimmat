@@ -63,7 +63,7 @@ export function usePlatformAccountsPaged(params: {
     staleTime: 15_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل حسابات المنصات');
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل حسابات المنصات', q.refetch);
   return q;
 }
 

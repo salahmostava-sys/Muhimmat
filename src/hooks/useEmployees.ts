@@ -7,7 +7,7 @@ export const employeesQueryKey = (userId: string) => ['employees', userId] as co
 export const useEmployees = () => {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && !!user?.id && !authLoading;
 
   return useQuery({
     queryKey: employeesQueryKey(uid),

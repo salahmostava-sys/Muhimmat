@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/context/AuthContext';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@/services/employeeTierService';
 import { cn } from '@/lib/utils';
@@ -156,6 +157,7 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
 ═══════════════════════════════════════════════════════════════ */
 const EmployeeTiers = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { permissions: perms } = usePermissions('employee_tiers');
 
   const [tiers, setTiers]       = useState<TierRow[]>([]);
@@ -168,6 +170,7 @@ const EmployeeTiers = () => {
     refetch: refetchTiersData,
   } = useQuery({
     queryKey: ['employee-tiers', 'page-data'],
+    enabled: !!user?.id,
     queryFn: async () => {
       const [{ data: tiersRows }, { data: employeeRows }, { data: appsRows }] = await Promise.all([
         employeeTierService.getTiers(),

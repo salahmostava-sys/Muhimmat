@@ -208,6 +208,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
 
   const relatedQuery = useQuery({
     queryKey: ['employee', employee.id, 'profile-related'] as const,
+    enabled: !!employee?.id,
     queryFn: async () => {
       const [advRes, salRes, appRes, ordRes] = await Promise.all([
         supabase

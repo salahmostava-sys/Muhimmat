@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { fuelService } from '@/services/fuelService';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/context/AuthContext';
 import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
 
@@ -297,6 +298,7 @@ const ImportModal = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const FuelPage = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { permissions } = usePermissions('fuel');
   const now = new Date();
   const [view, setView] = useState<'monthly' | 'daily'>('monthly');
@@ -358,6 +360,7 @@ const FuelPage = () => {
 
   const { data: fuelBaseData, error: fuelBaseError } = useQuery({
     queryKey: ['fuel', 'base-data'],
+    enabled: !!user?.id,
     queryFn: async () => {
       const [empRes, appRes, linkRes] = await Promise.all([
         fuelService.getActiveEmployees(),
@@ -392,6 +395,7 @@ const FuelPage = () => {
 
   const { data: monthlyOrdersData = [] } = useQuery({
     queryKey: ['fuel', 'monthly-orders', monthYear],
+    enabled: !!user?.id && !!monthYear,
     queryFn: async () => {
       const monthStart = `${monthYear}-01`;
       const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');

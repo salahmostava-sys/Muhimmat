@@ -301,6 +301,7 @@ const Alerts = () => {
     refetch: refetchAlerts,
   } = useQuery({
     queryKey: ['alerts', 'page-data', iqamaAlertDays],
+    enabled: !!user?.id,
     queryFn: async () => {
       const today = new Date();
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);

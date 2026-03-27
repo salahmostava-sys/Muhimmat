@@ -10,7 +10,7 @@ export const useMotorcyclesData = () => {
   const { user, session } = useAuth();
   const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && authReady;
+  const enabled = !!session && authReady && !!user?.id;
   const q = useQuery({
     queryKey: motorcyclesDataQueryKey(uid),
     queryFn: async () => {
@@ -19,6 +19,6 @@ export const useMotorcyclesData = () => {
     staleTime: 60_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error);
+  useQueryErrorToast(q.isError, q.error, undefined, q.refetch);
   return q;
 };

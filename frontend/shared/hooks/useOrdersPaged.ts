@@ -46,7 +46,7 @@ export function useOrdersMonthPaged(params: {
     staleTime: 15_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الطلبات');
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الطلبات', q.refetch);
   return q;
 }
 

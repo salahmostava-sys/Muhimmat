@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Download, Search, RefreshCw, X, Activity,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
@@ -96,6 +97,7 @@ const hasPayload = (log: AuditLog) =>
 
 export default function ActivityLogContent() {
   const { isRTL } = useLanguage();
+  const { user } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -116,6 +118,7 @@ export default function ActivityLogContent() {
     refetch: refetchLogs,
   } = useQuery({
     queryKey: ['activity-log', page, filterAction, filterTable, debouncedSearch],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, count, error } = await settingsHubService.getAuditLogs(
         page * PAGE_SIZE,

@@ -25,6 +25,7 @@ import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmplo
 import { isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { QueryErrorRetry } from '@shared/components/QueryErrorRetry';
 
 const SKELETON_KEYS_2 = ['sk-1', 'sk-2'] as const;
 const SKELETON_KEYS_4 = ['sk-1', 'sk-2', 'sk-3', 'sk-4'] as const;
@@ -371,7 +372,7 @@ const AnalyticsTab = () => {
   const daysInMonth = getDaysInMonth(new Date());
   const daysPassed = getDate(new Date());
 
-  const { data, isLoading: loading } = useQuery({
+  const { data, isLoading: loading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['dashboard-analytics', uid],
     enabled,
     queryFn: async () => {
@@ -425,6 +426,20 @@ const AnalyticsTab = () => {
       </div>
     </div>
   );
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[280px] px-4">
+        <QueryErrorRetry
+          error={error}
+          onRetry={() => void refetch()}
+          isFetching={isFetching}
+          title="تعذر تحميل التحليلات"
+          className="w-full max-w-lg"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -1151,7 +1166,7 @@ const Dashboard = () => {
 
   useDashboardRealtimeInvalidation(user?.id, currentMonth, queryClient);
 
-  const { data, isLoading: loading } = useQuery({
+  const { data, isLoading: loading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['dashboard-kpis', uid, currentMonth],
     enabled: enabled && !!activeIdsData,
     queryFn: () => fetchDashboardKpis(currentMonth, activeEmployeeIdsInMonth),
@@ -1216,7 +1231,16 @@ const Dashboard = () => {
     <div className="space-y-5">
       <DashboardHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {activeTab === 'analytics' ? <AnalyticsTab /> : (
+      {activeTab === 'analytics' && <AnalyticsTab />}
+      {activeTab !== 'analytics' && isError && (
+        <QueryErrorRetry
+          error={error}
+          onRetry={() => void refetch()}
+          isFetching={isFetching}
+          title="تعذر تحميل لوحة المعلومات"
+        />
+      )}
+      {activeTab !== 'analytics' && !isError && (
         <OverviewTab
           loading={loading}
           kpis={kpis}

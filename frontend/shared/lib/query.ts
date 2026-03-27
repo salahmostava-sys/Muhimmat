@@ -26,8 +26,28 @@ export function getErrorMessage(err: unknown, fallback = 'حدث خطأ غير �
   return fallback;
 }
 
-export function toastQueryError(err: unknown, title = 'تعذر تحميل البيانات'): void {
-  toast.error(title, { description: getErrorMessage(err) });
+export type ToastQueryErrorOptions = {
+  /** Shown as Sonner action button (manual refetch). */
+  onRetry?: () => void;
+};
+
+export function toastQueryError(
+  err: unknown,
+  title = 'تعذر تحميل البيانات',
+  options?: ToastQueryErrorOptions,
+): void {
+  const onRetry = options?.onRetry;
+  toast.error(title, {
+    description: getErrorMessage(err),
+    ...(onRetry && {
+      action: {
+        label: 'إعادة المحاولة',
+        onClick: () => {
+          onRetry();
+        },
+      },
+    }),
+  });
 }
 
 export function toastMutationError(err: unknown, title = 'تعذر تنفيذ العملية'): void {

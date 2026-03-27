@@ -21,6 +21,7 @@ import {
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import { useAppColors } from '@/hooks/useAppColors';
 import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@/hooks/useRealtimePostgresChanges';
 import { Button } from '@/components/ui/button';
@@ -164,11 +165,13 @@ const MONTHS_BACK = 6;
 interface RiderMonthly { id: string; name: string; months: number[]; avg: number; trend: 'up' | 'down' | 'stable'; lastMonth: number; thisMonth: number; }
 
 const AnalyticsTab = () => {
+  const { user } = useAuth();
   const daysInMonth = getDaysInMonth(new Date());
   const daysPassed = getDate(new Date());
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['dashboard-analytics'],
+    enabled: !!user?.id,
     queryFn: async () => {
       const months = Array.from({ length: MONTHS_BACK }, (_, i) => {
         const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
@@ -408,6 +411,7 @@ interface EmpDetail {
 }
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
   const [topN, setTopN] = useState(5);
   const [topNInput, setTopNInput] = useState('5');
@@ -422,6 +426,7 @@ const Dashboard = () => {
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['dashboard-kpis', currentMonth],
+    enabled: !!user?.id,
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const prevMonth = format(subMonths(new Date(), 1), 'yyyy-MM');

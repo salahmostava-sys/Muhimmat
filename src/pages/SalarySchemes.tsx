@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { appService } from '@/services/appService';
 import { salarySchemeService } from '@/services/salarySchemeService';
@@ -91,6 +92,7 @@ interface SalarySchemesProps {
 
 const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [tiers, setTiersMap] = useState<Record<string, Tier[]>>({});
   const [snapshots, setSnapshots] = useState<Record<string, Snapshot[]>>({});
@@ -102,6 +104,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     refetch: refetchSchemeData,
   } = useQuery({
     queryKey: ['salary-schemes', 'page-data'],
+    enabled: !!user?.id,
     queryFn: async () => {
       const [{ data: sData, error: sErr }, { data: tData, error: tErr }, { data: snData, error: snErr }, { data: aData, error: aErr }] = await Promise.all([
         salarySchemeService.getSchemes(),

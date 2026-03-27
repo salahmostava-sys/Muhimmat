@@ -49,7 +49,7 @@ export function useSalaryRecordsPaged(params: {
     staleTime: 15_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الرواتب');
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل الرواتب', q.refetch);
   return q;
 }
 

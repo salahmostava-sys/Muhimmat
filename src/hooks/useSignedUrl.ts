@@ -17,7 +17,7 @@ export const extractStoragePath = (value: string | null | undefined): string | n
 export const useSignedUrl = (bucket: string, path: string | null | undefined) => {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const authEnabled = !!session && !!user && !authLoading;
+  const authEnabled = !!session && !!user?.id && !authLoading;
   const query = useQuery({
     queryKey: ['signed-url', uid, bucket, path ?? null] as const,
     enabled: authEnabled && !!path,

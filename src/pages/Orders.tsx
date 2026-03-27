@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/context/AuthContext';
 import { OrdersGridTable } from '@/components/orders/OrdersGridTable';
 import { OrdersCellPopover, type OrdersPopoverState } from '@/components/orders/OrdersCellPopover';
 import { OrdersMonthNavigator } from '@/components/orders/OrdersMonthNavigator';
@@ -77,6 +78,7 @@ const isPastMonth = (y: number, m: number) => {
 const SpreadsheetGrid = () => {
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -103,6 +105,7 @@ const SpreadsheetGrid = () => {
     isLoading: spreadsheetBaseLoading,
   } = useQuery({
     queryKey: ordersQueryKeys.spreadsheetBase,
+    enabled: !!user?.id,
     queryFn: async () => {
       const [empRes, appRes, empAppsRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -128,6 +131,7 @@ const SpreadsheetGrid = () => {
     isLoading: spreadsheetMonthLoading,
   } = useQuery({
     queryKey: ordersQueryKeys.spreadsheetMonthRaw(year, month),
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
@@ -139,6 +143,7 @@ const SpreadsheetGrid = () => {
 
   const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
     queryKey: ordersQueryKeys.spreadsheetMonthLock(year, month),
+    enabled: !!user?.id,
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -523,6 +528,7 @@ const SpreadsheetGrid = () => {
 const MonthSummary = () => {
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -542,6 +548,7 @@ const MonthSummary = () => {
     isLoading: summaryBaseLoading,
   } = useQuery({
     queryKey: ordersQueryKeys.summaryBase,
+    enabled: !!user?.id,
     queryFn: async () => {
       const [empRes, appRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -560,6 +567,7 @@ const MonthSummary = () => {
 
   const { data: summaryTargetsRows = [], error: summaryTargetsError } = useQuery({
     queryKey: ordersQueryKeys.summaryTargets(year, month),
+    enabled: !!user?.id,
     queryFn: async () => {
       const my = monthYear(year, month);
       const { data: rows, error } = await orderService.getAppTargets(my);
@@ -572,6 +580,7 @@ const MonthSummary = () => {
 
   const { data: summaryLockData, error: summaryLockError } = useQuery({
     queryKey: ordersQueryKeys.summaryMonthLock(year, month),
+    enabled: !!user?.id,
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -586,6 +595,7 @@ const MonthSummary = () => {
     isLoading: summaryMonthLoading,
   } = useQuery({
     queryKey: ordersQueryKeys.summaryMonthRaw(year, month),
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;

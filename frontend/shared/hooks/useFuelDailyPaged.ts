@@ -51,7 +51,7 @@ export function useFuelDailyPaged(params: {
     staleTime: 15_000,
     enabled,
   });
-  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل بيانات الوقود');
+  useQueryErrorToast(q.isError, q.error, 'تعذر تحميل بيانات الوقود', q.refetch);
   return q;
 }
 

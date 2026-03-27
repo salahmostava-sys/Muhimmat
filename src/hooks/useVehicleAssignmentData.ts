@@ -7,7 +7,7 @@ export const vehicleAssignmentDataQueryKey = (userId: string) => ['vehicle-assig
 export const useVehicleAssignmentData = () => {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && !!user?.id && !authLoading;
 
   return useQuery({
     queryKey: vehicleAssignmentDataQueryKey(uid),

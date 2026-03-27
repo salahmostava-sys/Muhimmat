@@ -111,7 +111,7 @@ export const usePermissions = (pageKey: string) => {
 
   const query = useQuery({
     queryKey: ['permissions', user?.id ?? null, role ?? null, pageKey] as const,
-    enabled: !!session && !!user && !authLoading && !!role,
+    enabled: !!session && !!user?.id && !authLoading && !!role,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_permissions')

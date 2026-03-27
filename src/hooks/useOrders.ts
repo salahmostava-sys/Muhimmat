@@ -7,7 +7,7 @@ export const ordersQueryKey = (userId: string) => ['orders', userId] as const;
 export const useOrders = () => {
   const { user, session, loading: authLoading } = useAuth();
   const uid = user?.id ?? '__none__';
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && !!user?.id && !authLoading;
 
   return useQuery({
     queryKey: ordersQueryKey(uid),
