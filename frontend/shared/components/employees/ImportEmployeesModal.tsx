@@ -142,7 +142,9 @@ const findStartRow = (rows: any[][]): number => {
     const nameCell = rows[i]?.[7];
     if (!nameCell || typeof nameCell !== 'string') continue;
     const nameValue = nameCell.trim();
-    const looksLikeDataRow = nameValue.length > 1 && !/اسم|name/i.test(nameValue);
+    const lowerName = nameValue.toLowerCase();
+    const looksLikeHeader = nameValue.includes('اسم') || lowerName.includes('name');
+    const looksLikeDataRow = nameValue.length > 1 && !looksLikeHeader;
     if (looksLikeDataRow) return i;
   }
   return 1;

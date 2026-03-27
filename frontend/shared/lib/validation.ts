@@ -28,16 +28,32 @@ export function validateUploadFile(
 }
 
 export function validatePhoneNumber(phoneNumber: string) {
-  const regex = /^\(\d{3}\) \d{3}-\d{4}$/;
-  return regex.test(phoneNumber);
+  if (phoneNumber.length !== 14) return false;
+  if (!phoneNumber.startsWith('(') || phoneNumber[4] !== ')' || phoneNumber[5] !== ' ' || phoneNumber[9] !== '-') return false;
+  for (const idx of [1, 2, 3, 6, 7, 8, 10, 11, 12, 13]) {
+    const ch = phoneNumber[idx];
+    if (ch < '0' || ch > '9') return false;
+  }
+  return true;
 }
 
 export function validateEmail(email: string) {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
+  const value = email.trim();
+  const atIndex = value.indexOf('@');
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf('@')) return false;
+  const local = value.slice(0, atIndex);
+  const domain = value.slice(atIndex + 1);
+  if (!local || !domain || local.includes(' ') || domain.includes(' ')) return false;
+  if (domain.startsWith('.') || domain.endsWith('.')) return false;
+  return domain.includes('.');
 }
 
 export function validateNationalID(nationalID: string) {
-  const regex = /^[0-9]{4}-[0-9]{4}$/;
-  return regex.test(nationalID);
+  if (nationalID.length !== 9 || nationalID[4] !== '-') return false;
+  const left = nationalID.slice(0, 4);
+  const right = nationalID.slice(5);
+  for (const ch of left + right) {
+    if (ch < '0' || ch > '9') return false;
+  }
+  return true;
 }
