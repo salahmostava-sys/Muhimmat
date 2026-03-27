@@ -30,12 +30,32 @@ export interface AttendanceTrendPoint {
 export const dashboardService = {
   /** Server-side aggregated overview (RPC) */
   getOverviewRpc: async (monthYear: string, today: string) => {
-    const { data, error } = await supabase.rpc('dashboard_overview_rpc', {
-      p_month_year: monthYear,
-      p_today: today,
-    });
-    if (error) handleSupabaseError(error, 'dashboardService.getOverviewRpc');
-    return data;
+    const attempts: Array<Record<string, unknown>> = [
+      { p_month_year: monthYear, p_today: today },                    // current signature
+      { p_monthly_year: monthYear, p_today: today },                  // legacy signature (without company)
+      { p_company_id: null, p_monthly_year: monthYear, p_today: today }, // legacy signature (company_id)
+      { p_cip: null, p_monthly_year: monthYear, p_today: today },     // typo/older variant seen in deployments
+    ];
+
+    const fnNames = ['dashboard_overview_rpc', 'dashboard_overview'];
+
+    let lastError: unknown = null;
+    for (const fnName of fnNames) {
+      for (const params of attempts) {
+        const { data, error } = await supabase.rpc(fnName, params);
+        if (!error) return data;
+        lastError = error;
+
+        const message = String((error as { message?: string })?.message ?? '');
+        const isFunctionSignatureMismatch =
+          message.includes('Could not find the function public.dashboard_overview_rpc') ||
+          message.includes('Could not find the function public.dashboard_overview');
+        if (!isFunctionSignatureMismatch) break;
+      }
+    }
+
+    handleSupabaseError(lastError, 'dashboardService.getOverviewRpc');
+    return null;
   },
 
   /** Active apps with basic metadata */
