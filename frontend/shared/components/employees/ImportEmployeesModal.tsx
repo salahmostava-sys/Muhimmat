@@ -76,28 +76,38 @@ const PLATFORM_MAP: Record<string, string> = {
 
 const SUPERVISOR_KEYWORDS = ['ميكانيكى', 'ميكانيكي', 'مشرف', 'مشرف تشغيل', 'مشرف ميداني', 'غرفه عمليات', 'غرفة عمليات'];
 
+const toIsoDate = (date: Date): string | null => {
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().split('T')[0];
+};
+
+const parseDmyDate = (value: string): string | null => {
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  return toIsoDate(new Date(`${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`));
+};
+
+const parseYmdDate = (value: string): string | null => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return value;
+};
+
 const parseDate = (val: any): string | null => {
   if (!val) return null;
   if (typeof val === 'number') {
     const date = XLSX.SSF.parse_date_code(val);
-    if (date) {
-      const d = new Date(date.y, date.m - 1, date.d);
-      return d.toISOString().split('T')[0];
-    }
+    if (date) return toIsoDate(new Date(date.y, date.m - 1, date.d));
     return null;
   }
   if (typeof val === 'string') {
     const s = val.trim();
     if (!s) return null;
-    const match1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match1) {
-      const d = new Date(`${match1[3]}-${match1[2].padStart(2,'0')}-${match1[1].padStart(2,'0')}`);
-      if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0];
-    }
-    const match2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match2) return s;
-    const d = new Date(s);
-    if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    const dmy = parseDmyDate(s);
+    if (dmy) return dmy;
+    const ymd = parseYmdDate(s);
+    if (ymd) return ymd;
+    return toIsoDate(new Date(s));
   }
   return null;
 };
@@ -215,6 +225,49 @@ const rowCategoryLabel = (emp: ParsedEmployee) => {
   return { text: 'مشرف/ميكانيكي', cls: 'bg-muted text-muted-foreground text-xs font-medium px-2 py-0.5 rounded-full' };
 };
 
+const getStepBadgeClass = (isDone: boolean, isCurrent: boolean): string => {
+  if (isDone) return 'bg-success text-success-foreground';
+  if (isCurrent) return 'bg-primary text-primary-foreground';
+  return 'bg-muted text-muted-foreground';
+};
+
+const getStepLabelClass = (isCurrent: boolean): string => {
+  if (isCurrent) return 'text-foreground font-semibold';
+  return 'text-muted-foreground';
+};
+
+const getPreviewRowBgClass = (hasError: boolean, hasWarning: boolean): string => {
+  if (hasError) return 'bg-destructive/5';
+  if (hasWarning) return 'bg-warning/5';
+  return 'hover:bg-muted/20';
+};
+
+const resolveRowCategory = (
+  platformRaw: string,
+  sponsorCol7: 'sponsored' | 'not_sponsored' | null = 'not_sponsored'
+): Pick<ParsedEmployee, 'platform' | 'status' | 'sponsorship_status' | 'rowCategory'> => {
+  let platform: string | null = null;
+  let status: 'active' | 'inactive' = 'active';
+  let sponsorship_status: 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated' = sponsorCol7;
+  let rowCategory: ParsedEmployee['rowCategory'] = 'active_delivery';
+
+  if (PLATFORM_MAP[platformRaw]) {
+    platform = PLATFORM_MAP[platformRaw];
+    rowCategory = 'active_delivery';
+  } else if (platformRaw === 'حادث') {
+    status = 'inactive';
+    rowCategory = 'accident';
+  } else if (platformRaw === 'هروب') {
+    status = 'inactive';
+    sponsorship_status = 'absconded';
+    rowCategory = 'absconded';
+  } else if (platformRaw === '' || SUPERVISOR_KEYWORDS.some(k => platformRaw.includes(k))) {
+    rowCategory = 'supervisor';
+  }
+
+  return { platform, status, sponsorship_status, rowCategory };
+};
+
 const ValidationMessages = ({ emp }: { emp: ParsedEmployee }) => {
   if (emp._errors.length > 0) {
     return (
@@ -293,31 +346,7 @@ const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
 
   const salary_type: 'orders' | 'shift' = job_title?.includes('مندوب') ? 'orders' : 'shift';
 
-  let platform: string | null = null;
-  let status: 'active' | 'inactive' = 'active';
-  let sponsorship_status: 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated' = sponsorCol7 || 'not_sponsored';
-  let rowCategory: ParsedEmployee['rowCategory'] = 'active_delivery';
-
-  if (PLATFORM_MAP[platformRaw]) {
-    platform = PLATFORM_MAP[platformRaw];
-    status = 'active';
-    rowCategory = 'active_delivery';
-  } else if (platformRaw === 'حادث') {
-    status = 'inactive';
-    platform = null;
-    rowCategory = 'accident';
-  } else if (platformRaw === 'هروب') {
-    status = 'inactive';
-    sponsorship_status = 'absconded';
-    platform = null;
-    rowCategory = 'absconded';
-  } else if (SUPERVISOR_KEYWORDS.some(k => platformRaw.includes(k))) {
-    status = 'active';
-    platform = null;
-    rowCategory = 'supervisor';
-  } else if (platformRaw === '') {
-    rowCategory = 'supervisor';
-  }
+  const { platform, status, sponsorship_status, rowCategory } = resolveRowCategory(platformRaw, sponsorCol7);
 
   return {
     employee_code,
@@ -430,10 +459,10 @@ const StepIndicator = ({ step }: { step: 1 | 2 | 3 }) => (
       return (
         <div key={label} className="flex items-center flex-1 last:flex-none">
           <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isDone ? 'bg-success text-success-foreground' : isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${getStepBadgeClass(isDone, isCurrent)}`}>
               {isDone ? <CheckCircle size={14} /> : stepNumber}
             </div>
-            <span className={`text-xs hidden sm:block ${isCurrent ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
+            <span className={`text-xs hidden sm:block ${getStepLabelClass(isCurrent)}`}>{label}</span>
           </div>
           {i < 2 && <div className={`flex-1 h-px mx-2 ${isDone ? 'bg-success' : 'bg-border'}`} />}
         </div>
@@ -489,7 +518,8 @@ const PreviewRow = ({ emp }: { emp: ParsedEmployee }) => {
   const st = rowCategoryLabel(emp);
   const hasError = emp._errors.length > 0;
   const hasWarning = emp._warnings.length > 0;
-  const rowBg = hasError ? 'bg-destructive/5' : hasWarning ? 'bg-warning/5' : 'hover:bg-muted/20';
+  const rowBg = getPreviewRowBgClass(hasError, hasWarning);
+  const salaryText = emp.base_salary === null ? '—' : `${emp.base_salary.toLocaleString()} ر.س`;
   const idHasError = emp._errors.some(e => e.includes('هوية'));
   const phoneHasWarning = emp._warnings.some(w => w.includes('هاتف'));
 
@@ -502,7 +532,7 @@ const PreviewRow = ({ emp }: { emp: ParsedEmployee }) => {
         {emp.national_id || <span className="text-warning">⚠️ مفقود</span>}
       </td>
       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-        {emp.base_salary != null ? `${emp.base_salary.toLocaleString()} ر.س` : '—'}
+        {salaryText}
       </td>
       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.platform || '—'}</td>
       <td className="px-3 py-2 whitespace-nowrap"><CityBadge city={emp.city} /></td>
@@ -562,10 +592,15 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const result = parseWorkbook(e.target!.result as ArrayBuffer);
-        setParsed(result.employees);
-        setSummary(result.summary);
-        setStep(2);
+        const resultValue = e.target?.result;
+        if (resultValue instanceof ArrayBuffer) {
+          const result = parseWorkbook(resultValue);
+          setParsed(result.employees);
+          setSummary(result.summary);
+          setStep(2);
+          return;
+        }
+        throw new TypeError('تعذر قراءة محتوى الملف');
       } catch (err: unknown) {
         console.error('[ImportEmployeesModal] parse file failed', err);
         toast({ title: 'خطأ في قراءة الملف', description: getErrorMessage(err), variant: 'destructive' });
@@ -652,20 +687,18 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
               <p className="text-sm text-muted-foreground">
                 يدعم الملف بصيغة بيانات الموظفين الحالية (78 موظف أو أكثر)
               </p>
-              <div
+              <button
+                type="button"
                 className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-10 text-center cursor-pointer transition-colors"
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileRef.current?.click(); }}
               >
                 <Upload size={32} className="mx-auto text-muted-foreground mb-3" />
                 <p className="font-medium text-foreground">اضغط لاختيار ملف أو اسحبه هنا</p>
                 <p className="text-xs text-muted-foreground mt-1">xlsx أو xls فقط</p>
                 {fileName && <p className="mt-2 text-sm text-primary font-medium">📄 {fileName}</p>}
-              </div>
+              </button>
               <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </div>

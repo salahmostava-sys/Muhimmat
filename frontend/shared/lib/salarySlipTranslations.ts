@@ -114,7 +114,11 @@ const toSlipTranslations = (values: readonly string[]): SlipTranslations => {
   if (values.length !== SLIP_KEYS.length) {
     throw new Error(`salarySlipTranslations: expected ${SLIP_KEYS.length} values, got ${values.length}`);
   }
-  return Object.fromEntries(SLIP_KEYS.map((key, idx) => [key, values[idx]])) as SlipTranslations;
+  const out = {} as Record<keyof SlipTranslations, string>;
+  SLIP_KEYS.forEach((key, idx) => {
+    out[key] = values[idx];
+  });
+  return out as SlipTranslations;
 };
 
 const translations: Record<SlipLanguage, SlipTranslations> = {
