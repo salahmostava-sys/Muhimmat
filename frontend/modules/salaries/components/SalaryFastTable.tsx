@@ -18,7 +18,7 @@ const SALARY_TABLE_SKELETON_KEYS = [
   'salary-table-skeleton-12',
 ] as const;
 
-export function SalaryTable(props: Readonly<{
+export function SalaryFastTable(props: Readonly<{
   rows: SalaryFastRow[];
   total: number;
   page: number;

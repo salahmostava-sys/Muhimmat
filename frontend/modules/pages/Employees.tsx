@@ -466,11 +466,6 @@ const Employees = () => {
     const filteredRows = applyEmployeeFilters(data, colFilters);
     return sortEmployees(filteredRows, sortField, sortDir);
   }, [data, colFilters, sortField, sortDir]);
-  const employeeStats = useMemo(() => {
-    const inactive = filtered.filter((emp) => emp.status === 'inactive').length;
-    const ended = filtered.filter((emp) => emp.status === 'ended').length;
-    return { inactive, ended };
-  }, [filtered]);
 
   // ── Pagination ──
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -893,13 +888,6 @@ const Employees = () => {
           {floatingUploadBody}
         </div>
       )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-lg border bg-card p-3 text-sm">إجمالي النتائج: <span className="font-bold">{filtered.length}</span></div>
-        <div className="rounded-lg border bg-card p-3 text-sm">غير نشط: <span className="font-bold">{employeeStats.inactive}</span></div>
-        <div className="rounded-lg border bg-card p-3 text-sm">منتهي: <span className="font-bold">{employeeStats.ended}</span></div>
-      </div>
 
       {/* Active filters summary */}
       {hasActiveFilters && (

@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shared/compon
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@shared/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
-import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Globe, Archive, TrendingUp, Users, Building2, Loader2 } from 'lucide-react';
+import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@shared/hooks/use-toast';
+import { format } from 'date-fns';
 import { useAppColors, CustomColumn } from '@shared/hooks/useAppColors';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
@@ -20,6 +21,7 @@ import { salaryService, type PricingRule, type SalarySchemeTier } from '@service
 import { salaryDataService } from '@services/salaryDataService';
 import { salarySlipService } from '@services/salarySlipService';
 import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 import { createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
 import { TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableActions';
 import { SALARY_IMPORT_TEMPLATE_HEADERS, SALARY_IO_COLUMNS, type SalaryIoRecord, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
@@ -31,26 +33,400 @@ import { driverService } from '@services/driverService';
 import type JSZip from 'jszip';
 import { toCityArabicLabel, type FastApprovedFilter } from '@modules/salaries/model/salaryUtils';
 import { SalaryFastList as SalariesFastList } from '@modules/salaries/components/SalaryFastList';
-import { SalarySchemeSelector } from '@modules/salaries/components/SalarySchemeSelector';
-import { useSalaryFilteredRows } from '@modules/salaries/hooks/useSalaryTable';
 
-import { PLATFORM_COLORS, statusLabels, statusStyles, SALARY_CARD_SKELETON_KEYS, getOrdersCellBackground, shortEmployeeName } from '@modules/salaries/lib/salaryConstants';
-import { months } from '@modules/salaries/lib/salaryMonths';
-import { MERGED_PDF_STYLES, buildMergedSalaryPageHtml } from '@modules/salaries/lib/salaryMergedPdf';
-import {
-  prepareSalaryState,
-  getManualDeductionTotal,
-  getTotalDeductions,
-} from '@modules/salaries/lib/salaryDomain';
-import type {
+
+// Kept for legacy references — populated dynamically from DB at runtime
+const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
+
+const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
+const statusStyles: Record<string, string> = { pending: 'badge-warning', approved: 'badge-info', paid: 'badge-success' };
+const SALARY_CARD_SKELETON_KEYS = [
+  'salary-card-skeleton-1',
+  'salary-card-skeleton-2',
+  'salary-card-skeleton-3',
+  'salary-card-skeleton-4',
+  'salary-card-skeleton-5',
+  'salary-card-skeleton-6',
+  'salary-card-skeleton-7',
+  'salary-card-skeleton-8',
+] as const;
+const getStatusStyleForPrint = (status: SalaryRow['status']) => {
+  if (status === 'paid') return 'background:#dcfce7;color:#15803d';
+  if (status === 'approved') return 'background:#dbeafe;color:#1d4ed8';
+  return 'background:#fef9c3;color:#92400e';
+};
+
+const getOrdersCellBackground = (
+  orders: number,
+  hitTarget: boolean,
+  defaultBackground: string | undefined
+) => {
+  if (orders === 0) return undefined;
+  if (hitTarget) return 'rgba(34,197,94,0.08)';
+  return defaultBackground;
+};
+
+const toComparableSortValue = (value: unknown): string | number => {
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  return Number(value) || 0;
+};
+
+const wasFixedSchemeAlreadyCalculated = (
+  platformNames: string[],
+  appSchemeMap: Record<string, SchemeData | null>,
+  platformSalaries: Record<string, number>,
+  currentPlatform: string,
+  schemeId: string,
+) => {
+  return platformNames.some(
+    (prev) =>
+      prev !== currentPlatform &&
+      appSchemeMap[prev]?.id === schemeId &&
+      platformSalaries[prev] !== undefined
+  );
+};
+
+const loadXlsx = () => import('@e965/xlsx');
+const loadHtml2Canvas = async () => (await import('html2canvas')).default;
+const loadJsPdf = async () => (await import('jspdf')).default;
+const loadJsZip = async () => (await import('jszip')).default;
+
+const calculatePlatformSalary = ({
+  platformName,
+  orders,
+  attendanceDays,
+  platformNames,
+  appNameToId,
+  rulesMap,
+  appSchemeMap,
+  platformSalaries,
+}: {
+  platformName: string;
+  orders: number;
+  attendanceDays: number;
+  platformNames: string[];
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appSchemeMap: Record<string, SchemeData | null>;
+  platformSalaries: Record<string, number>;
+}) => {
+  const appId = appNameToId[platformName];
+  const appRules = appId ? (rulesMap[appId] || []) : [];
+  const ruleResult = salaryService.applyPricingRules(appRules, orders);
+  if (ruleResult.matchedRule) return Math.round(ruleResult.salary);
+
+  const scheme = appSchemeMap[platformName];
+  if (!scheme) return 0;
+
+  if (scheme.scheme_type === 'fixed_monthly') {
+    const alreadyCalculated = wasFixedSchemeAlreadyCalculated(
+      platformNames,
+      appSchemeMap,
+      platformSalaries,
+      platformName,
+      scheme.id
+    );
+    if (alreadyCalculated) return 0;
+    return salaryService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+  }
+
+  if (orders === 0) return 0;
+  if (!scheme.salary_scheme_tiers) return 0;
+  return salaryService.calculateTierSalary(
+    orders,
+    scheme.salary_scheme_tiers as SalarySchemeTier[],
+    scheme.target_orders,
+    scheme.target_bonus
+  );
+};
+
+const generateMonths = () => {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const v = format(d, 'yyyy-MM');
+    const l = d.toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
+    months.push({ v, l });
+  }
+  return months;
+};
+const months = generateMonths();
+
+const shortEmployeeName = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[1]}`;
+};
+
+type SortDir = 'asc' | 'desc' | null;
+interface SalaryRow {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  jobTitle: string;
+  nationalId: string;
+  city: string;
+  /** قيمة قاعدة البيانات للفرع — للتصفية والحفظ */
+  cityKey: 'makkah' | 'jeddah' | null;
+  bankAccount: string;
+  hasIban: boolean;
+  paymentMethod: 'bank' | 'cash';
+  registeredApps: string[];
+  platformOrders: Record<string, number>;
+  platformSalaries: Record<string, number>;
+  incentives: number;
+  sickAllowance: number;
+  violations: number;
+  // Dynamic deduction columns keyed by "appName___colKey"
+  customDeductions: Record<string, number>;
+  transfer: number;
+  advanceDeduction: number;
+  advanceInstallmentIds: string[];
+  advanceRemaining: number;
+  externalDeduction: number;
+  status: 'pending' | 'approved' | 'paid';
+  isDirty?: boolean;
+  preferredLanguage: SlipLanguage;
+  phone?: string | null;
+  // New columns: work days from attendance, fuel from vehicle_mileage
+  workDays: number;
+  fuelCost: number;
+  platformIncome: number;
+  engineBaseSalary?: number;
+}
+
+interface SchemeData {
+  id: string;
+  name: string;
+  name_en: string | null;
+  status: string;
+  scheme_type?: 'order_based' | 'fixed_monthly';
+  monthly_amount?: number | null;
+  target_orders: number | null;
+  target_bonus: number | null;
+  salary_scheme_tiers?: {
+    from_orders: number;
+    to_orders: number | null;
+    price_per_order: number;
+    tier_order: number;
+    tier_type?: 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
+    incremental_threshold?: number | null;
+    incremental_price?: number | null;
+  }[];
+  snapshot?: unknown;
+  scheme_id?: string;
+}
+
+type OrderWithAppRow = {
+  employee_id: string;
+  orders_count: number;
+  apps?: { name?: string | null } | null;
+};
+
+type AppWithSchemeRow = {
+  id: string;
+  name: string;
+  salary_schemes?: SchemeData | null;
+};
+
+type SalaryDraftPatch = Pick<
   SalaryRow,
-  SchemeData,
-  SortDir,
-  SalaryBaseContextData,
-  OrderWithAppRow,
-  SalaryDraftPatch,
-  PreparedSalaryState,
-} from '@modules/salaries/types/salary.types';
+  'platformOrders' | 'incentives' | 'sickAllowance' | 'violations' | 'customDeductions' | 'transfer' | 'advanceDeduction' | 'externalDeduction' | 'platformIncome'
+>;
+
+type MergedPdfComputed = {
+  totalPlatformSalary: number;
+  totalAdditions: number;
+  totalWithSalary: number;
+  totalDeductions: number;
+  netSalary: number;
+  remaining: number;
+};
+
+const MERGED_PDF_STYLES = `
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a;font-size:13px;background:#fff}
+  .page-break{max-width:700px;margin:0 auto;padding:24px}
+  .break-before{page-break-before:always}
+  .header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #4f46e5;padding-bottom:12px;margin-bottom:16px}
+  .title{font-size:20px;font-weight:800;color:#4f46e5}
+  .subtitle{font-size:11px;color:#666;margin-top:2px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700}
+  .badge-paid{background:#dcfce7;color:#15803d}
+  .badge-approved{background:#dbeafe;color:#1d4ed8}
+  .badge-pending{background:#fef9c3;color:#b45309}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f8f8ff;border-radius:8px;padding:12px;margin-bottom:14px}
+  .info-row{display:flex;flex-direction:column}
+  .info-label{font-size:10px;color:#888;margin-bottom:1px}
+  .info-value{font-size:12px;font-weight:600;color:#111}
+  h3{font-size:12px;font-weight:700;color:#4f46e5;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+  table{width:100%;border-collapse:collapse;margin-bottom:10px}
+  td{padding:7px 10px;border:1px solid #e5e7eb;font-size:12px}
+  .label{background:#f3f4f6;font-weight:600;width:55%}
+  .val-blue{color:#2563eb;font-weight:700}
+  .val-green{color:#16a34a;font-weight:700}
+  .val-red{color:#dc2626;font-weight:700}
+  .val-orange{color:#ea580c;font-weight:600}
+  .total-row td{background:#eff6ff;font-weight:700;font-size:13px}
+  .deduction-total td{background:#fff1f2;font-weight:700}
+  .net-row td{background:#f0fdf4;font-size:15px;font-weight:800}
+  .footer{display:flex;justify-content:space-between;margin-top:28px;border-top:1px solid #ddd;padding-top:16px;font-size:11px;color:#555}
+  @media print{body{padding:0}.page-break{padding:20px;max-width:100%}}
+`;
+
+const buildMergedPlatformsRowsHtml = (row: SalaryRow): string => {
+  if (row.registeredApps.length === 0) {
+    return `<tr><td colspan="3" style="text-align:center;color:#999">لا توجد منصات مسجلة</td></tr>`;
+  }
+  return row.registeredApps.map((app) => {
+    const orders = row.platformOrders[app] || 0;
+    const salary = row.platformSalaries[app] || 0;
+    return `<tr><td class="label">${escapeHtml(app)}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
+  }).join('');
+};
+
+const buildMergedAdditionsSectionHtml = (row: SalaryRow, c: MergedPdfComputed): string => {
+  if (c.totalAdditions <= 0) return '';
+  const incentivesRow = row.incentives > 0 ? `<tr><td class="label">الحوافز</td><td class="val-green">+ ${row.incentives.toLocaleString()} ر.س</td></tr>` : '';
+  const sickAllowanceRow = row.sickAllowance > 0 ? `<tr><td class="label">بدل مرضي</td><td class="val-green">+ ${row.sickAllowance.toLocaleString()} ر.س</td></tr>` : '';
+  return `
+    <h3>الإضافات</h3>
+    <table>
+      ${incentivesRow}
+      ${sickAllowanceRow}
+      <tr class="total-row"><td class="label">المجموع مع الراتب</td><td class="val-blue">${c.totalWithSalary.toLocaleString()} ر.س</td></tr>
+    </table>
+  `;
+};
+
+const buildMergedDeductionsSectionHtml = (row: SalaryRow, c: MergedPdfComputed): string => {
+  if (c.totalDeductions <= 0) return '';
+  const advanceRow = row.advanceDeduction > 0 ? `<tr><td class="label">قسط سلفة</td><td class="val-red">- ${row.advanceDeduction.toLocaleString()} ر.س</td></tr>` : '';
+  const remainingAdvanceRow = row.advanceRemaining > 0 ? `<tr><td class="label">رصيد السلفة المتبقي</td><td class="val-orange">${row.advanceRemaining.toLocaleString()} ر.س</td></tr>` : '';
+  const externalRow = row.externalDeduction > 0 ? `<tr><td class="label">خصومات خارجية</td><td class="val-red">- ${row.externalDeduction.toLocaleString()} ر.س</td></tr>` : '';
+  const violationsRow = row.violations > 0 ? `<tr><td class="label">مخالفات</td><td class="val-red">- ${row.violations.toLocaleString()} ر.س</td></tr>` : '';
+  return `
+    <h3>المستقطعات</h3>
+    <table>
+      ${advanceRow}
+      ${remainingAdvanceRow}
+      ${externalRow}
+      ${violationsRow}
+      <tr class="deduction-total"><td class="label">إجمالي المستقطعات</td><td class="val-red">- ${c.totalDeductions.toLocaleString()} ر.س</td></tr>
+    </table>
+  `;
+};
+
+const buildMergedSalaryPageHtml = ({
+  row,
+  computed,
+  index,
+  monthLabel,
+}: {
+  row: SalaryRow;
+  computed: MergedPdfComputed;
+  index: number;
+  monthLabel: string;
+}): string => {
+  const statusLabel = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[row.status];
+  const paymentMethodLabel = row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش';
+  const transferRows = row.transfer > 0
+    ? `<tr><td class="label">المبلغ المحوّل</td><td>${row.transfer.toLocaleString()} ر.س</td></tr>
+       <tr><td class="label">المتبقي نقداً</td><td class="val-orange">${computed.remaining.toLocaleString()} ر.س</td></tr>`
+    : '';
+
+  return `
+    <div class="page-break${index > 0 ? ' break-before' : ''}">
+      <div class="header">
+        <div>
+          <div class="title">🚀 كشف راتب شهري</div>
+          <div class="subtitle">${monthLabel}</div>
+        </div>
+        <span class="badge badge-${row.status}">${statusLabel}</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${escapeHtml(row.employeeName)}</span></div>
+        <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${escapeHtml(row.nationalId)}</span></div>
+        <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${escapeHtml(row.city)}</span></div>
+        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${paymentMethodLabel}</span></div>
+      </div>
+      <h3>الطلبات والراتب حسب المنصة</h3>
+      <table>
+        <tr><td class="label" style="background:#e0e7ff;color:#4338ca;font-weight:700">المنصة</td>
+            <td style="background:#e0e7ff;color:#4338ca;font-weight:700;text-align:center">الطلبات</td>
+            <td style="background:#e0e7ff;color:#4338ca;font-weight:700;text-align:center">الراتب</td></tr>
+        ${buildMergedPlatformsRowsHtml(row)}
+        <tr class="total-row"><td class="label">إجمالي الراتب الأساسي</td><td></td><td class="val-blue" style="text-align:center">${computed.totalPlatformSalary.toLocaleString()} ر.س</td></tr>
+      </table>
+      ${buildMergedAdditionsSectionHtml(row, computed)}
+      ${buildMergedDeductionsSectionHtml(row, computed)}
+      <h3>الصافي</h3>
+      <table>
+        <tr class="net-row"><td class="label">إجمالي الراتب الصافي</td><td class="val-green">${computed.netSalary.toLocaleString()} ر.س</td></tr>
+        ${transferRows}
+      </table>
+      <div class="footer">
+        <div>توقيع المندوب: _______________________</div>
+        <div>اعتماد المدير: _______________________</div>
+        <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
+      </div>
+    </div>`;
+};
+
+const getManualDeductionTotal = (row: SalaryRow) =>
+  Object.values(row.customDeductions || {}).reduce((sum, value) => sum + value, 0);
+
+const getTotalDeductions = (row: SalaryRow) =>
+  row.advanceDeduction + row.externalDeduction + row.violations + getManualDeductionTotal(row);
+
+const buildSavedMap = (savedRecords: Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined) => {
+  const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
+  savedRecords?.forEach((r) => {
+    savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
+  });
+  return savedMap;
+};
+
+const buildPreviewMap = (previewData: Array<Record<string, unknown>> | null | undefined) => {
+  const previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }> = {};
+  (previewData || []).forEach((row) => {
+    const employeeId = String(row.employee_id || '');
+    if (!employeeId) return;
+    previewMap[employeeId] = {
+      base_salary: Number(row.base_salary || 0),
+      advance_deduction: Number(row.advance_deduction || 0),
+      external_deduction: Number(row.external_deduction || 0),
+    };
+  });
+  return previewMap;
+};
+
+const buildAttendanceDaysMap = (rows: Array<{ employee_id: string }> | null | undefined) => {
+  const attendanceDaysMap: Record<string, number> = {};
+  rows?.forEach((r) => {
+    attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
+  });
+  return attendanceDaysMap;
+};
+
+const buildFuelCostMap = (rows: Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined) => {
+  const fuelCostMap: Record<string, number> = {};
+  rows?.forEach((r) => {
+    fuelCostMap[r.employee_id] = (fuelCostMap[r.employee_id] || 0) + Number(r.fuel_cost);
+  });
+  return fuelCostMap;
+};
+
+const buildOrdersMap = (rows: OrderWithAppRow[] | null | undefined) => {
+  const ordMap: Record<string, Record<string, number>> = {};
+  (rows || []).forEach((r) => {
+    const appName = r.apps?.name || 'غير معروف';
+    if (!ordMap[r.employee_id]) ordMap[r.employee_id] = {};
+    ordMap[r.employee_id][appName] = (ordMap[r.employee_id][appName] || 0) + r.orders_count;
+  });
+  return ordMap;
+};
 
 const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: SortDir }) => {
   if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
@@ -83,6 +459,309 @@ const renderEngineStatusBadge = (loadingData: boolean, previewBackendError: stri
   );
 };
 
+const resolveRowStatus = (
+  saved: { is_approved: boolean; net_salary: number } | undefined,
+  pendingInstallmentsCount: number,
+  deductedInstallmentsCount: number,
+): SalaryRow['status'] => {
+  if (!saved?.is_approved) return 'pending';
+  if (deductedInstallmentsCount > 0 || pendingInstallmentsCount === 0) {
+    return pendingInstallmentsCount === 0 ? 'paid' : 'approved';
+  }
+  return 'approved';
+};
+
+const buildEmpPlatformSchemeMap = (
+  employeeIds: string[],
+  platformNames: string[],
+  appSchemeMap: Record<string, SchemeData | null>,
+) => {
+  const out: Record<string, Record<string, SchemeData | null>> = {};
+  for (const employeeId of employeeIds) {
+    out[employeeId] = {};
+    for (const platformName of platformNames) {
+      out[employeeId][platformName] = appSchemeMap[platformName] ?? null;
+    }
+  }
+  return out;
+};
+
+const buildAdvanceInstallmentMaps = async (
+  selectedMonth: string,
+  allAdvances: Array<{ id: string; employee_id: string }> | null | undefined,
+) => {
+  const advInstIds: Record<string, string[]> = {};
+  const deductedInstIds: Record<string, string[]> = {};
+  const advRemainingMap: Record<string, number> = {};
+  if (!allAdvances || allAdvances.length === 0) {
+    return { advInstIds, deductedInstIds, advRemainingMap };
+  }
+
+  const advanceIds = allAdvances.map(a => a.id);
+  const advIdToEmpMap: Record<string, string> = {};
+  for (const advance of allAdvances) advIdToEmpMap[advance.id] = advance.employee_id;
+
+  const advInstData = await salaryDataService.getMonthInstallmentsForAdvances(selectedMonth, advanceIds);
+  const allPendingInsts = await salaryDataService.getPendingInstallmentsForAdvances(advanceIds);
+
+  allPendingInsts?.forEach((inst) => {
+    const empId = advIdToEmpMap[inst.advance_id];
+    if (!empId) return;
+    advRemainingMap[empId] = (advRemainingMap[empId] || 0) + Number(inst.amount);
+  });
+
+  advInstData?.forEach((inst) => {
+    const empId = advIdToEmpMap[inst.advance_id];
+    if (!empId) return;
+    if (inst.status === 'pending' || inst.status === 'deferred') {
+      if (!advInstIds[empId]) advInstIds[empId] = [];
+      advInstIds[empId].push(inst.id);
+      return;
+    }
+    if (inst.status === 'deducted') {
+      if (!deductedInstIds[empId]) deductedInstIds[empId] = [];
+      deductedInstIds[empId].push(inst.id);
+    }
+  });
+
+  return { advInstIds, deductedInstIds, advRemainingMap };
+};
+
+const buildSalaryRows = ({
+  employees,
+  selectedMonth,
+  platformNames,
+  appNameToId,
+  rulesMap,
+  appSchemeMap,
+  ordMap,
+  attendanceDaysMap,
+  savedMap,
+  previewMap,
+  advInstIds,
+  deductedInstIds,
+  advRemainingMap,
+  fuelCostMap,
+}: {
+  employees: Array<Record<string, unknown>>;
+  selectedMonth: string;
+  platformNames: string[];
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appSchemeMap: Record<string, SchemeData | null>;
+  ordMap: Record<string, Record<string, number>>;
+  attendanceDaysMap: Record<string, number>;
+  savedMap: Record<string, { is_approved: boolean; net_salary: number }>;
+  previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }>;
+  advInstIds: Record<string, string[]>;
+  deductedInstIds: Record<string, string[]>;
+  advRemainingMap: Record<string, number>;
+  fuelCostMap: Record<string, number>;
+}) => {
+  const newRows: SalaryRow[] = [];
+  for (const emp of employees) {
+    const employeeId = String(emp.id);
+    const empOrders = ordMap[employeeId] || {};
+    const attendanceDays = attendanceDaysMap[employeeId] || 0;
+    const registeredApps = Object.keys(empOrders).filter(k => empOrders[k] > 0);
+
+    const platformOrders: Record<string, number> = {};
+    const platformSalaries: Record<string, number> = {};
+    for (const platformName of platformNames) {
+      const orders = empOrders[platformName] || 0;
+      platformOrders[platformName] = orders;
+      platformSalaries[platformName] = calculatePlatformSalary({
+        platformName,
+        orders,
+        attendanceDays,
+        platformNames,
+        appNameToId,
+        rulesMap,
+        appSchemeMap,
+        platformSalaries,
+      });
+    }
+
+    const saved = savedMap[employeeId];
+    const pendingInstallmentsCount = (advInstIds[employeeId] || []).length;
+    const deductedInstallmentsCount = (deductedInstIds[employeeId] || []).length;
+    const status = resolveRowStatus(saved, pendingInstallmentsCount, deductedInstallmentsCount);
+    const preview = previewMap[employeeId];
+    const hasIban = !!emp.iban;
+    const rawCity = (emp.city as string | null | undefined) ?? null;
+    const cityKey: 'makkah' | 'jeddah' | null =
+      rawCity === 'makkah' || rawCity === 'jeddah' ? rawCity : null;
+    const preferredLanguage = (emp as { preferred_language?: SlipLanguage | null }).preferred_language || 'ar';
+    const phone = (emp as { phone?: string | null }).phone || null;
+
+    newRows.push({
+      id: `${employeeId}-${selectedMonth}`,
+      employeeId,
+      employeeName: String(emp.name || ''),
+      jobTitle: String(emp.job_title || 'مندوب توصيل'),
+      nationalId: String(emp.national_id || '—'),
+      city: toCityArabicLabel(rawCity),
+      cityKey,
+      bankAccount: emp.iban ? String(emp.iban).slice(-6) : '',
+      hasIban,
+      paymentMethod: hasIban ? 'bank' : 'cash',
+      registeredApps,
+      platformOrders,
+      platformSalaries,
+      incentives: 0,
+      sickAllowance: 0,
+      violations: 0,
+      customDeductions: {},
+      transfer: 0,
+      advanceDeduction: preview.advance_deduction,
+      advanceInstallmentIds: advInstIds[employeeId] || [],
+      advanceRemaining: advRemainingMap[employeeId] || 0,
+      externalDeduction: preview.external_deduction,
+      status,
+      preferredLanguage,
+      phone,
+      workDays: attendanceDays,
+      fuelCost: fuelCostMap[employeeId] || 0,
+      platformIncome: 0,
+      engineBaseSalary: preview.base_salary,
+    });
+  }
+
+  return newRows;
+};
+
+const hydrateRowsWithDraft = (rows: SalaryRow[], draftKey: string) => {
+  let hydratedRows = rows;
+  try {
+    const draftRaw = localStorage.getItem(draftKey);
+    if (!draftRaw) return hydratedRows;
+    const draft = JSON.parse(draftRaw) as Record<string, SalaryDraftPatch>;
+    hydratedRows = rows.map((row) => {
+      const patch = draft[row.id];
+      return patch ? { ...row, ...patch, isDirty: true } : row;
+    });
+  } catch (e) {
+    logError('[Salaries] ignored malformed salaries draft in localStorage', e, { level: 'warn' });
+  }
+  return hydratedRows;
+};
+
+const buildAppMaps = (appsWithScheme: AppWithSchemeRow[] | null | undefined) => {
+  const appSchemeMap: Record<string, SchemeData | null> = {};
+  const appNameToId: Record<string, string> = {};
+  (appsWithScheme || []).forEach((app) => {
+    appSchemeMap[app.name] = app.salary_schemes ?? null;
+    appNameToId[app.name] = app.id;
+  });
+  return { appSchemeMap, appNameToId };
+};
+
+const fetchPricingRulesMap = async (appNameToId: Record<string, string>) => {
+  const appIds = Object.values(appNameToId);
+  const rulesByApp = await Promise.all(
+    appIds.map(async (appId) => {
+      const rules = await salaryService.getPricingRules(appId);
+      return { appId, rules: rules || [] };
+    })
+  );
+  const rulesMap: Record<string, PricingRule[]> = {};
+  rulesByApp.forEach(({ appId, rules }) => {
+    rulesMap[appId] = rules;
+  });
+  return rulesMap;
+};
+
+type SalaryBaseContextData = {
+  monthlyContext: {
+    employees: unknown;
+    orders: unknown;
+    appsWithSchemeRes: { data: unknown };
+    attendanceRows: unknown;
+    fuelRes: { data: unknown };
+    savedRecords: unknown;
+    allAdvances: unknown;
+  };
+  previewData: unknown;
+};
+
+type PreparedSalaryState = {
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appsWithoutPricingRules: string[];
+  appsWithoutScheme: string[];
+  builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>>;
+  hydratedRows: SalaryRow[];
+};
+
+const prepareSalaryState = async ({
+  salaryBaseContext,
+  selectedMonth,
+  activeEmployeeIdsInMonth,
+  salariesDraftKey,
+}: {
+  salaryBaseContext: SalaryBaseContextData;
+  selectedMonth: string;
+  activeEmployeeIdsInMonth: string[];
+  salariesDraftKey: string;
+}): Promise<PreparedSalaryState> => {
+  const { monthlyContext, previewData } = salaryBaseContext;
+  const { employees: empRows, orders, appsWithSchemeRes, attendanceRows, fuelRes, savedRecords, allAdvances } = monthlyContext;
+  const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
+  const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
+  const { advInstIds, deductedInstIds, advRemainingMap } = await buildAdvanceInstallmentMaps(
+    selectedMonth,
+    (allAdvances as Array<{ id: string; employee_id: string }> | null | undefined) || []
+  );
+
+  const employees = filterVisibleEmployeesInMonth(
+    (empRows || []) as { id: string; sponsorship_status?: string | null }[],
+    activeEmployeeIdsInMonth
+  );
+  if (employees.some((emp) => !previewMap[emp.id])) {
+    throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
+  }
+
+  const attendanceDaysMap = buildAttendanceDaysMap(attendanceRows as Array<{ employee_id: string }> | null | undefined);
+  const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
+  const ordMap = buildOrdersMap(orders as OrderWithAppRow[] | null);
+  const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
+  const { appSchemeMap, appNameToId } = buildAppMaps(appsFromApi);
+  const platformNames = appsFromApi.map((a) => a.name);
+  const rulesMap = await fetchPricingRulesMap(appNameToId);
+  const builtEmpPlatformScheme = buildEmpPlatformSchemeMap(
+    employees.map((emp) => emp.id),
+    platformNames,
+    appSchemeMap
+  );
+  const newRows = buildSalaryRows({
+    employees: employees as Array<Record<string, unknown>>,
+    selectedMonth,
+    platformNames,
+    appNameToId,
+    rulesMap,
+    appSchemeMap,
+    ordMap,
+    attendanceDaysMap,
+    savedMap,
+    previewMap,
+    advInstIds,
+    deductedInstIds,
+    advRemainingMap,
+    fuelCostMap,
+  });
+  const hydratedRows = hydrateRowsWithDraft(newRows, salariesDraftKey);
+  const appsWithoutPricingRules = appsFromApi.filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0).map((a) => a.name);
+  const appsWithoutScheme = appsFromApi.filter((a) => !a.salary_schemes).map((a) => a.name);
+
+  return {
+    appNameToId,
+    rulesMap,
+    appsWithoutPricingRules,
+    appsWithoutScheme,
+    builtEmpPlatformScheme,
+    hydratedRows,
+  };
+};
 
 interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; companyName?: string; }
 
@@ -518,7 +1197,6 @@ const Salaries = () => {
   const { apps: appColorsList } = useAppColors();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [cityFilter, setCityFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(months[0].v);
   const { data: activeIdsData } = useMonthlyActiveEmployeeIds(selectedMonth);
   const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
@@ -720,15 +1398,15 @@ const Salaries = () => {
     return () => clearTimeout(timer);
   }, [rows, loadingData, salariesDraftKey]);
 
-  const { filtered, computeRow } = useSalaryFilteredRows(
-    rows,
-    search,
-    statusFilter,
-    cityFilter,
-    sortField,
-    sortDir,
-    platforms
-  );
+  const computeRow = useCallback((r: SalaryRow) => {
+    const totalPlatformSalary = Number(r.engineBaseSalary || 0);
+    const totalAdditions = r.incentives + r.sickAllowance;
+    const totalWithSalary = totalPlatformSalary + totalAdditions;
+    const totalDeductions = getTotalDeductions(r);
+    const netSalary = totalWithSalary - totalDeductions;
+    const remaining = netSalary - r.transfer;
+    return { totalPlatformSalary, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
+  }, []);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -740,6 +1418,49 @@ const Salaries = () => {
       setSortDir('asc');
     }
   };
+
+  // ── City filter for salaries table
+  const [cityFilter, setCityFilter] = useState('all');
+
+  const filteredBase = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter(r => {
+      const matchSearch = q === '' || r.employeeName.toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'all' || r.status === statusFilter;
+      const matchCity = cityFilter === 'all' || r.cityKey === cityFilter;
+      return matchSearch && matchStatus && matchCity;
+    });
+  }, [rows, search, statusFilter, cityFilter]);
+
+  const filtered = useMemo(() => {
+    if (!sortField || !sortDir) return filteredBase;
+    const getSortValue = (row: SalaryRow) => {
+      const computed = computeRow(row);
+      switch (sortField) {
+        case 'employeeName': return row.employeeName;
+        case 'jobTitle': return row.jobTitle;
+        case 'nationalId': return row.nationalId;
+        case 'platformSalaries': return computed.totalPlatformSalary;
+        case 'incentives': return row.incentives;
+        case 'totalAdditions': return computed.totalAdditions;
+        case 'advanceDeduction': return row.advanceDeduction;
+        case 'totalDeductions': return computed.totalDeductions;
+        case 'netSalary': return computed.netSalary;
+        case 'status': return row.status;
+        default:
+          if (platforms.includes(sortField)) return row.platformOrders[sortField] || 0;
+          return toComparableSortValue((row as Record<string, unknown>)[sortField]);
+      }
+    };
+
+    return [...filteredBase].sort((a, b) => {
+      const va = getSortValue(a);
+      const vb = getSortValue(b);
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredBase, sortField, sortDir, computeRow, platforms]);
 
   const updateRow = useCallback((id: string, patch: Partial<SalaryRow>) => {
     setRows(prev => prev.map(r => {
@@ -1575,11 +2296,35 @@ const Salaries = () => {
         </div>
       )}
 
-      <SalarySchemeSelector
-        appsWithoutScheme={appsWithoutScheme}
-        appsWithoutPricingRulesDeduped={appsWithoutPricingRulesDeduped}
-        onOpenSettings={() => navigate('/settings/schemes')}
-      />
+      {(appsWithoutScheme.length > 0 || appsWithoutPricingRulesDeduped.length > 0) && (
+        <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
+          <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">إعداد مطلوب للمنصات</p>
+            {appsWithoutScheme.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                بدون سكيمة رواتب:{' '}
+                <span className="font-semibold text-warning mr-1">{appsWithoutScheme.join(' · ')}</span>
+              </p>
+            )}
+            {appsWithoutPricingRulesDeduped.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                بدون Pricing Rules:{' '}
+                <span className="font-semibold text-warning mr-1">{appsWithoutPricingRulesDeduped.join(' · ')}</span>
+              </p>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs border-warning/40 text-warning hover:bg-warning/10 flex-shrink-0"
+            onClick={() => navigate('/settings/schemes')}
+          >
+            <Settings2 size={13} />
+            <span>فتح الإعداد</span>
+          </Button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">

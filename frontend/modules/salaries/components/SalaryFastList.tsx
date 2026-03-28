@@ -9,7 +9,7 @@ import type { FastApprovedFilter } from '@modules/salaries/model/salaryUtils';
 import { useSalariesFastList, type SalaryFastRow } from '@modules/salaries/hooks/useSalaries';
 import { SalarySummary } from '@modules/salaries/components/SalarySummary';
 import { SalaryFilters } from '@modules/salaries/components/SalaryFilters';
-import { SalaryTable } from '@modules/salaries/components/SalaryTable';
+import { SalaryFastTable } from '@modules/salaries/components/SalaryFastTable';
 
 const loadXlsx = () => import('@e965/xlsx');
 
@@ -132,7 +132,7 @@ export function SalaryFastList(props: Readonly<{
         onFiltersChange={onFiltersChange}
       />
 
-      <SalaryTable
+      <SalaryFastTable
         rows={rows}
         total={total}
         page={page}
