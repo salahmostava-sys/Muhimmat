@@ -1,6 +1,16 @@
-/** بعد نشر نسخة جديدة قد يطلب المتصفح chunk قديمًا — إعادة تحميل الصفحة مرة واحدة تجلب `index.html` وأسماء الملفات الصحيحة. */
+/** بعد نشر نسخة جديدة قد يطلب المتصفح chunk قديمًا — إعادة تحميل الصفحة تجلب `index.html` وأسماء الملفات الصحيحة. */
 
-const CHUNK_RELOAD_KEY = '__chunk_reload_once__';
+const RELOAD_TS_KEY = '__chunk_reload_ts__';
+
+function reasonToString(reason: unknown): string {
+  if (reason instanceof Error) {
+    return `${reason.message} ${reason.stack ?? ''}`;
+  }
+  if (reason && typeof reason === 'object' && 'message' in reason) {
+    return String((reason as { message?: unknown }).message);
+  }
+  return String(reason ?? '');
+}
 
 export function isLikelyStaleChunkError(message: string): boolean {
   const m = message.toLowerCase();
@@ -9,22 +19,39 @@ export function isLikelyStaleChunkError(message: string): boolean {
     m.includes('dynamically imported module') ||
     m.includes('chunkloaderror') ||
     m.includes('loading chunk') ||
-    m.includes('importing a module script failed')
+    m.includes('importing a module script failed') ||
+    m.includes('error loading dynamically imported module')
   );
 }
 
-/** يعيد تحميل الصفحة مرة واحدة لكل جلسة إن لم تُجرَ محاولة سابقة. يعيد `true` إذا بدأ التحميل. */
+export function isLikelyStaleChunkReason(reason: unknown): boolean {
+  return isLikelyStaleChunkError(reasonToString(reason));
+}
+
+/**
+ * يعيد تحميل الصفحة مرة واحدة خلال نافذة زمنية قصيرة لتفادي حلقة لا نهائية عند فشل دائم.
+ * يعيد `true` إذا بدأ التحميل.
+ */
 export function reloadOnceForStaleChunk(): boolean {
+  const now = Date.now();
   try {
-    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+    const last = sessionStorage.getItem(RELOAD_TS_KEY);
+    if (last && now - Number(last) < 8000) {
       return false;
     }
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
-    }
+    sessionStorage.setItem(RELOAD_TS_KEY, String(now));
   } catch {
     /* ignore */
   }
   globalThis.location.reload();
   return true;
+}
+
+/** يُستدعى بعد تمهيد الواجهة بنجاح لإزالة القفل حتى يعمل الاسترداد بعد نشر لاحق. */
+export function clearStaleChunkReloadGuard(): void {
+  try {
+    sessionStorage.removeItem(RELOAD_TS_KEY);
+  } catch {
+    /* ignore */
+  }
 }

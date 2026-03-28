@@ -20,27 +20,7 @@ import { useAuth } from '@app/providers/AuthContext';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { QueryErrorRetry } from '@shared/components/QueryErrorRetry';
 import { Skeleton } from '@shared/components/ui/skeleton';
-
-function linearForecast(values: number[]): { next: number; slope: number } {
-  const n = values.length;
-  if (n === 0) return { next: 0, slope: 0 };
-  if (n === 1) return { next: Math.max(0, values[0]), slope: 0 };
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumXX = 0;
-  for (let i = 0; i < n; i++) {
-    sumX += i;
-    sumY += values[i];
-    sumXY += i * values[i];
-    sumXX += i * i;
-  }
-  const denom = n * sumXX - sumX * sumX;
-  const b = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
-  const a = (sumY - b * sumX) / n;
-  const next = Math.max(0, Math.round(a + b * n));
-  return { next, slope: b };
-}
+import { predictOrders } from '@shared/lib/predictOrders';
 
 const MONTHS_BACK = 8;
 
@@ -79,10 +59,16 @@ const AiAnalyticsPage = () => {
 
   const { chartData, forecast } = useMemo(() => {
     if (!q.data?.totals.length) {
-      return { chartData: [] as ChartRow[], forecast: null as ReturnType<typeof linearForecast> | null };
+      return {
+        chartData: [] as ChartRow[],
+        forecast: null as { next: number; lastGrowth: number } | null,
+      };
     }
     const { totals, monthKeys: keys } = q.data;
-    const fc = linearForecast(totals);
+    const next = Math.max(0, predictOrders(totals));
+    const lastGrowth =
+      totals.length >= 2 ? totals[totals.length - 1] - totals[totals.length - 2] : 0;
+    const fc = { next, lastGrowth };
     const rows: ChartRow[] = keys.map((k, i) => ({
       month: format(parse(`${k}-01`, 'yyyy-MM-dd', new Date()), 'MMM yyyy', { locale: ar }),
       actual: totals[i],
@@ -101,7 +87,7 @@ const AiAnalyticsPage = () => {
     rows.push({
       month: `${nextLabel} (تنبؤ)`,
       actual: null,
-      forecast: fc.next,
+      forecast: next,
     });
     return { chartData: rows, forecast: fc };
   }, [q.data]);
@@ -119,7 +105,7 @@ const AiAnalyticsPage = () => {
           تحليلات ذكية
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          عرض اتجاه الطلبات الشهرية مع تنبؤ تقديري بالانحدار الخطي للشهر التالي — للمساعدة في التخطيط وليس كضمان تشغيلي.
+          عرض اتجاه الطلبات الشهرية مع تنبؤ تقديري (متوسط آخر سبعة أشهر + نصف تغيّر آخر شهرين) — للمساعدة في التخطيط وليس كضماناً تشغيلياً.
         </p>
       </div>
 
@@ -133,12 +119,14 @@ const AiAnalyticsPage = () => {
             <div className="flex items-center gap-2 text-foreground">
               <TrendingUp className="h-5 w-5 text-primary" />
               <span className="font-semibold">تنبؤ الطلبات للشهر القادم:</span>
-              <span className="text-2xl font-bold tabular-nums">{forecast?.next.toLocaleString('ar-SA') ?? '—'}</span>
+              <span className="text-2xl font-bold tabular-nums">
+                {forecast != null ? forecast.next.toLocaleString('ar-SA') : '—'}
+              </span>
             </div>
             {forecast != null && (
               <span className="text-xs text-muted-foreground">
-                ميل الخط: {forecast.slope >= 0 ? '+' : ''}
-                {Math.round(forecast.slope).toLocaleString('ar-SA')} طلب/شهر تقريباً
+                التغيّر بين آخر شهرين: {forecast.lastGrowth >= 0 ? '+' : ''}
+                {Math.round(forecast.lastGrowth).toLocaleString('ar-SA')} طلب
               </span>
             )}
           </div>

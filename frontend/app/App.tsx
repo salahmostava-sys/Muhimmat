@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { ChunkRecoveryBootstrap } from "@app/components/ChunkRecoveryBootstrap";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@shared/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -76,6 +77,7 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ChunkRecoveryBootstrap />
     <ThemeProvider>
       <TooltipProvider>
         <Toaster position="top-center" />

@@ -29,6 +29,7 @@ import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGat
 import { QueryErrorRetry } from '@shared/components/QueryErrorRetry';
 import { StatsCards } from '@modules/dashboard/components/StatsCards';
 import { OrdersChart } from '@modules/dashboard/components/OrdersChart';
+import { DashboardOrdersInsights } from '@modules/dashboard/components/DashboardOrdersInsights';
 import { AttendanceChart } from '@modules/dashboard/components/AttendanceChart';
 import { AlertsWidget } from '@modules/dashboard/components/AlertsWidget';
 import { TopEmployees } from '@modules/dashboard/components/TopEmployees';
@@ -871,6 +872,7 @@ const OverviewTab = ({
 }: OverviewTabProps) => (
   <div className="space-y-6">
     <StatsCards loading={loading} kpis={kpis} orderGrowth={orderGrowth} />
+    <DashboardOrdersInsights />
     <OrdersChart loading={loading} ordersByApp={ordersByApp} ordersByCity={ordersByCity} totalOrders={kpis.totalOrders} />
     <TopEmployees
       loading={loading}

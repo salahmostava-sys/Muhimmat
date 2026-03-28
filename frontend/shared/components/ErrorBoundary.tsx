@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { getErrorContextSnapshot } from '@shared/lib/errorContextMeta';
 import { logger } from '@shared/lib/logger';
-import { isLikelyStaleChunkError, reloadOnceForStaleChunk } from '@shared/lib/chunkLoadRecovery';
+import { isLikelyStaleChunkReason, reloadOnceForStaleChunk } from '@shared/lib/chunkLoadRecovery';
 
 type Props = {
   children: ReactNode;
@@ -19,9 +19,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    const message = error.message || String(error);
     /* فشل تحميل chunk بعد نشر جديد — إعادة تحميل كاملة قبل عرض شاشة الخطأ */
-    if (isLikelyStaleChunkError(message) && reloadOnceForStaleChunk()) {
+    if (isLikelyStaleChunkReason(error) && reloadOnceForStaleChunk()) {
       return;
     }
     logger.error('App crashed', error, { meta: getErrorContextSnapshot() });
@@ -29,7 +28,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children;
-    const message = this.state.error.message || String(this.state.error);
+    const message =
+      this.state.error.message ||
+      ('cause' in this.state.error && this.state.error.cause
+        ? String(this.state.error.cause)
+        : '') ||
+      String(this.state.error);
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="max-w-2xl w-full bg-card border border-border rounded-2xl shadow-card p-6 space-y-3">
