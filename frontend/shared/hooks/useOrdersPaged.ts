@@ -7,6 +7,16 @@ import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
 import type { PagedResult } from '@shared/types/pagination';
 
+/** صف ناتج عن `orderService.getMonthPaged` مع العلاقات المضمّنة. */
+export type OrdersMonthPagedRow = {
+  employee_id: string;
+  app_id: string;
+  date: string;
+  orders_count: number;
+  employees?: { id: string; name: string; city?: string | null } | null;
+  apps?: { id: string; name: string } | null;
+};
+
 export type OrdersPagedFilters = {
   driverId?: string;
   /** عدة منصات؛ يُترك فارغاً لعدم التصفية حسب المنصة. */
@@ -32,7 +42,7 @@ export function useOrdersMonthPaged(params: {
   const branch = filters.branch && filters.branch !== 'all' ? filters.branch : undefined;
   const search = filters.search?.trim() ? filters.search.trim() : undefined;
 
-  const q = useQuery<PagedResult<unknown>>({
+  const q = useQuery<PagedResult<OrdersMonthPagedRow>>({
     queryKey: [
       'orders',
       uid,
@@ -45,16 +55,16 @@ export function useOrdersMonthPaged(params: {
       branch ?? null,
       search ?? null,
     ] as const,
-    queryFn: async () => {
+    queryFn: async (): Promise<PagedResult<OrdersMonthPagedRow>> => {
       const res = await withQueryTimeout(
         orderService.getMonthPaged({
           monthYear,
           page,
           pageSize,
           filters: { employeeId: driverId, appIds, branch, search },
-        })
+        }),
       );
-      return res;
+      return res as PagedResult<OrdersMonthPagedRow>;
     },
     retry: safeRetry,
     staleTime: 15_000,

@@ -1,6 +1,24 @@
 import { supabase } from '@services/supabase/client';
 import { toServiceError } from '@services/serviceError';
 import { authService } from '@services/authService';
+import { sanitizeStoragePath } from '@shared/lib/storagePath';
+import { validateUploadFile } from '@shared/lib/validation';
+
+const ALLOWED_AVATAR_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp']);
+
+/** امتداد آمن فقط — لا يُؤخذ من اسم الملف دون تحقق (تخفيف path traversal). */
+function safeAvatarExtension(file: File): string {
+  const fromName = file.name.split('.').pop()?.toLowerCase() ?? '';
+  if (ALLOWED_AVATAR_EXT.has(fromName)) {
+    return fromName === 'jpeg' ? 'jpg' : fromName;
+  }
+  const t = file.type.toLowerCase();
+  if (t === 'image/jpeg' || t === 'image/jpg') return 'jpg';
+  if (t === 'image/png') return 'png';
+  if (t === 'image/gif') return 'gif';
+  if (t === 'image/webp') return 'webp';
+  return 'jpg';
+}
 
 export const profileService = {
   getProfile: async (userId: string) => {
@@ -24,8 +42,21 @@ export const profileService = {
   },
 
   uploadAvatar: async (userId: string, file: File) => {
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/avatar.${ext}`;
+    const validation = validateUploadFile(file, {
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    });
+    if (!validation.valid) {
+      throw toServiceError(
+        new Error('error' in validation ? validation.error : 'Invalid file'),
+        'profileService.uploadAvatar.validation',
+      );
+    }
+    const ext = safeAvatarExtension(file);
+    const candidate = `${userId}/avatar.${ext}`;
+    const path = sanitizeStoragePath(candidate);
+    if (!path) {
+      throw toServiceError(new Error('مسار التخزين غير صالح'), 'profileService.uploadAvatar.path');
+    }
     const { data, error } = await supabase.storage
       .from('avatars')
       .upload(path, file, { upsert: true });
@@ -35,7 +66,11 @@ export const profileService = {
   },
 
   getAvatarPublicUrl: (path: string) => {
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const safe = sanitizeStoragePath(path);
+    if (!safe) {
+      throw toServiceError(new Error('مسار التخزين غير صالح'), 'profileService.getAvatarPublicUrl');
+    }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(safe);
     return data.publicUrl;
   },
 
