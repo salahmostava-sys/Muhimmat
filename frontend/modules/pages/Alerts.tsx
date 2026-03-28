@@ -27,6 +27,7 @@ export const alertTypeLabels: Record<string, string> = {
   platform_account: 'حساب منصة',
   employee_absconded: 'مندوب هارب',
   employee_terminated: 'مندوب منتهي',
+  low_stock: 'مخزون قطع الغيار',
 };
 
 const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning: 'badge-warning', info: 'badge-info' };
@@ -40,6 +41,7 @@ const typeIcons: Record<string, string> = {
   platform_account: '📱',
   employee_absconded: '🚨',
   employee_terminated: '🧾',
+  low_stock: '📦',
 };
 
 const DB_BACKED_EMPLOYEE_ALERT_TYPES = new Set(['employee_absconded', 'employee_terminated']);

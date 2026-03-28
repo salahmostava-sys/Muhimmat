@@ -16,6 +16,7 @@ type AlertsFetchResult = [
   { data: unknown[] | null; error: QueryError },
   { data: unknown[] | null; error: QueryError },
   { data: unknown[] | null; error: QueryError },
+  { data: unknown[] | null; error: QueryError },
 ];
 
 export const alertsService = {
@@ -46,6 +47,7 @@ export const alertsService = {
         .select("id, type, due_date, is_resolved, message, details")
         .order("created_at", { ascending: false })
         .limit(500),
+      supabase.from("spare_parts").select("id, name_ar, stock_quantity, min_stock_alert, unit"),
     ]);
 
     const timeoutError = () =>
@@ -58,11 +60,12 @@ export const alertsService = {
       }),
     ])) as AlertsFetchResult;
 
-    const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = results;
+    const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, sparePartsRes] = results;
     throwIfError(employeesRes.error, "alertsService.fetchAlertsDataWithTimeout.employees");
     throwIfError(vehiclesRes.error, "alertsService.fetchAlertsDataWithTimeout.vehicles");
     throwIfError(platformAccountsRes.error, "alertsService.fetchAlertsDataWithTimeout.platformAccounts");
     throwIfError(dbAlertsRes.error, "alertsService.fetchAlertsDataWithTimeout.alerts");
+    throwIfError(sparePartsRes.error, "alertsService.fetchAlertsDataWithTimeout.spareParts");
     return results;
   },
 

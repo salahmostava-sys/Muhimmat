@@ -27,7 +27,8 @@ export const useAlerts = () => {
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
       const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
-      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await alertsService.fetchAlertsDataWithTimeout(
+      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, sparePartsRes] =
+        await alertsService.fetchAlertsDataWithTimeout(
         threshold,
         iqamaThreshold,
         FETCH_ALERTS_TIMEOUT_MS
@@ -39,7 +40,15 @@ export const useAlerts = () => {
           activeEmployeeIdsInMonth
         ),
       };
-      return buildAlertsFromResponses(employeesVisibleRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
+      return buildAlertsFromResponses(
+        employeesVisibleRes,
+        vehiclesRes,
+        platformAccountsRes,
+        dbAlertsRes,
+        sparePartsRes,
+        threshold,
+        today
+      );
     },
     retry: defaultQueryRetry,
     // Alerts domain policy: always fresh

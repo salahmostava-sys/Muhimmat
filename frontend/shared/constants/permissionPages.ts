@@ -16,5 +16,6 @@ export const PERMISSION_PAGE_ENTRIES: { key: string; labelAr: string; labelEn: s
   { key: 'violation_resolver', labelAr: 'المخالفات', labelEn: 'Violations' },
   { key: 'vehicle_assignment', labelAr: 'تعيين المركبات', labelEn: 'Vehicle assignment' },
   { key: 'fuel', labelAr: 'الوقود', labelEn: 'Fuel' },
+  { key: 'maintenance', labelAr: 'الصيانة والمخزون', labelEn: 'Maintenance & inventory' },
   { key: 'employee_tiers', labelAr: 'شرائح الشركة', labelEn: 'Employee tiers' },
 ];

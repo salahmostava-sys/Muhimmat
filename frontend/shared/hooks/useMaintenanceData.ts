@@ -1,32 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
-import { vehicleService } from '@services/vehicleService';
-import { useAuth } from '@app/providers/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
+import * as maintenanceService from '@services/maintenanceService';
 
-export const maintenanceDataQueryKey = (userId: string) => ['maintenance', userId, 'page-data'] as const;
-
-export const useMaintenanceData = () => {
-  const { user, session } = useAuth();
-  const { userId, authReady } = useAuthQueryGate();
-  const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && authReady;
-  const q = useQuery({
-    queryKey: maintenanceDataQueryKey(uid),
-    queryFn: async () => {
-      const [logs, vehicles] = await Promise.all([
-        vehicleService.getMaintenanceLogs(),
-        vehicleService.getForSelect(),
-      ]);
-
-      return {
-        logs,
-        vehicles,
-      };
-    },
-    staleTime: 60_000,
+export function useMaintenanceLogs() {
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
+  return useQuery({
+    queryKey: ['maintenance_logs', uid],
+    queryFn: () => maintenanceService.getMaintenanceLogs(),
     enabled,
+    staleTime: 2 * 60 * 1000,
   });
-  useQueryErrorToast(q.isError, q.error, undefined, q.refetch);
-  return q;
-};
+}
+
+export function useSpareParts() {
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
+  return useQuery({
+    queryKey: ['spare_parts', uid],
+    queryFn: () => maintenanceService.getSpareparts(),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useInvalidateMaintenanceQueries() {
+  const qc = useQueryClient();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
+  return useCallback(() => {
+    void qc.invalidateQueries({ queryKey: ['maintenance_logs', uid] });
+    void qc.invalidateQueries({ queryKey: ['spare_parts', uid] });
+    void qc.invalidateQueries({ queryKey: ['alerts', uid] });
+  }, [qc, uid]);
+}

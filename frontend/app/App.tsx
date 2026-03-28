@@ -28,6 +28,7 @@ const Orders = lazy(() => import("@modules/orders/pages/OrdersPage"));
 const Salaries = lazy(() => import("@modules/salaries/pages/SalariesPage"));
 const Advances = lazy(() => import("@modules/advances/pages/AdvancesPage"));
 const FuelPage = lazy(() => import("@modules/fuel/pages/FuelPage"));
+const MaintenancePage = lazy(() => import("@modules/maintenance/pages/MaintenancePage"));
 const Apps = lazy(() => import("@modules/pages/Apps"));
 const Alerts = lazy(() => import("@modules/pages/Alerts"));
 const SettingsHub = lazy(() => import("@modules/pages/SettingsHub"));
@@ -118,6 +119,7 @@ const App = () => (
                                     <Route path="/motorcycles" element={<PageGuard pageKey="vehicles"><Motorcycles /></PageGuard>} />
                                     <Route path="/vehicle-assignment" element={<PageGuard pageKey="vehicle_assignment"><VehicleAssignment /></PageGuard>} />
                                     <Route path="/fuel" element={<PageGuard pageKey="fuel"><FuelPage /></PageGuard>} />
+                                    <Route path="/maintenance" element={<PageGuard pageKey="maintenance"><MaintenancePage /></PageGuard>} />
                                     <Route path="/apps" element={<PageGuard pageKey="apps"><Apps /></PageGuard>} />
                                     <Route path="/alerts" element={<PageGuard pageKey="alerts"><Alerts /></PageGuard>} />
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />

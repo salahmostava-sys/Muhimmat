@@ -22,15 +22,6 @@ export interface VehiclePayload {
   notes?: string;
 }
 
-export interface MaintenanceLogPayload {
-  vehicle_id: string;
-  date: string;
-  type: string;
-  description?: string;
-  cost?: number;
-  notes?: string;
-}
-
 export interface VehicleAssignmentPayload {
   vehicle_id: string;
   employee_id: string;
@@ -130,41 +121,6 @@ export const vehicleService = {
       .eq('status', 'active');
     if (error) handleSupabaseError(error, 'vehicleService.getActiveCount');
     return count ?? 0;
-  },
-
-  getMaintenanceLogs: async () => {
-    const { data, error } = await supabase
-      .from('maintenance_logs')
-      .select('*, vehicles(id, plate_number, brand)')
-      .order('date', { ascending: false });
-    if (error) handleSupabaseError(error, 'vehicleService.getMaintenanceLogs');
-    return data ?? [];
-  },
-
-  createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
-    const { data, error } = await supabase
-      .from('maintenance_logs')
-      .insert(payload as Record<string, unknown>)
-      .select()
-      .single();
-    if (error) handleSupabaseError(error, 'vehicleService.createMaintenanceLog');
-    return data;
-  },
-
-  updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
-    const { data, error } = await supabase
-      .from('maintenance_logs')
-      .update(payload as Record<string, unknown>)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) handleSupabaseError(error, 'vehicleService.updateMaintenanceLog');
-    return data;
-  },
-
-  deleteMaintenanceLog: async (id: string) => {
-    const { error } = await supabase.from('maintenance_logs').delete().eq('id', id);
-    if (error) handleSupabaseError(error, 'vehicleService.deleteMaintenanceLog');
   },
 
   getAssignments: async () => {

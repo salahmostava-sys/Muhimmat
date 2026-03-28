@@ -29,6 +29,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     violation_resolver: { can_view: true,  can_edit: true,  can_delete: true  },
     vehicle_assignment: { can_view: true,  can_edit: true,  can_delete: true  },
     fuel:               { can_view: true,  can_edit: true,  can_delete: true  },
+    maintenance:        { can_view: true,  can_edit: true,  can_delete: true  },
     employee_tiers:     { can_view: true,  can_edit: true,  can_delete: true  },
   },
   hr: {
@@ -47,6 +48,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     violation_resolver: { can_view: false, can_edit: false, can_delete: false },
     vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
     fuel:               { can_view: true,  can_edit: false, can_delete: false },
+    maintenance:        { can_view: false, can_edit: false, can_delete: false },
     employee_tiers:     { can_view: true,  can_edit: true,  can_delete: true  },
   },
   finance: {
@@ -65,6 +67,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     violation_resolver: { can_view: true,  can_edit: true,  can_delete: true  },
     vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
     fuel:               { can_view: true,  can_edit: true,  can_delete: true  },
+    maintenance:        { can_view: true,  can_edit: false, can_delete: false },
     employee_tiers:     { can_view: true,  can_edit: false, can_delete: false },
   },
   operations: {
@@ -83,6 +86,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     violation_resolver: { can_view: false, can_edit: false, can_delete: false },
     vehicle_assignment: { can_view: true,  can_edit: false, can_delete: false },
     fuel:               { can_view: true,  can_edit: false, can_delete: false },
+    maintenance:        { can_view: true,  can_edit: true,  can_delete: true  },
     employee_tiers:     { can_view: true,  can_edit: false, can_delete: false },
   },
   viewer: {
@@ -101,6 +105,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
     violation_resolver: { can_view: false, can_edit: false, can_delete: false },
     vehicle_assignment: { can_view: false, can_edit: false, can_delete: false },
     fuel:               { can_view: false, can_edit: false, can_delete: false },
+    maintenance:        { can_view: true,  can_edit: false, can_delete: false },
     employee_tiers:     { can_view: false, can_edit: false, can_delete: false },
   },
 };

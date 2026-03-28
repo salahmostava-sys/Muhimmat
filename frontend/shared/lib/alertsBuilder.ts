@@ -42,6 +42,14 @@ export type PersistedAlertRow = {
   details: Record<string, unknown> | null;
 };
 
+export type LowStockSparePartAlertRow = {
+  id: string;
+  name_ar: string;
+  stock_quantity: number;
+  min_stock_alert: number;
+  unit: string;
+};
+
 const getStandardSeverity = (daysLeft: number): Alert["severity"] => {
   if (daysLeft <= 7) return "urgent";
   if (daysLeft <= 14) return "warning";
@@ -140,6 +148,23 @@ const pushPlatformAccountAlerts = (out: Alert[], rows: PlatformAccountAlertRow[]
   }
 };
 
+const pushLowStockSparePartAlerts = (out: Alert[], rows: LowStockSparePartAlertRow[] | null | undefined, today: Date) => {
+  if (!rows?.length) return;
+  const dueDate = format(today, "yyyy-MM-dd");
+  for (const p of rows) {
+    if (Number(p.stock_quantity) >= Number(p.min_stock_alert ?? 0)) continue;
+    out.push({
+      id: `lowstock-${p.id}`,
+      type: "low_stock",
+      entityName: `قطعة "${p.name_ar}" وصلت للحد الأدنى (متبقي: ${p.stock_quantity} ${p.unit})`,
+      dueDate,
+      daysLeft: 0,
+      severity: "warning",
+      resolved: false,
+    });
+  }
+};
+
 const pushPersistedDbAlerts = (out: Alert[], rows: PersistedAlertRow[], today: Date) => {
   for (const a of rows) {
     const dueDate = a.due_date ?? format(today, "yyyy-MM-dd");
@@ -164,6 +189,7 @@ export function buildAlertsFromResponses(
   vehiclesRes: { data: VehicleExpiryRow[] | null },
   platformAccountsRes: { data: PlatformAccountAlertRow[] | null },
   dbAlertsRes: { data: PersistedAlertRow[] | null },
+  sparePartsRes: { data: LowStockSparePartAlertRow[] | null },
   threshold: string,
   today: Date
 ): Alert[] {
@@ -171,9 +197,11 @@ export function buildAlertsFromResponses(
   const employees = employeesRes.data ?? [];
   const platformAccounts = platformAccountsRes.data ?? [];
   const dbAlerts = dbAlertsRes.data ?? [];
+  const spareParts = sparePartsRes.data ?? [];
   employees.forEach((emp) => pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today));
   pushVehicleExpiryAlerts(generatedAlerts, vehiclesRes.data, threshold, today);
   pushPlatformAccountAlerts(generatedAlerts, platformAccounts, today);
+  pushLowStockSparePartAlerts(generatedAlerts, spareParts, today);
   pushPersistedDbAlerts(generatedAlerts, dbAlerts, today);
   generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
   return generatedAlerts;

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
   ChevronDown, Fuel, Settings2, X, FileWarning,
-  Layers, ChevronsLeft, ChevronsRight, ShieldCheck, Sparkles,
+  Layers, ChevronsLeft, ChevronsRight, ShieldCheck, Sparkles, Wrench,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useLanguage } from '@app/providers/LanguageContext';
@@ -29,6 +29,7 @@ const iconByRouteId: Record<string, ComponentType<{ size?: number; className?: s
   motorcycles: Bike,
   vehicle_assignment: FileDown,
   fuel: Fuel,
+  maintenance: Wrench,
   violation_resolver: FileWarning,
   employee_tiers: Layers,
   platform_accounts: ShieldCheck,
