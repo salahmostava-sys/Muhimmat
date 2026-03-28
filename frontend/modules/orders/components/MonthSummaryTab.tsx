@@ -1,0 +1,65 @@
+import React from 'react';
+import { TrendingUp } from 'lucide-react';
+import { OrdersMonthNavigator } from '@shared/components/orders/OrdersMonthNavigator';
+import { OrdersSummaryTable } from '@shared/components/orders/OrdersSummaryTable';
+import { useAppColors } from '@shared/hooks/useAppColors';
+import { useMonthSummaryTab } from '@modules/orders/hooks/useMonthSummaryTab';
+import { monthLabel } from '@modules/orders/utils/dateMonth';
+import { shortName } from '@modules/orders/utils/text';
+import { MonthSummaryStats } from '@modules/orders/components/MonthSummaryStats';
+
+export const MonthSummaryTab = React.memo(() => {
+  const m = useMonthSummaryTab();
+  const { apps: appColorsList } = useAppColors();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+          <TrendingUp size={14} className="text-primary" />
+          <span className="text-sm font-semibold text-foreground">ملخص الشهر</span>
+        </div>
+        <OrdersMonthNavigator label={monthLabel(m.year, m.month)} onPrev={m.prevMonth} onNext={m.nextMonth} />
+      </div>
+
+      <MonthSummaryStats
+        loading={m.loading}
+        apps={m.apps}
+        appColorsList={appColorsList}
+        employeesCount={m.employees.length}
+        grandTotal={m.grandTotal}
+        targets={m.targets}
+        setTargets={m.setTargets}
+        appGrandTotal={m.appGrandTotal}
+        saveTarget={m.saveTarget}
+        savingTarget={m.savingTarget}
+        canEdit={m.permissions.can_edit}
+        isMonthLocked={m.isMonthLocked}
+      />
+
+      <div className="bg-card rounded-xl shadow-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <OrdersSummaryTable
+            loading={m.loading}
+            apps={m.apps}
+            appColorsList={appColorsList}
+            sortedEmployees={m.sortedEmployees}
+            employeesCount={m.employees.length}
+            data={m.data}
+            dayArr={m.dayArr}
+            days={m.days}
+            empTotal={m.empTotal}
+            appGrandTotal={m.appGrandTotal}
+            grandTotal={m.grandTotal}
+            shortName={shortName}
+            sortField={m.sortField}
+            sortDir={m.sortDir}
+            onSort={m.handleSort}
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+MonthSummaryTab.displayName = 'MonthSummaryTab';
