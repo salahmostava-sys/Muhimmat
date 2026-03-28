@@ -20,7 +20,13 @@ import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@shared/components/table/GlobalTableFilters';
 import { useOrdersMonthPaged } from '@shared/hooks/useOrdersPaged';
 import { toast } from '@shared/components/ui/sonner';
-import { TOAST_ERROR_GENERIC, TOAST_SUCCESS_ACTION, TOAST_SUCCESS_EDIT } from '@shared/lib/toastMessages';
+import {
+  TOAST_ERROR_GENERIC,
+  TOAST_ERROR_RETRY_SHORT,
+  TOAST_SUCCESS_ACTION,
+  TOAST_SUCCESS_EDIT,
+  TOAST_SUCCESS_OPERATION,
+} from '@shared/lib/toastMessages';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { buildOrdersIoHeaders } from '@shared/constants/excelSchemas';
@@ -480,14 +486,22 @@ const SpreadsheetGrid = React.memo(() => {
       if (!Number.isNaN(day) && day >= 1 && day <= days)
         rows.push({ employee_id: empId, app_id: appId, date: dateStr(year, month, day), orders_count: count });
     });
-    const { saved, failed } = await orderService.bulkUpsert(rows);
-    setSaving(false);
-    if (failed.length > 0) {
-      toast.error(TOAST_ERROR_GENERIC, {
-        description: `فشل في حفظ ${failed.length} إدخال — تم حفظ ${saved} بنجاح`,
-      });
-    } else {
-      toast.success(TOAST_SUCCESS_EDIT, { description: `${saved} إدخال — ${monthLabel(year, month)}` });
+    try {
+      const { saved, failed } = await orderService.bulkUpsert(rows);
+      if (failed.length > 0) {
+        toast.error(TOAST_ERROR_GENERIC, {
+          description: `فشل في حفظ ${failed.length} إدخال — تم حفظ ${saved} بنجاح`,
+        });
+      } else {
+        toast.success(TOAST_SUCCESS_OPERATION, {
+          description: `${saved} إدخال — ${monthLabel(year, month)}`,
+        });
+      }
+    } catch (e: unknown) {
+      toast.error(TOAST_ERROR_RETRY_SHORT);
+      logError('Orders.handleSave', e);
+    } finally {
+      setSaving(false);
     }
   };
 

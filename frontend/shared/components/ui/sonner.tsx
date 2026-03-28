@@ -1,29 +1,65 @@
-import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+import toastHot from "react-hot-toast";
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
-
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
-  return (
-    <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      position="top-center"
-      richColors
-      toastOptions={{
-        classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-        },
-      }}
-      {...props}
-    />
-  );
+export type AppToastOptions = {
+  description?: string;
+  action?: { label: string; onClick: () => void };
+  duration?: number;
 };
 
-export { Toaster, toast };
+const POSITION = "top-center" as const;
+
+function formatBody(message: string, description?: string): string {
+  return description ? `${message}\n${description}` : message;
+}
+
+function toastError(message: string, options?: AppToastOptions) {
+  const { description, action, duration } = options ?? {};
+  if (action) {
+    return toastHot.custom(
+      (t) => (
+        <div
+          dir="rtl"
+          className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg text-sm text-foreground max-w-md"
+        >
+          <p className="font-medium">{message}</p>
+          {description ? (
+            <p className="mt-1 text-muted-foreground text-xs leading-relaxed">{description}</p>
+          ) : null}
+          <button
+            type="button"
+            className="mt-2 text-sm font-medium text-primary hover:underline"
+            onClick={() => {
+              action.onClick();
+              toastHot.dismiss(t.id);
+            }}
+          >
+            {action.label}
+          </button>
+        </div>
+      ),
+      { duration: duration ?? 10_000, position: POSITION },
+    );
+  }
+  return toastHot.error(formatBody(message, description), {
+    duration: duration ?? 4000,
+    position: POSITION,
+  });
+}
+
+function toastSuccess(message: string, options?: AppToastOptions) {
+  const { description, duration } = options ?? {};
+  return toastHot.success(formatBody(message, description), {
+    duration: duration ?? 4000,
+    position: POSITION,
+  });
+}
+
+/** Sonner-compatible API backed by react-hot-toast */
+export const toast = {
+  success: toastSuccess,
+  error: toastError,
+  dismiss: toastHot.dismiss,
+  promise: toastHot.promise,
+  loading: toastHot.loading,
+  custom: toastHot.custom,
+};

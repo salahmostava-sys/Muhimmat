@@ -35,6 +35,7 @@ export const routesManifest: AppRouteManifestItem[] = [
   { id: 'advances', titleAr: 'السلف', group: 'finance', path: '/advances', permission: routePermission('advances'), sidebar: true },
 
   { id: 'orders', titleAr: 'الطلبات', group: 'operations', path: '/orders', permission: routePermission('orders'), sidebar: true },
+  { id: 'ai_analytics', titleAr: 'تحليلات ذكية', group: 'operations', path: '/ai-analytics', permission: routePermission('ai_analytics'), sidebar: true },
   { id: 'motorcycles', titleAr: 'المركبات', group: 'operations', path: '/motorcycles', permission: routePermission('vehicles'), sidebar: true },
   { id: 'vehicle_assignment', titleAr: 'توزيع المركبات', group: 'operations', path: '/vehicle-assignment', permission: routePermission('vehicle_assignment'), sidebar: true },
   { id: 'fuel', titleAr: 'البنزين', group: 'operations', path: '/fuel', permission: routePermission('fuel'), sidebar: true },

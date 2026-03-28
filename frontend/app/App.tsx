@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Toaster as Sonner } from "@shared/components/ui/sonner";
+import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@shared/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -35,6 +35,7 @@ const Motorcycles = lazy(() => import("@modules/pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("@modules/pages/VehicleAssignment"));
 const EmployeeTiers = lazy(() => import("@modules/pages/EmployeeTiers"));
 const PlatformAccounts = lazy(() => import("@modules/pages/PlatformAccounts"));
+const AiAnalytics = lazy(() => import("@modules/pages/AiAnalyticsPage"));
 const ProfilePage = lazy(() => import("@modules/pages/ProfilePage"));
 const NotFound = lazy(() => import("@modules/pages/NotFound"));
 
@@ -77,7 +78,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <Sonner />
+        <Toaster position="top-center" />
         <BrowserRouter
           future={{
             v7_startTransition: true,
@@ -119,6 +120,7 @@ const App = () => (
                                     <Route path="/alerts" element={<PageGuard pageKey="alerts"><Alerts /></PageGuard>} />
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />
                                     <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
+                                    <Route path="/ai-analytics" element={<PageGuard pageKey="ai_analytics"><AiAnalytics /></PageGuard>} />
                                     <Route path="/profile" element={<ProfilePage />} />
                                     <Route path="/profile-page" element={<Navigate to="/profile" replace />} />
                                     <Route path="/settings" element={<PageGuard pageKey="settings"><SettingsHub /></PageGuard>} />
