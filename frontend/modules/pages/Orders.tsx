@@ -58,6 +58,19 @@ const buildAppEmployeeIdsMap = (rows: EmployeeAppAssignmentRow[]): Record<string
   return map;
 };
 
+/** مناديب لديهم طلبات > 0 على منصة معيّنة في خريطة الشهر (من daily_orders أو بعد التعديل المحلي). */
+function collectEmployeeIdsWithOrdersOnApp(data: DailyData, appId: string): Set<string> {
+  const ids = new Set<string>();
+  for (const key of Object.keys(data)) {
+    const parts = key.split('::');
+    if (parts.length !== 3) continue;
+    const [empId, rowAppId] = parts;
+    if (rowAppId !== appId) continue;
+    if ((data[key] ?? 0) > 0) ids.add(empId);
+  }
+  return ids;
+}
+
 const buildDailyDataMap = (rows: OrderRawRow[]): DailyData => {
   const mapped: DailyData = {};
   rows.forEach((row) => {
@@ -285,10 +298,18 @@ const SpreadsheetGrid = React.memo(() => {
     });
   }, [spreadsheetBaseError, spreadsheetMonthError, spreadsheetLockError, toast]);
 
+  /** فلتر المنصة: كان يعتمد على تعيينات المنصة فقط؛ نضيف من لديهم طلبات فعلية على المنصة في الشهر الحالي. */
+  const employeeIdsWithOrdersOnFilteredPlatform = useMemo(() => {
+    if (platformFilter === 'all') return new Set<string>();
+    return collectEmployeeIdsWithOrdersOnApp(data, platformFilter);
+  }, [data, platformFilter]);
+
   const baseEmployees = useMemo(() => {
     if (platformFilter === 'all') return employees;
-    return employees.filter(e => appEmployeeIds[platformFilter]?.has(e.id));
-  }, [employees, platformFilter, appEmployeeIds]);
+    const assigned = appEmployeeIds[platformFilter];
+    const withOrders = employeeIdsWithOrdersOnFilteredPlatform;
+    return employees.filter((e) => Boolean(assigned?.has(e.id)) || withOrders.has(e.id));
+  }, [employees, platformFilter, appEmployeeIds, employeeIdsWithOrdersOnFilteredPlatform]);
 
   const filteredEmployees = useMemo(
     () => baseEmployees.filter(emp => emp.name.includes(search)),
