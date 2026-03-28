@@ -5,7 +5,8 @@ import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Label } from '@shared/components/ui/label';
-import { useToast } from '@shared/hooks/use-toast';
+import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC, TOAST_SUCCESS_ACTION, TOAST_SUCCESS_EDIT } from '@shared/lib/toastMessages';
 import { Loader2, Save, Globe, Palette, Building2, Upload, X, Download, Database, CheckCircle, Bell } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import * as XLSX from '@e965/xlsx';
@@ -57,7 +58,7 @@ export default function ProjectSettings() {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
     });
     if (!validation.valid) {
-      toast({ title: isRTL ? 'خطأ في الملف' : 'Invalid file', description: validation.error, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: validation.error ?? (isRTL ? 'خطأ في الملف' : 'Invalid file') });
       return;
     }
     if (logoObjectUrlRef.current) {
@@ -93,10 +94,8 @@ export default function ProjectSettings() {
         const uid = user?.id ?? session?.user?.id;
         if (!uid) {
           setSaving(false);
-          toast({
-            title: isRTL ? 'تعذر الرفع' : 'Cannot upload',
-            description: isRTL ? 'يجب تسجيل الدخول لرفع الشعار.' : 'You must be signed in to upload a logo.',
-            variant: 'destructive',
+          toast.error(TOAST_ERROR_GENERIC, {
+            description: isRTL ? 'تعذر الرفع — يجب تسجيل الدخول لرفع الشعار.' : 'Cannot upload — You must be signed in to upload a logo.',
           });
           return;
         }
@@ -107,10 +106,8 @@ export default function ProjectSettings() {
           await settingsHubService.uploadCompanyLogo(path, logoFile);
         } catch (e: unknown) {
           setSaving(false);
-          toast({
-            title: isRTL ? 'فشل رفع الشعار' : 'Logo upload failed',
+          toast.error(TOAST_ERROR_GENERIC, {
             description: e instanceof Error ? e.message : String(e),
-            variant: 'destructive',
           });
           return;
         }
@@ -143,10 +140,12 @@ export default function ProjectSettings() {
       setLogoFile(null);
       setRemoveLogo(false);
       await refresh();
-      toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
+      toast.success(TOAST_SUCCESS_EDIT, {
+        description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated',
+      });
     } catch (err: unknown) {
       logError('[ProjectSettings] save failed', err);
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: getErrorMessage(err) });
     }
     setSaving(false);
   };
@@ -208,15 +207,14 @@ export default function ProjectSettings() {
       }
       XLSX.writeFile(wb, `backup_${timestamp}.xlsx`);
 
-      toast({
-        title: isRTL ? '✅ تم التصدير بنجاح' : '✅ Backup exported',
+      toast.success(TOAST_SUCCESS_ACTION, {
         description: isRTL
           ? `تم تصدير ${exportedCount} جدول — JSON + Excel`
           : `Exported ${exportedCount} tables — JSON + Excel`,
       });
     } catch (err: unknown) {
       logError('[ProjectSettings] backup export failed', err);
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: getErrorMessage(err) });
     }
     setBackupLoading(false);
   };

@@ -8,7 +8,8 @@ import { Calendar } from "@shared/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@shared/components/ui/select";
 import { cn } from "@shared/lib/utils";
-import { toast } from "@shared/hooks/use-toast";
+import { toast } from "@shared/components/ui/sonner";
+import { TOAST_SUCCESS_ACTION, TOAST_SUCCESS_EDIT } from "@shared/lib/toastMessages";
 import { useLanguage } from "@app/providers/LanguageContext";
 import { usePermissions } from "@shared/hooks/usePermissions";
 import attendanceService from "@services/attendanceService";
@@ -169,7 +170,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
       });
       return updated;
     });
-    toast({ title: "تم تسجيل الكل حاضرين ✅" });
+    toast.success(TOAST_SUCCESS_ACTION);
   };
 
   const addCustomStatus = (empId: string) => {
@@ -218,9 +219,8 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     }
 
     setSaving(false);
-    toast({
-      title: `تم حفظ حضور ${saved} مندوب بنجاح ✅`,
-      description: format(date, "dd MMMM yyyy", { locale: dateLocale }),
+    toast.success(TOAST_SUCCESS_EDIT, {
+      description: `${saved} مندوب — ${format(date, "dd MMMM yyyy", { locale: dateLocale })}`,
     });
   };
 

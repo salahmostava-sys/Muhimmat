@@ -18,7 +18,8 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@shared/components/ui/dropdown-menu';
-import { useToast } from '@shared/hooks/use-toast';
+import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC, TOAST_SUCCESS_ACTION, TOAST_SUCCESS_ADD, TOAST_SUCCESS_EDIT } from '@shared/lib/toastMessages';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -87,7 +88,6 @@ const iqamaBadge = (expiry: string | null, alertDays: number) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const PlatformAccounts = () => {
-  const { toast } = useToast();
   const { user } = useAuth();
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
@@ -196,8 +196,8 @@ const PlatformAccounts = () => {
   useEffect(() => {
     if (!pageDataError) return;
     const message = pageDataError instanceof Error ? pageDataError.message : 'تعذر تحميل البيانات';
-    toast({ title: 'خطأ', description: message, variant: 'destructive' });
-  }, [pageDataError, toast]);
+    toast.error(TOAST_ERROR_GENERIC, { description: message });
+  }, [pageDataError]);
 
   // ── Account CRUD ───────────────────────────────────────────────────────────
 
@@ -291,15 +291,15 @@ const PlatformAccounts = () => {
 
   const saveAccount = async () => {
     if (!accountForm.app_id) {
-      toast({ title: 'خطأ', description: 'اختر المنصة', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: 'اختر المنصة' });
       return;
     }
     if (!editingAccount && !accountForm.employee_id) {
-      toast({ title: 'خطأ', description: 'اختر صاحب الحساب من قائمة الموظفين', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: 'اختر صاحب الحساب من قائمة الموظفين' });
       return;
     }
     if (!accountForm.account_username?.trim()) {
-      toast({ title: 'خطأ', description: 'اسم صاحب الحساب مطلوب', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: 'اسم صاحب الحساب مطلوب' });
       return;
     }
     setSavingAccount(true);
@@ -335,13 +335,13 @@ const PlatformAccounts = () => {
       }
     } catch (e: unknown) {
       setSavingAccount(false);
-      const message = e instanceof Error ? e.message : 'خطأ';
-      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : TOAST_ERROR_GENERIC;
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       return;
     }
 
     setSavingAccount(false);
-    toast({ title: editingAccount ? 'تم التعديل' : 'تم الإضافة', description: `حساب "${payload.account_username}"` });
+    toast.success(editingAccount ? TOAST_SUCCESS_EDIT : TOAST_SUCCESS_ADD);
     setAccountDialog(false);
     void refetchPageData();
   };
@@ -356,7 +356,7 @@ const PlatformAccounts = () => {
 
   const saveAssign = async () => {
     if (!assignForm.employee_id || !assignForm.start_date) {
-      toast({ title: 'خطأ', description: 'اختر المندوب وتاريخ البداية', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: 'اختر المندوب وتاريخ البداية' });
       return;
     }
     setSavingAssign(true);
@@ -385,8 +385,8 @@ const PlatformAccounts = () => {
       });
     } catch (e: unknown) {
       setSavingAssign(false);
-      const message = e instanceof Error ? e.message : 'خطأ أثناء إنشاء التعيين';
-      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : TOAST_ERROR_GENERIC;
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       return;
     }
 
@@ -395,8 +395,8 @@ const PlatformAccounts = () => {
       await platformAccountService.syncAccountEmployee(assignTarget!.id, assignForm.employee_id);
     } catch (e: unknown) {
       setSavingAssign(false);
-      const message = e instanceof Error ? e.message : 'خطأ';
-      toast({ title: 'خطأ', description: message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : TOAST_ERROR_GENERIC;
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       return;
     }
 
@@ -413,7 +413,7 @@ const PlatformAccounts = () => {
     });
 
     setSavingAssign(false);
-    toast({ title: 'تم التعيين', description: 'تم تعيين المندوب بنجاح' });
+    toast.success(TOAST_SUCCESS_ACTION);
     setAssignDialog(false);
     void refetchPageData();
   };

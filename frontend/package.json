@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "gen:types": "cd .. && npx supabase gen types typescript --local -s public > frontend/services/supabase/types.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

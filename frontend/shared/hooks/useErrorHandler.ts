@@ -1,11 +1,8 @@
 import { useCallback } from 'react';
-import { useToast } from '@shared/hooks/use-toast';
+import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC } from '@shared/lib/toastMessages';
 import { ServiceError } from '@services/serviceError';
 import { getErrorMessage } from '@shared/lib/query';
-
-const DEFAULT_TITLE = 'حدث خطأ';
-const NETWORK_TITLE = 'تعذر الاتصال بالخادم';
-const SUPABASE_TITLE = 'خطأ في قاعدة البيانات';
 
 function unwrapCause(err: unknown): unknown {
   if (err instanceof ServiceError && err.cause != null) return err.cause;
@@ -43,12 +40,6 @@ export function isSupabaseLikeError(err: unknown): boolean {
   return o.code.startsWith('PGRST') || /^\d{5}$/.test(o.code);
 }
 
-function resolveTitle(err: unknown, fallbackTitle?: string): string {
-  if (isNetworkError(err)) return NETWORK_TITLE;
-  if (isSupabaseLikeError(err)) return SUPABASE_TITLE;
-  return fallbackTitle ?? DEFAULT_TITLE;
-}
-
 function formatDescription(err: unknown): string {
   const base = getErrorMessage(err);
   const inner = unwrapCause(err);
@@ -62,32 +53,23 @@ function formatDescription(err: unknown): string {
 }
 
 export type ShowErrorOptions = {
-  /** Overrides inferred title (e.g. network vs Supabase vs generic). */
-  title?: string;
-  /** Overrides formatted description. */
+  /** Overrides formatted description (otherwise derived from the error). */
   description?: string;
 };
 
-export type UseErrorHandlerOptions = {
-  /** Used when the error does not match network/Supabase patterns and no title is passed to `showError`. */
-  defaultTitle?: string;
-};
-
 /**
- * Maps thrown/caught errors to user-visible toasts (Radix `useToast`).
+ * Maps thrown/caught errors to Sonner toasts (generic title + detail in description).
  * Recognizes **network** failures and **Supabase / PostgREST-shaped** errors (including `ServiceError` with a Supabase `cause`).
  */
-export function useErrorHandler(options?: UseErrorHandlerOptions) {
-  const { toast } = useToast();
-  const fallbackTitle = options?.defaultTitle;
-
+export function useErrorHandler() {
   const showError = useCallback(
     (error: unknown, overrides?: ShowErrorOptions) => {
-      const title = overrides?.title ?? resolveTitle(error, fallbackTitle);
-      const description = overrides?.description ?? formatDescription(error);
-      toast({ title, description, variant: 'destructive' });
+      const description =
+        overrides?.description ??
+        formatDescription(error);
+      toast.error(TOAST_ERROR_GENERIC, description ? { description } : undefined);
     },
-    [toast, fallbackTitle]
+    []
   );
 
   return {

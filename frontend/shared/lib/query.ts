@@ -1,4 +1,5 @@
 import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC } from '@shared/lib/toastMessages';
 import { logError } from '@shared/lib/logger';
 
 /**
@@ -34,12 +35,13 @@ export type ToastQueryErrorOptions = {
 
 export function toastQueryError(
   err: unknown,
-  title = 'تعذر تحميل البيانات',
+  _title = 'تعذر تحميل البيانات',
   options?: ToastQueryErrorOptions,
 ): void {
   const onRetry = options?.onRetry;
-  toast.error(title, {
-    description: getErrorMessage(err),
+  const description = getErrorMessage(err);
+  toast.error(TOAST_ERROR_GENERIC, {
+    description,
     ...(onRetry && {
       action: {
         label: 'إعادة المحاولة',
@@ -51,7 +53,7 @@ export function toastQueryError(
   });
 }
 
-export function toastMutationError(err: unknown, title = 'تعذر تنفيذ العملية'): void {
-  toast.error(title, { description: getErrorMessage(err) });
+export function toastMutationError(err: unknown, _title = 'تعذر تنفيذ العملية'): void {
+  toast.error(TOAST_ERROR_GENERIC, { description: getErrorMessage(err) });
 }
 

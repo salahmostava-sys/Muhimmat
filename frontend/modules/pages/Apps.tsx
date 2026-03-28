@@ -15,7 +15,8 @@ import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Switch } from '@shared/components/ui/switch';
 import { Label } from '@shared/components/ui/label';
-import { useToast } from '@shared/hooks/use-toast';
+import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC, TOAST_SUCCESS_ACTION, TOAST_SUCCESS_ADD, TOAST_SUCCESS_EDIT } from '@shared/lib/toastMessages';
 import { invalidateAppColorsCache } from '@shared/hooks/useAppColors';
 import { useAppsData } from '@shared/hooks/useAppsData';
 import { usePermissions } from '@shared/hooks/usePermissions';
@@ -68,7 +69,6 @@ interface AppModalProps {
 }
 
 const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const isEdit = !!app;
 
@@ -99,7 +99,7 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      toast({ title: 'الاسم مطلوب', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: 'الاسم مطلوب' });
       return;
     }
     setSaving(true);
@@ -119,14 +119,14 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
         await appService.create(payload);
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'حدث خطأ';
-      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : TOAST_ERROR_GENERIC;
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       setSaving(false);
       return;
     }
 
     invalidateAppColorsCache();
-    toast({ title: isEdit ? 'تم تحديث التطبيق ✅' : 'تم إضافة التطبيق ✅' });
+    toast.success(isEdit ? TOAST_SUCCESS_EDIT : TOAST_SUCCESS_ADD);
     onSaved();
     onClose();
   };
@@ -238,7 +238,6 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
 
 // ─── Main Apps Page ───────────────────────────────────────────────────────────
 const Apps = () => {
-  const { toast } = useToast();
   const { permissions } = usePermissions('apps');
   const [apps, setApps] = useState<AppData[]>([]);
   const {
@@ -267,8 +266,8 @@ const Apps = () => {
       appsError instanceof Error
         ? appsError.message
         : 'حدث خطأ غير متوقع أثناء تحميل التطبيقات';
-    toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
-  }, [appsError, toast]);
+    toast.error(TOAST_ERROR_GENERIC, { description: message });
+  }, [appsError]);
 
   const handleSelectApp = async (app: AppData) => {
     if (selectedApp?.id === app.id) { setSelectedApp(null); setAppEmployees([]); return; }
@@ -324,7 +323,7 @@ const Apps = () => {
       setAppEmployees(employeesWithOrders);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'تعذر تحميل مندوبي التطبيق';
-      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       setAppEmployees([]);
     } finally {
       setLoadingEmployees(false);
@@ -337,11 +336,11 @@ const Apps = () => {
       await appService.toggleActive(app.id, !app.is_active);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ';
-      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       return;
     }
     invalidateAppColorsCache();
-    toast({ title: app.is_active ? 'تم تعطيل التطبيق' : 'تم تفعيل التطبيق' });
+    toast.success(TOAST_SUCCESS_ACTION);
     void refetchApps();
   };
 
@@ -352,12 +351,12 @@ const Apps = () => {
       await appService.delete(deleteApp.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ أثناء الحذف';
-      toast({ title: 'حدث خطأ أثناء الحذف', description: message, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       setDeleting(false);
       return;
     }
     invalidateAppColorsCache();
-    toast({ title: `تم حذف تطبيق "${deleteApp.name}" ✅` });
+    toast.success(TOAST_SUCCESS_ACTION);
     if (selectedApp?.id === deleteApp.id) { setSelectedApp(null); setAppEmployees([]); }
     setDeleteApp(null);
     setDeleting(false);

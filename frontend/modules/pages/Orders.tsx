@@ -8,7 +8,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@shared/components/ui/input';
 import { Progress } from '@shared/components/ui/progress';
 import { orderService } from '@services/orderService';
-import { useToast } from '@shared/hooks/use-toast';
 import { useAppColors, getAppColor } from '@shared/hooks/useAppColors';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { OrdersGridTable } from '@shared/components/orders/OrdersGridTable';
@@ -20,7 +19,8 @@ import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmplo
 import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@shared/components/table/GlobalTableFilters';
 import { useOrdersMonthPaged } from '@shared/hooks/useOrdersPaged';
-import { toast as sonnerToast } from '@shared/components/ui/sonner';
+import { toast } from '@shared/components/ui/sonner';
+import { TOAST_ERROR_GENERIC, TOAST_SUCCESS_ACTION, TOAST_SUCCESS_EDIT } from '@shared/lib/toastMessages';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { buildOrdersIoHeaders } from '@shared/constants/excelSchemas';
@@ -179,7 +179,6 @@ const SpreadsheetGrid = React.memo(() => {
   const uid = authQueryUserId(userId);
   const qk = ordersQueryKeys(uid);
   const { apps: appColorsList } = useAppColors();
-  const { toast } = useToast();
   const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -291,12 +290,8 @@ const SpreadsheetGrid = React.memo(() => {
     const error = spreadsheetBaseError || spreadsheetMonthError || spreadsheetLockError;
     if (!error) return;
     const message = error instanceof Error ? error.message : 'فشل تحميل بيانات الطلبات';
-    toast({
-      title: 'فشل تحميل بيانات الطلبات',
-      description: message,
-      variant: 'destructive',
-    });
-  }, [spreadsheetBaseError, spreadsheetMonthError, spreadsheetLockError, toast]);
+    toast.error(TOAST_ERROR_GENERIC, { description: message });
+  }, [spreadsheetBaseError, spreadsheetMonthError, spreadsheetLockError]);
 
   /** فلتر المنصة: كان يعتمد على تعيينات المنصة فقط؛ نضيف من لديهم طلبات فعلية على المنصة في الشهر الحالي. */
   const employeeIdsWithOrdersOnFilteredPlatform = useMemo(() => {
@@ -377,7 +372,7 @@ const SpreadsheetGrid = React.memo(() => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
     XLSX.writeFile(wb, `طلبات_${month}_${year}.xlsx`);
-    toast({ title: 'تم التصدير' });
+    toast.success(TOAST_SUCCESS_ACTION);
   };
 
   // ── Import ──
@@ -391,7 +386,7 @@ const SpreadsheetGrid = React.memo(() => {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
       if (matrix.length < 2) {
-        toast({ title: 'الملف فارغ', variant: 'destructive' });
+        toast.error(TOAST_ERROR_GENERIC, { description: 'الملف فارغ' });
         return;
       }
       const expectedHeaders = buildOrdersIoHeaders(dayArr);
@@ -400,10 +395,8 @@ const SpreadsheetGrid = React.memo(() => {
         actualHeaders.length === expectedHeaders.length &&
         actualHeaders.every((h, i) => h === expectedHeaders[i]);
       if (!headersMatch) {
-        toast({
-          title: 'هيكل الأعمدة غير مطابق للقالب',
-          description: 'تأكد من تحميل القالب واستخدامه بدون تعديل ترتيب أو أسماء الأعمدة',
-          variant: 'destructive',
+        toast.error(TOAST_ERROR_GENERIC, {
+          description: 'هيكل الأعمدة غير مطابق للقالب — تأكد من تحميل القالب واستخدامه بدون تعديل ترتيب أو أسماء الأعمدة',
         });
         return;
       }
@@ -426,10 +419,10 @@ const SpreadsheetGrid = React.memo(() => {
         }
       }
       setData(newData);
-      toast({ title: `تم استيراد ${imported} إدخال` });
+      toast.success(TOAST_SUCCESS_ACTION, { description: `تم استيراد ${imported} إدخال` });
     } catch (err) {
       logError('[Orders] import spreadsheet failed', err);
-      toast({ title: 'فشل الاستيراد', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC);
     }
     e.target.value = '';
   };
@@ -490,9 +483,11 @@ const SpreadsheetGrid = React.memo(() => {
     const { saved, failed } = await orderService.bulkUpsert(rows);
     setSaving(false);
     if (failed.length > 0) {
-      toast({ title: `فشل في حفظ ${failed.length} إدخال`, description: `تم حفظ ${saved} بنجاح`, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, {
+        description: `فشل في حفظ ${failed.length} إدخال — تم حفظ ${saved} بنجاح`,
+      });
     } else {
-      toast({ title: `✅ تم حفظ ${saved} إدخال بنجاح`, description: `بيانات ${monthLabel(year, month)}` });
+      toast.success(TOAST_SUCCESS_EDIT, { description: `${saved} إدخال — ${monthLabel(year, month)}` });
     }
   };
 
@@ -505,13 +500,13 @@ const SpreadsheetGrid = React.memo(() => {
     } catch (e: unknown) {
       setLockingMonth(false);
       const message = e instanceof Error ? e.message : 'فشل قفل الشهر';
-      toast({ title: 'فشل قفل الشهر', description: message, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: message });
       return;
     }
     setLockingMonth(false);
     setIsMonthLocked(true);
     setCellPopover(null);
-    toast({ title: '✅ تم قفل الشهر بنجاح' });
+    toast.success(TOAST_SUCCESS_ACTION);
   };
 
   const seqColMin = 36;
@@ -688,7 +683,6 @@ const MonthSummary = React.memo(() => {
   const uid = authQueryUserId(userId);
   const qk = ordersQueryKeys(uid);
   const { apps: appColorsList } = useAppColors();
-  const { toast } = useToast();
   const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -794,12 +788,8 @@ const MonthSummary = React.memo(() => {
     const error = summaryBaseError || summaryMonthMetaError || summaryMonthError;
     if (!error) return;
     const message = error instanceof Error ? error.message : 'فشل تحميل ملخص الشهر';
-    toast({
-      title: 'فشل تحميل ملخص الشهر',
-      description: message,
-      variant: 'destructive',
-    });
-  }, [summaryBaseError, summaryMonthMetaError, summaryMonthError, toast]);
+    toast.error(TOAST_ERROR_GENERIC, { description: message });
+  }, [summaryBaseError, summaryMonthMetaError, summaryMonthError]);
 
   const saveTarget = async (appId: string, value: string) => {
     if (isMonthLocked) return;
@@ -808,9 +798,9 @@ const MonthSummary = React.memo(() => {
     setSavingTarget(appId);
     try {
       await orderService.upsertAppTarget(appId, my, targetOrders);
-      toast({ title: '✅ تم حفظ التارجت' });
+      toast.success(TOAST_SUCCESS_EDIT);
     } catch {
-      toast({ title: 'خطأ في حفظ التارجت', variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC);
     } finally {
       setSavingTarget(null);
     }
@@ -965,7 +955,6 @@ const MonthSummary = React.memo(() => {
 const OrdersList = () => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
-  const { toast } = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -1042,10 +1031,10 @@ const OrdersList = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Orders');
       XLSX.writeFile(wb, `orders_${monthKey}.xlsx`);
-      sonnerToast.success('تم التصدير', { description: `orders_${monthKey}.xlsx` });
+      toast.success(TOAST_SUCCESS_ACTION, { description: `orders_${monthKey}.xlsx` });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'تعذر تصدير البيانات';
-      toast({ title: 'خطأ في التصدير', description: msg, variant: 'destructive' });
+      toast.error(TOAST_ERROR_GENERIC, { description: msg });
     }
   };
 

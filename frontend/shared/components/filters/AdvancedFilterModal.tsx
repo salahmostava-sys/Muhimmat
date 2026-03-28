@@ -13,6 +13,7 @@ import { Input } from '@shared/components/ui/input';
 import { Label } from '@shared/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@shared/components/ui/radio-group';
 import { cn } from '@shared/lib/utils';
+import { checkboxTriState } from '@shared/lib/checkboxTriState';
 import type { FilterConfig, FilterState } from '@shared/hooks/useAdvancedFilter';
 
 function snapshotDraft(filters: FilterState, configs: FilterConfig[]): FilterState {
@@ -69,7 +70,7 @@ export function AdvancedFilterModal(props: Readonly<{
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-y-auto gap-0 p-0 [&>button.absolute]:hidden"
+        className="max-w-2xl max-h-[90vh] overflow-y-auto gap-0 p-0 [&_button.absolute]:hidden"
         dir="rtl"
       >
         <DialogHeader className="px-5 py-4 border-b border-border flex flex-row items-center justify-between space-y-0">
@@ -125,7 +126,7 @@ export function AdvancedFilterModal(props: Readonly<{
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
-                        checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                        checked={checkboxTriState(allSelected, someSelected)}
                         onCheckedChange={() => toggleAll()}
                       />
                       <span className="text-sm font-medium">الكل</span>

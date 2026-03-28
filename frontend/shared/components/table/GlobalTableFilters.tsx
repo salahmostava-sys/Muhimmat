@@ -7,13 +7,15 @@ import { Checkbox } from '@shared/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/components/ui/popover';
 import { ChevronDown, X } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
+import { checkboxTriState } from '@shared/lib/checkboxTriState';
 
 export type BranchKey = 'all' | 'makkah' | 'jeddah';
 
 export type GlobalTableFilterState = {
   search: string;
   branch: BranchKey;
-  driverId: string | 'all';
+  /** Sentinel value `'all'` means no driver filter. */
+  driverId: string;
   /** فارغ = كل المنصات؛ غير فارغ = تضمين هذه المنصات فقط (متعدد الاختيار). */
   platformAppIds: string[];
   dateFrom: string; // yyyy-MM-dd or ''
@@ -51,17 +53,24 @@ export function hasActiveGlobalFilters(s: GlobalTableFilterState): boolean {
   );
 }
 
+function toBranchKey(v: string): BranchKey {
+  if (v === 'all' || v === 'makkah' || v === 'jeddah') return v;
+  return 'all';
+}
+
+export type GlobalTableFiltersProps = Readonly<{
+  value: GlobalTableFilterState;
+  onChange: (next: GlobalTableFilterState) => void;
+  onReset: () => void;
+  options: GlobalTableFilterOptions;
+}>;
+
 export function GlobalTableFilters({
   value,
   onChange,
   onReset,
   options,
-}: {
-  value: GlobalTableFilterState;
-  onChange: (next: GlobalTableFilterState) => void;
-  onReset: () => void;
-  options: GlobalTableFilterOptions;
-}) {
+}: GlobalTableFiltersProps) {
   const drivers = useMemo(() => options.drivers ?? [], [options.drivers]);
   const platforms = useMemo(() => options.platforms ?? [], [options.platforms]);
   const showReset = useMemo(() => hasActiveGlobalFilters(value), [value]);
@@ -125,7 +134,7 @@ export function GlobalTableFilters({
         {options.enableBranch !== false && (
           <div className="lg:col-span-2">
             <Label className="text-xs">الفرع</Label>
-            <Select value={value.branch} onValueChange={(v) => onChange({ ...value, branch: v as BranchKey })}>
+            <Select value={value.branch} onValueChange={(v) => onChange({ ...value, branch: toBranchKey(v) })}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="الكل" />
               </SelectTrigger>
@@ -141,7 +150,7 @@ export function GlobalTableFilters({
         {options.enableDriver !== false && (
           <div className="lg:col-span-3">
             <Label className="text-xs">المندوب</Label>
-            <Select value={value.driverId} onValueChange={(v) => onChange({ ...value, driverId: v as GlobalTableFilterState['driverId'] })}>
+            <Select value={value.driverId} onValueChange={(v) => onChange({ ...value, driverId: v })}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="الكل" />
               </SelectTrigger>
@@ -176,7 +185,7 @@ export function GlobalTableFilters({
                 <div className="space-y-2 max-h-[min(60vh,320px)] overflow-y-auto">
                   <label className="flex items-center gap-2 cursor-pointer rounded-md px-1 py-1 hover:bg-muted/50">
                     <Checkbox
-                      checked={allPlatformsSelected ? true : somePlatformsSelected ? 'indeterminate' : false}
+                      checked={checkboxTriState(allPlatformsSelected, somePlatformsSelected)}
                       onCheckedChange={() => toggleAllPlatforms()}
                     />
                     <span className="text-sm font-medium">الكل</span>
