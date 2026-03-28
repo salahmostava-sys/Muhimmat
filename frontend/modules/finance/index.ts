@@ -1,2 +1,2 @@
-export { default as SalariesPage } from '@modules/pages/Salaries';
-export { default as AdvancesPage } from '@modules/pages/Advances';
+export { default as SalariesPage } from '@modules/salaries/pages/SalariesPage';
+export { default as AdvancesPage } from '@modules/advances/pages/AdvancesPage';
