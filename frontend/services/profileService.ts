@@ -6,6 +6,15 @@ import { validateUploadFile } from '@shared/lib/validation';
 
 const ALLOWED_AVATAR_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp']);
 
+/** Ensures storage object keys are only created under a UUID folder (mitigates path traversal). */
+const AUTH_USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function assertAuthUserIdForStorage(userId: string): void {
+  if (!AUTH_USER_ID_RE.test(userId)) {
+    throw toServiceError(new Error('معرّف المستخدم غير صالح'), 'profileService.uploadAvatar.userId');
+  }
+}
+
 /** امتداد آمن فقط — لا يُؤخذ من اسم الملف دون تحقق (تخفيف path traversal). */
 function safeAvatarExtension(file: File): string {
   const fromName = file.name.split('.').pop()?.toLowerCase() ?? '';
@@ -42,6 +51,7 @@ export const profileService = {
   },
 
   uploadAvatar: async (userId: string, file: File) => {
+    assertAuthUserIdForStorage(userId);
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
     });

@@ -105,17 +105,22 @@ export function printSpreadsheetTable(params: {
   if (!html || !head || !body) return;
   html.setAttribute('dir', 'rtl');
   html.setAttribute('lang', 'ar');
-  head.innerHTML = `
-      <meta charset="UTF-8" />
-      <title>طلبات ${month}/${year}</title>
-      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:14px}p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:5px 6px;text-align:right;font-size:9px;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
-    `;
+  const metaCharset = doc.createElement('meta');
+  metaCharset.setAttribute('charset', 'UTF-8');
+  head.appendChild(metaCharset);
+  const docTitle = doc.createElement('title');
+  docTitle.textContent = `طلبات ${month}/${year}`;
+  head.appendChild(docTitle);
+  const styleEl = doc.createElement('style');
+  styleEl.textContent =
+    '*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:14px}p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:5px 6px;text-align:right;font-size:9px;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  head.appendChild(styleEl);
   const title = doc.createElement('h2');
   title.textContent = `طلبات شهر ${month}/${year}`;
   const subtitle = doc.createElement('p');
   subtitle.className = 'sub';
   subtitle.textContent = `المجموع: ${filteredEmployeeCount} مندوب — ${new Date().toLocaleDateString('ar-SA')}`;
-  body.innerHTML = '';
+  while (body.firstChild) body.removeChild(body.firstChild);
   body.appendChild(title);
   body.appendChild(subtitle);
   body.appendChild(tableEl.cloneNode(true));
